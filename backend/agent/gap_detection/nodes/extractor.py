@@ -13,7 +13,8 @@ import json
 import logging
 from typing import Any
 
-from backend.agent.gap_detection.settings import get_extractor_concurrency
+from backend.agent.gap_detection.gap_specter_store import upsert_papers
+from backend.agent.gap_detection.hyde import upsert_paper_to_nim_store
 from backend.agent.gap_detection.nodes.pdf_utils import (
     extract_relevant_sections,
     fetch_pdf_text,
@@ -24,12 +25,9 @@ from backend.agent.gap_detection.schemas import (
     GapDetectionState,
     PaperRef,
 )
-from backend.shared.models.paper import Paper
-from backend.agent.gap_detection.hyde import upsert_paper_to_nim_store
+from backend.agent.gap_detection.settings import get_extractor_concurrency
 from backend.shared.services.llm_client import chat_completion
 from backend.shared.services.semantic_scholar import get_embeddings_batch
-from backend.agent.gap_detection.gap_specter_store import upsert_papers
-
 
 logger = logging.getLogger(__name__)
 _ARXIV_SOURCE = "arxiv"
@@ -229,7 +227,7 @@ async def _process_one_paper(
                 vectors = await get_embeddings_batch([paper_ref.paper_id])
                 vec = vectors.get(paper_ref.paper_id)
                 if vec:
-                    upsert_papers([{
+                    await upsert_papers([{
                         "paper_id": paper_ref.paper_id,
                         "title": paper_ref.title,
                         "year": paper_ref.year,
@@ -237,7 +235,7 @@ async def _process_one_paper(
                     }])
             except Exception:
                 pass   # fire-and-forget, do not block extraction
-                
+
             try:
                 await upsert_paper_to_nim_store(
                     paper_ref.paper_id,

@@ -18,16 +18,14 @@ from __future__ import annotations
 import asyncio
 import logging
 
-
 from backend.agent.gap_detection import retrieval
-from backend.agent.gap_detection.graph import run_gap_detection
 from backend.agent.gap_detection.background_corpus import build_background_corpus
-from backend.agent.gap_detection.query_cleaner import clean_query
-from backend.agent.gap_detection.schemas import GapQuery, GapReport, PaperRef
+from backend.agent.gap_detection.graph import run_gap_detection
+from backend.agent.gap_detection.nodes.coherence_check import check_coherence
 from backend.agent.gap_detection.nodes.query_analyzer import analyze_query
 from backend.agent.gap_detection.nodes.relevance_gate import run_relevance_gate
-from backend.agent.gap_detection.nodes.coherence_check import check_coherence
-
+from backend.agent.gap_detection.query_cleaner import clean_query
+from backend.agent.gap_detection.schemas import GapQuery, GapReport, PaperRef
 from backend.agent.gap_detection.settings import (
     get_max_papers_for_gap,
     get_min_papers_cold_start,
@@ -89,7 +87,7 @@ async def cold_start(topic: str) -> GapReport:
 
         # Stage D — Coherence Gate: detect grab-bag corpus, warn if scattered
         if cold_start_papers:
-            coherence_result = check_coherence(cold_start_papers)
+            coherence_result = await check_coherence(cold_start_papers)
             cold_start_papers = coherence_result["papers"]
             _density_signal = coherence_result.get("density_signal") or {}
             _coverage = coherence_result.get("coverage")
@@ -160,10 +158,10 @@ async def cold_start(topic: str) -> GapReport:
 
     # ⑥ Map Paper → PaperRef and invoke the full LangGraph pipeline
     session_papers: list[PaperRef] = _papers_to_refs(top)
-    
+
     # Background corpus (fire-and-forget, không block detection)
     asyncio.create_task(build_background_corpus(clean or topic))
-    
+
     logger.info("cold_start: invoking run_gap_detection with %d papers", len(session_papers))
     return await run_gap_detection(
         session_papers,

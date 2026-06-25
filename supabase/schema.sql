@@ -875,3 +875,118 @@ ALTER TABLE public.search_cache ENABLE ROW LEVEL SECURITY;
 
 CREATE SCHEMA IF NOT EXISTS research_agent_checkpoints;
 CREATE SCHEMA IF NOT EXISTS pdf_agent_checkpoints;
+
+-- ============================================================================
+-- 17. GAP DETECTION VECTOR STORES (pgvector) — replaces gap_detection's
+-- in-memory ChromaDB EphemeralClient (gap_nim_store.py / gap_specter_store.py,
+-- 4096d NIM + 768d SPECTER2). Unlike paper_embeddings (§14, persistent shared
+-- cache across all sessions), these two tables are a SESSION-SCOPED candidate
+-- pool: cleared via clear_gap_*() RPC at the start of every gap-detection run
+-- (retrieval.py rank()) — matching the original EphemeralClient semantics
+-- 1:1 (single process-wide store, wiped each call; concurrent gap-detection
+-- runs already weren't isolated from each other before this migration either
+-- — that's a pre-existing limitation, not a regression).
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.gap_nim_embeddings (
+    paper_id TEXT PRIMARY KEY,
+    embedding VECTOR(4096),  -- NVIDIA nv-embed-v1 output dim
+    title TEXT NOT NULL DEFAULT '',
+    year INT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- No HNSW/IVFFlat index — pgvector caps indexed dimensions at 2000, and 4096 >
+-- that limit. Sequential scan is fine here: this table is a small,
+-- session-scoped candidate pool (cleared every retrieval.rank() call via
+-- clear_gap_nim_embeddings()), not a large persistent corpus like paper_embeddings.
+ALTER TABLE public.gap_nim_embeddings ENABLE ROW LEVEL SECURITY;
+-- No policy for anon/authenticated — only service_role reads/writes this table.
+
+CREATE TABLE IF NOT EXISTS public.gap_specter_embeddings (
+    paper_id TEXT PRIMARY KEY,
+    embedding VECTOR(768),  -- SPECTER2 embedding dim
+    title TEXT NOT NULL DEFAULT '',
+    year INT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_gap_specter_embeddings_hnsw
+    ON public.gap_specter_embeddings USING hnsw (embedding vector_cosine_ops);
+ALTER TABLE public.gap_specter_embeddings ENABLE ROW LEVEL SECURITY;
+-- No policy for anon/authenticated — only service_role reads/writes this table.
+
+-- 17a. Upserts (single-row, same RPC shape as upsert_paper_embedding §14).
+CREATE OR REPLACE FUNCTION public.upsert_gap_nim_embedding(
+    p_paper_id TEXT, p_embedding FLOAT8[], p_title TEXT, p_year INT
+) RETURNS VOID LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    INSERT INTO public.gap_nim_embeddings (paper_id, embedding, title, year)
+    VALUES (p_paper_id, p_embedding::vector, p_title, p_year)
+    ON CONFLICT (paper_id) DO UPDATE SET
+        embedding = EXCLUDED.embedding, title = EXCLUDED.title, year = EXCLUDED.year;
+$$;
+
+CREATE OR REPLACE FUNCTION public.upsert_gap_specter_embedding(
+    p_paper_id TEXT, p_embedding FLOAT8[], p_title TEXT, p_year INT
+) RETURNS VOID LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    INSERT INTO public.gap_specter_embeddings (paper_id, embedding, title, year)
+    VALUES (p_paper_id, p_embedding::vector, p_title, p_year)
+    ON CONFLICT (paper_id) DO UPDATE SET
+        embedding = EXCLUDED.embedding, title = EXCLUDED.title, year = EXCLUDED.year;
+$$;
+
+-- 17b. Nearest-neighbour match — returns cosine DISTANCE (not similarity),
+-- ascending = closer first, matching ChromaDB's "hnsw:space": "cosine"
+-- distance semantics that gap_nim_store.py/gap_specter_store.py already
+-- documented ("ascending distance = closer").
+CREATE OR REPLACE FUNCTION public.match_gap_nim_papers(
+    query_embedding FLOAT8[], match_count INT
+) RETURNS TABLE(paper_id TEXT, distance FLOAT8)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT paper_id, embedding <=> query_embedding::vector AS distance
+    FROM public.gap_nim_embeddings
+    ORDER BY embedding <=> query_embedding::vector
+    LIMIT match_count;
+$$;
+
+CREATE OR REPLACE FUNCTION public.match_gap_specter_papers(
+    query_embedding FLOAT8[], match_count INT
+) RETURNS TABLE(paper_id TEXT, distance FLOAT8)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT paper_id, embedding <=> query_embedding::vector AS distance
+    FROM public.gap_specter_embeddings
+    ORDER BY embedding <=> query_embedding::vector
+    LIMIT match_count;
+$$;
+
+-- 17c. Get specific vectors by id (coherence_check.py's _get_specter_vectors
+-- — needs the raw float arrays back, not a similarity search). PostgREST
+-- can't cast `vector` to JSON cleanly, so cast explicitly inside SQL.
+-- pgvector only registers a cast to real[] (float4[]), not float8[]/double
+-- precision[] — cast to real[] here (JSON/PostgREST serializes either the
+-- same way; float4 precision is plenty for cosine similarity comparisons).
+CREATE OR REPLACE FUNCTION public.get_gap_specter_embeddings_by_ids(
+    p_paper_ids TEXT[]
+) RETURNS TABLE(paper_id TEXT, embedding REAL[])
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT paper_id, embedding::real[] FROM public.gap_specter_embeddings
+    WHERE paper_id = ANY(p_paper_ids);
+$$;
+
+-- 17d. Clear (truncate) — mirrors EphemeralClient.delete_collection() called
+-- at the start of every retrieval.rank() invocation.
+CREATE OR REPLACE FUNCTION public.clear_gap_nim_embeddings()
+RETURNS VOID LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    DELETE FROM public.gap_nim_embeddings;
+$$;
+
+CREATE OR REPLACE FUNCTION public.clear_gap_specter_embeddings()
+RETURNS VOID LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    DELETE FROM public.gap_specter_embeddings;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.upsert_gap_nim_embedding(TEXT, FLOAT8[], TEXT, INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.upsert_gap_specter_embedding(TEXT, FLOAT8[], TEXT, INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.match_gap_nim_papers(FLOAT8[], INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.match_gap_specter_papers(FLOAT8[], INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_gap_specter_embeddings_by_ids(TEXT[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.clear_gap_nim_embeddings() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.clear_gap_specter_embeddings() FROM PUBLIC;

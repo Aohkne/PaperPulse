@@ -34,17 +34,17 @@ import math
 import re
 from datetime import datetime
 
+from backend.agent.gap_detection.gap_nim_store import (
+    clear_nim_collection,
+    query_by_vector_nim,
+)
 from backend.agent.gap_detection.gap_specter_store import (
     clear_collection,
     upsert_papers,
 )
-from backend.agent.gap_detection.gap_nim_store import (
-    clear_nim_collection,
-    query_by_vector_nim,
-    upsert_papers_nim,
-)
 from backend.agent.gap_detection.hyde import generate_hyde_vector_nim, upsert_paper_to_nim_store
 from backend.agent.gap_detection.schemas import CanonicalPaper, CorpusRole
+from backend.agent.gap_detection.services.snowball import run_snowball, select_seeds
 from backend.agent.gap_detection.settings import (
     get_arxiv_search_limit,
     get_default_fields_of_study,
@@ -56,7 +56,6 @@ from backend.agent.gap_detection.source_resolution import RawRecord, resolve_pap
 from backend.shared.models.paper import Paper
 from backend.shared.services.arxiv_fetcher import arxiv_search
 from backend.shared.services.semantic_scholar import get_embeddings_batch, search_papers
-from backend.agent.gap_detection.services.snowball import run_snowball, select_seeds
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +293,7 @@ async def rank(clean_query: str, papers: list[Paper], top_k: int) -> list[Paper]
         return []
 
     # ── SPECTER2: fetch + upsert into gap_specter_store (for future P2-07/P2-08) ──
-    clear_collection()  # reset SPECTER2 store (768d) each call
+    await clear_collection()  # reset SPECTER2 store (768d) each call
     try:
         paper_ids = [p.paper_id for p in valid if p.paper_id]
         specter_map: dict[str, list[float]] = await get_embeddings_batch(paper_ids)
@@ -308,7 +307,7 @@ async def rank(clean_query: str, papers: list[Paper], top_k: int) -> list[Paper]
                 }
                 for pid, vec in specter_map.items()
             ]
-            upsert_papers(specter_papers)  # gap_specter_store (768d)
+            await upsert_papers(specter_papers)  # gap_specter_store (768d)
             logger.info(
                 "retrieval.rank: upserted %d SPECTER2 vectors (768d, gap_specter_store)",
                 len(specter_papers),
@@ -317,7 +316,7 @@ async def rank(clean_query: str, papers: list[Paper], top_k: int) -> list[Paper]
         logger.warning("retrieval.rank: SPECTER2 fetch/upsert failed — continuing", exc_info=True)
 
     # ── NIM: embed paper abstracts + upsert into gap_nim_store (4096d) ──────────
-    clear_nim_collection()  # reset NIM store each call
+    await clear_nim_collection()  # reset NIM store each call
     _nim_sem = asyncio.Semaphore(get_nim_upsert_concurrency())
 
     async def _throttled_nim_upsert(paper_id: str, abstract: str, title: str, year: int) -> None:
@@ -354,7 +353,7 @@ async def rank(clean_query: str, papers: list[Paper], top_k: int) -> list[Paper]
     semantic_order: dict[str, int] = {}
     if hyde_vec is not None:
         try:
-            ranked_ids = query_by_vector_nim(hyde_vec, top_k=len(valid))  # gap_nim_store ✅
+            ranked_ids = await query_by_vector_nim(hyde_vec, top_k=len(valid))  # gap_nim_store ✅
             semantic_order = {pid: i for i, pid in enumerate(ranked_ids)}
         except Exception:
             logger.warning("retrieval.rank: NIM semantic query failed — BM25 fallback", exc_info=True)

@@ -24,13 +24,9 @@ dependencies = [
     "langchain-mcp-adapters>=0.3.0",
 
     # Vector DB & Search — pgvector lives in Supabase Postgres (see "Database"
-    # below) for research_agent's main vector store. gap_detection still uses
-    # ChromaDB's EphemeralClient (in-memory only, no persistent disk — see
-    # gap_nim_store.py/gap_specter_store.py) and was intentionally NOT migrated
-    # (non-persistent, so Cloud Run scale-to-zero doesn't lose anything it
-    # needs to keep). Removing this package breaks the app at import time —
-    # backend/api/__init__.py eagerly imports gap_detection's router.
-    "chromadb>=0.5.0",
+    # below) for both research_agent's main vector store AND gap_detection's
+    # NIM/SPECTER2 stores (gap_nim_store.py/gap_specter_store.py — migrated
+    # off ChromaDB's EphemeralClient); no separate vector DB client needed.
     "rank-bm25>=0.2.2",
 
     # Database

@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
+
 from backend.agent.gap_detection import retrieval
-from backend.shared.services.semantic_scholar import get_embeddings_batch
-from backend.agent.gap_detection.services.embedding import embed_text
 from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
 from backend.agent.gap_detection.gap_specter_store import upsert_papers
+from backend.agent.gap_detection.services.embedding import embed_text
 from backend.agent.gap_detection.settings import (
-    get_background_pool_size,
     get_background_batch_size,
-    get_specter_retry_max,
+    get_background_pool_size,
     get_specter_backoff_base,
+    get_specter_retry_max,
 )
+from backend.shared.services.semantic_scholar import get_embeddings_batch
 
 logger = logging.getLogger(__name__)
 
@@ -87,12 +88,12 @@ async def build_background_corpus(clean_query: str) -> int:
                 for p in batch if p.paper_id and vectors.get(p.paper_id)
             ]
             if papers_with_vec:
-                upsert_papers(papers_with_vec)
+                await upsert_papers(papers_with_vec)
                 upserted += len(papers_with_vec)
         except Exception:
             logger.warning(f"build_background_corpus: batch {i} failed, skipping", exc_info=True)
             continue   # batch fail → skip, tiếp batch sau
-            
+
         # Thêm NIM upsert (fire-and-forget per paper, không block batch):
         for p in batch:
             if not p.paper_id or not p.abstract:
@@ -100,7 +101,7 @@ async def build_background_corpus(clean_query: str) -> int:
             try:
                 nim_vec = await embed_text(p.abstract)
                 if nim_vec:
-                    upsert_papers_nim([{
+                    await upsert_papers_nim([{
                         "paper_id": p.paper_id,
                         "title": p.title or "",
                         "year": p.year or 0,
@@ -108,6 +109,6 @@ async def build_background_corpus(clean_query: str) -> int:
                     }])
             except Exception:
                 pass  # fire-and-forget, không crash batch
-            
+
     logger.info("build_background_corpus: upserted %d papers for query %r", upserted, clean_query[:80])
     return upserted

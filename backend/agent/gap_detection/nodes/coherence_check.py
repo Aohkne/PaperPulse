@@ -10,7 +10,8 @@ D-c: density_readiness — per-cell density for co-occurrence trustworthiness.
      is trusted only when both its method-row AND domain-column contain
      ≥ DENSITY_MIN_PAPERS papers.
 
-Pure sync — no async, no LLM, no embed calls.
+check_coherence() is async (fetches SPECTER2 vectors from Supabase pgvector
+via gap_specter_store.get_vectors_by_ids) — no LLM/embed calls though.
 All exceptions are caught internally: check_coherence() never raises.
 """
 
@@ -72,29 +73,20 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     return dot / (norm_a * norm_b)
 
 
-def _get_specter_vectors(papers: list[Paper]) -> dict[str, list[float]]:
+async def _get_specter_vectors(papers: list[Paper]) -> dict[str, list[float]]:
     """Fetch SPECTER2 vectors from gap_specter_store for the given papers.
 
     Returns an empty dict when the store is empty, the IDs are absent,
     or any exception occurs — coherence check then skips gracefully.
     """
     try:
-        from backend.agent.gap_detection.gap_specter_store import get_specter_collection
-
-        col = get_specter_collection()
-        if col.count() == 0:
-            return {}
+        from backend.agent.gap_detection.gap_specter_store import get_vectors_by_ids
 
         paper_ids = [p.paper_id for p in papers if p.paper_id]
         if not paper_ids:
             return {}
 
-        result = col.get(ids=paper_ids, include=["embeddings"])
-        vectors: dict[str, list[float]] = {}
-        for pid, emb in zip(result.get("ids", []), result.get("embeddings", []) or []):
-            if emb:
-                vectors[pid] = list(emb)
-        return vectors
+        return await get_vectors_by_ids(paper_ids)
     except Exception:
         logger.debug("coherence_check: could not fetch SPECTER2 vectors", exc_info=True)
         return {}
@@ -118,7 +110,7 @@ def _average_pairwise_similarity(vectors: list[list[float]]) -> float:
     return total / count if count > 0 else 1.0
 
 
-def check_coherence(papers: list[Paper]) -> dict:
+async def check_coherence(papers: list[Paper]) -> dict:
     """Check topical coherence of a paper corpus using SPECTER2 similarity.
 
     Also computes Stage D-b coverage estimate and D-c density readiness
@@ -145,7 +137,7 @@ def check_coherence(papers: list[Paper]) -> dict:
     - Any internal exception → coherent=True, warning=None (fail-safe).
     """
     try:
-        result = _check_coherence_impl(papers)
+        result = await _check_coherence_impl(papers)
         kept = result["papers"]
         result["density_signal"] = density_readiness(kept)
         result["coverage"] = coverage_estimate(kept, rounds=1)
@@ -161,12 +153,12 @@ def check_coherence(papers: list[Paper]) -> dict:
         }
 
 
-def _check_coherence_impl(papers: list[Paper]) -> dict:
+async def _check_coherence_impl(papers: list[Paper]) -> dict:
     """Core coherence logic (called by check_coherence with exception guard)."""
     if len(papers) < MIN_PAPERS_TO_CHECK:
         return {"coherent": True, "warning": None, "papers": papers}
 
-    vectors_dict = _get_specter_vectors(papers)
+    vectors_dict = await _get_specter_vectors(papers)
     if len(vectors_dict) < MIN_PAPERS_TO_CHECK:
         # Too few vectors to make a meaningful judgement → assume coherent.
         return {"coherent": True, "warning": None, "papers": papers}

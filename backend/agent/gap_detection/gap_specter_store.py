@@ -1,59 +1,53 @@
-"""gap_specter_store.py — Isolated ChromaDB store for gap-detection SPECTER2 vectors (TIP-P2-06).
+"""gap_specter_store.py — Supabase pgvector store for gap-detection SPECTER2 vectors (TIP-P2-06).
 
-Maintains a dedicated in-memory ChromaDB collection ``gap_papers_specter``
-(768-dim, cosine similarity) used exclusively by the gap-detection module.
+Maintains a dedicated table ``gap_specter_embeddings`` (768-dim, cosine
+distance) used exclusively by the gap-detection module.
 
 ISOLATION GUARANTEE:
-    This module is the ONLY place in ``gap_detection`` that touches ChromaDB.
-    It does NOT import or use ``services/vector_store.py`` — the existing
-    research-pipeline store.  The collection lives in a separate in-memory
-    client instance scoped to the gap module.
+    This module is the ONLY place in ``gap_detection`` that touches this
+    table. It does NOT import or use ``services/vector_store.py`` — the
+    existing research-pipeline store (different table, different dim).
 
-ChromaDB version: 1.5.9 (EphemeralClient / in-memory).
+Backed by Supabase Postgres (table ``gap_specter_embeddings``,
+supabase/schema.sql §17) via PostgREST/RPC — cùng convention với
+research_agent/services/vector_store.py. Migrated from ChromaDB's
+EphemeralClient (in-memory, process-scoped); semantics giữ nguyên 1:1 —
+``clear_collection()`` vẫn được gọi mỗi lần ``retrieval.rank()`` chạy để
+reset candidate pool, chỉ đổi storage backend.
 
 Usage pattern:
     1. ``upsert_papers(papers_with_vectors)`` — populate from SPECTER2 fetch.
     2. ``query_by_vector(hyde_vec, top_k)``   — semantic nearest-neighbour lookup.
-    3. ``clear_collection()``                 — for tests / session reset.
+    3. ``get_vectors_by_ids(paper_ids)``      — fetch specific vectors (coherence_check.py).
+    4. ``clear_collection()``                 — for tests / session reset.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
-import chromadb
+import httpx
+
+from backend.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-_COLLECTION_NAME = "gap_papers_specter"
 _DIM = 768  # SPECTER2 embedding dimensionality
-
-# Module-level singleton client + collection (in-memory, process-scoped).
-# Using EphemeralClient (in-memory) so we don't need a persistent directory
-# and avoid conflicts with any server-mode ChromaDB used elsewhere.
-_client: chromadb.EphemeralClient | None = None
-_collection: chromadb.Collection | None = None
+_UPSERT_CONCURRENCY = 10
 
 
-def _get_collection() -> chromadb.Collection:
-    """Return (and lazily create) the gap-papers ChromaDB collection."""
-    global _client, _collection
-    if _client is None:
-        _client = chromadb.EphemeralClient()
-    if _collection is None:
-        _collection = _client.get_or_create_collection(
-            name=_COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine", "dim": _DIM},
-        )
-    return _collection
+def _rest_headers() -> dict:
+    settings = get_settings()
+    key = settings.supabase_service_key or settings.supabase_key
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
 
 
-def get_specter_collection() -> chromadb.Collection:
-    """Public alias — returns the 768-dim cosine collection, creating if absent."""
-    return _get_collection()
-
-
-def upsert_papers(papers_with_vectors: list[dict]) -> int:
+async def upsert_papers(papers_with_vectors: list[dict]) -> int:
     """Upsert paper vectors into the gap SPECTER2 store.
 
     Args:
@@ -70,24 +64,35 @@ def upsert_papers(papers_with_vectors: list[dict]) -> int:
     if not valid:
         return 0
 
-    col = _get_collection()
-    ids = [p["paper_id"] for p in valid]
-    vectors = [p["vector"] for p in valid]
-    metas = [
-        {"title": str(p.get("title") or ""), "year": int(p.get("year") or 0)}
-        for p in valid
-    ]
+    settings = get_settings()
+    headers = _rest_headers()
+    url = f"{settings.supabase_url}/rest/v1/rpc/upsert_gap_specter_embedding"
+    sem = asyncio.Semaphore(_UPSERT_CONCURRENCY)
 
-    try:
-        col.upsert(ids=ids, embeddings=vectors, metadatas=metas)
-        logger.debug("gap_specter_store: upserted %d vectors", len(ids))
-        return len(ids)
-    except Exception:
-        logger.warning("gap_specter_store: upsert failed", exc_info=True)
-        return 0
+    async def _upsert_one(client: httpx.AsyncClient, p: dict) -> bool:
+        payload = {
+            "p_paper_id": p["paper_id"],
+            "p_embedding": p["vector"],
+            "p_title": str(p.get("title") or ""),
+            "p_year": int(p.get("year") or 0),
+        }
+        async with sem:
+            try:
+                res = await client.post(url, json=payload, headers=headers, timeout=30.0)
+                res.raise_for_status()
+                return True
+            except Exception:
+                logger.warning("gap_specter_store: upsert failed for paper_id=%s", p["paper_id"], exc_info=True)
+                return False
+
+    async with httpx.AsyncClient() as client:
+        results = await asyncio.gather(*[_upsert_one(client, p) for p in valid])
+    n = sum(results)
+    logger.debug("gap_specter_store: upserted %d/%d vectors", n, len(valid))
+    return n
 
 
-def query_by_vector(vector: list[float], top_k: int) -> list[str]:
+async def query_by_vector(vector: list[float], top_k: int) -> list[str]:
     """Query nearest neighbours by cosine similarity.
 
     Args:
@@ -95,32 +100,64 @@ def query_by_vector(vector: list[float], top_k: int) -> list[str]:
         top_k:  Maximum number of results to return.
 
     Returns:
-        List of ``paper_id`` strings ordered by descending cosine similarity.
-        Returns ``[]`` when the collection is empty or the query fails.
+        List of ``paper_id`` strings ordered by ascending cosine distance
+        (closest first). Returns ``[]`` when the store is empty or the query fails.
     """
-    col = _get_collection()
-    count = col.count()
-    if count == 0:
-        logger.debug("gap_specter_store.query_by_vector: collection is empty — returning []")
-        return []
-
-    n = min(top_k, count)
+    settings = get_settings()
     try:
-        results = col.query(query_embeddings=[vector], n_results=n)
-        ids = results.get("ids", [[]])[0]
-        return list(ids)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                f"{settings.supabase_url}/rest/v1/rpc/match_gap_specter_papers",
+                json={"query_embedding": vector, "match_count": top_k},
+                headers=_rest_headers(),
+                timeout=30.0,
+            )
+        res.raise_for_status()
+        return [r["paper_id"] for r in res.json()]
     except Exception:
         logger.warning("gap_specter_store: query_by_vector failed", exc_info=True)
         return []
 
 
-def clear_collection() -> None:
-    """Reset the in-memory collection (for tests and session refresh)."""
-    global _client, _collection
-    if _client is not None:
-        try:
-            _client.delete_collection(_COLLECTION_NAME)
-        except Exception:
-            pass
-    _collection = None
-    logger.debug("gap_specter_store: collection cleared")
+async def get_vectors_by_ids(paper_ids: list[str]) -> dict[str, list[float]]:
+    """Fetch stored SPECTER2 vectors for the given paper_ids.
+
+    Used by ``nodes/coherence_check.py`` to compute pairwise similarity —
+    replaces the old ``col.get(ids=..., include=["embeddings"])`` ChromaDB call.
+
+    Returns ``{}`` when the store is empty, ids absent, or on any failure —
+    callers treat that as "no vectors available, skip check gracefully".
+    """
+    if not paper_ids:
+        return {}
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                f"{settings.supabase_url}/rest/v1/rpc/get_gap_specter_embeddings_by_ids",
+                json={"p_paper_ids": paper_ids},
+                headers=_rest_headers(),
+                timeout=15.0,
+            )
+        res.raise_for_status()
+        return {row["paper_id"]: row["embedding"] for row in res.json() if row.get("embedding")}
+    except Exception:
+        logger.debug("gap_specter_store: get_vectors_by_ids failed", exc_info=True)
+        return {}
+
+
+async def clear_collection() -> None:
+    """Reset the SPECTER2 store (for tests and session refresh)."""
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                f"{settings.supabase_url}/rest/v1/rpc/clear_gap_specter_embeddings",
+                json={},
+                headers=_rest_headers(),
+                timeout=15.0,
+            )
+        res.raise_for_status()
+        logger.debug("gap_specter_store: collection cleared")
+    except Exception:
+        logger.warning("gap_specter_store: clear_collection failed", exc_info=True)

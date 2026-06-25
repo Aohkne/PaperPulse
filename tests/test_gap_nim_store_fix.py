@@ -1,7 +1,6 @@
 """Tests for TIP-P2-06-FIX — gap_nim_store + hyde NIM + retrieval dim-safe.
 
 AC Coverage:
-- gap_nim_store collection name = "gap_papers_nim" (NOT "gap_papers_specter")
 - gap_nim_store accepts 4096-dim vectors without DimensionError
 - upsert + query round-trip works correctly
 - empty collection → returns []
@@ -14,9 +13,9 @@ AC Coverage:
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -32,106 +31,104 @@ def _nim_vec(val: float = 0.1) -> list[float]:
     return [val] * 4096
 
 
-# ── FIX-A: gap_nim_store ──────────────────────────────────────────────────────
+# ── FIX-A: gap_nim_store (backed by tests/conftest.py's fake Supabase RPC) ──────
 
-class TestGapNimStore:
-    def setup_method(self):
-        """Reset NIM store before each test."""
-        from backend.agent.gap_detection import gap_nim_store
-        gap_nim_store.clear_nim_collection()
+def test_nim_dim_constant_is_4096():
+    """AC: _NIM_DIM = 4096 (not 768)."""
+    from backend.agent.gap_detection.gap_nim_store import _NIM_DIM
+    assert _NIM_DIM == 4096
 
-    def test_collection_name_is_nim(self):
-        """AC: collection name = 'gap_papers_nim'."""
-        from backend.agent.gap_detection.gap_nim_store import _COLLECTION_NAME
-        assert _COLLECTION_NAME == "gap_papers_nim"
 
-    def test_nim_dim_constant_is_4096(self):
-        """AC: _NIM_DIM = 4096 (not 768)."""
-        from backend.agent.gap_detection.gap_nim_store import _NIM_DIM
-        assert _NIM_DIM == 4096
+@pytest.mark.asyncio
+async def test_upsert_4096dim_does_not_crash(fake_gap_nim_store):
+    """AC: upsert vector len=4096 → no DimensionError."""
+    from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
+    papers = [
+        {"paper_id": "p0", "title": "T0", "year": 2023, "vector": _nim_vec(0.1)},
+        {"paper_id": "p1", "title": "T1", "year": 2022, "vector": _nim_vec(0.5)},
+        {"paper_id": "p2", "title": "T2", "year": 2024, "vector": _nim_vec(0.9)},
+    ]
+    count = await upsert_papers_nim(papers)
+    assert count == 3
 
-    def test_collection_name_differs_from_specter(self):
-        """AC: NIM and SPECTER2 stores use different collection names."""
-        from backend.agent.gap_detection.gap_nim_store import _COLLECTION_NAME as nim_name
-        from backend.agent.gap_detection.gap_specter_store import _COLLECTION_NAME as specter_name
-        assert nim_name != specter_name
-        assert nim_name == "gap_papers_nim"
-        assert specter_name == "gap_papers_specter"
 
-    def test_upsert_4096dim_does_not_crash(self):
-        """AC: upsert vector len=4096 → no DimensionError."""
-        from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
-        papers = [
-            {"paper_id": "p0", "title": "T0", "year": 2023, "vector": _nim_vec(0.1)},
-            {"paper_id": "p1", "title": "T1", "year": 2022, "vector": _nim_vec(0.5)},
-            {"paper_id": "p2", "title": "T2", "year": 2024, "vector": _nim_vec(0.9)},
-        ]
-        count = upsert_papers_nim(papers)
-        assert count == 3
+@pytest.mark.asyncio
+async def test_query_by_vector_nim_returns_ids(fake_gap_nim_store):
+    """AC: upsert 3 papers → query top_k=2 returns ≤2 paper_ids."""
+    from backend.agent.gap_detection.gap_nim_store import query_by_vector_nim, upsert_papers_nim
+    papers = [
+        {"paper_id": f"p{i}", "title": f"T{i}", "year": 2020 + i, "vector": _nim_vec(i * 0.1 + 0.01)}
+        for i in range(3)
+    ]
+    await upsert_papers_nim(papers)
+    result = await query_by_vector_nim(_nim_vec(0.5), top_k=2)
+    assert isinstance(result, list)
+    assert len(result) <= 2
+    assert all(isinstance(r, str) for r in result)
 
-    def test_query_by_vector_nim_returns_ids(self):
-        """AC: upsert 3 papers → query top_k=2 returns ≤2 paper_ids."""
-        from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim, query_by_vector_nim
-        papers = [
-            {"paper_id": f"p{i}", "title": f"T{i}", "year": 2020 + i, "vector": _nim_vec(i * 0.1 + 0.01)}
-            for i in range(3)
-        ]
-        upsert_papers_nim(papers)
-        result = query_by_vector_nim(_nim_vec(0.5), top_k=2)
-        assert isinstance(result, list)
-        assert len(result) <= 2
-        assert all(isinstance(r, str) for r in result)
 
-    def test_query_empty_collection_returns_empty_list(self):
-        """AC: collection rỗng → query trả [], KHÔNG raise."""
-        from backend.agent.gap_detection.gap_nim_store import query_by_vector_nim
-        result = query_by_vector_nim(_nim_vec(0.1), top_k=5)
-        assert result == []
+@pytest.mark.asyncio
+async def test_query_empty_collection_returns_empty_list(fake_gap_nim_store):
+    """AC: collection rỗng → query trả [], KHÔNG raise."""
+    from backend.agent.gap_detection.gap_nim_store import query_by_vector_nim
+    result = await query_by_vector_nim(_nim_vec(0.1), top_k=5)
+    assert result == []
 
-    def test_query_with_distances_nim_round_trip(self):
-        """query_with_distances_nim returns (paper_id, distance) pairs."""
-        from backend.agent.gap_detection.gap_nim_store import (
-            upsert_papers_nim, query_with_distances_nim,
-        )
-        papers = [
-            {"paper_id": "pa", "title": "A", "year": 2023, "vector": _nim_vec(0.2)},
-            {"paper_id": "pb", "title": "B", "year": 2022, "vector": _nim_vec(0.8)},
-        ]
-        upsert_papers_nim(papers)
-        results = query_with_distances_nim(_nim_vec(0.2), top_k=2)
-        assert len(results) == 2
-        for paper_id, dist in results:
-            assert isinstance(paper_id, str)
-            assert isinstance(dist, float)
 
-    def test_upsert_empty_list_does_not_crash(self):
-        """upsert_papers_nim([]) → 0, no crash."""
-        from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
-        count = upsert_papers_nim([])
-        assert count == 0
+@pytest.mark.asyncio
+async def test_query_with_distances_nim_round_trip(fake_gap_nim_store):
+    """query_with_distances_nim returns (paper_id, distance) pairs."""
+    from backend.agent.gap_detection.gap_nim_store import (
+        query_with_distances_nim,
+        upsert_papers_nim,
+    )
+    papers = [
+        {"paper_id": "pa", "title": "A", "year": 2023, "vector": _nim_vec(0.2)},
+        {"paper_id": "pb", "title": "B", "year": 2022, "vector": _nim_vec(0.8)},
+    ]
+    await upsert_papers_nim(papers)
+    results = await query_with_distances_nim(_nim_vec(0.2), top_k=2)
+    assert len(results) == 2
+    for paper_id, dist in results:
+        assert isinstance(paper_id, str)
+        assert isinstance(dist, float)
 
-    def test_upsert_skips_papers_without_vector(self):
-        """Papers with no vector are skipped silently."""
-        from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
-        papers = [
-            {"paper_id": "p_no_vec", "title": "T"},   # no "vector" key
-            {"paper_id": "p_ok", "title": "T2", "vector": _nim_vec()},
-        ]
-        count = upsert_papers_nim(papers)
-        assert count == 1
 
-    def test_clear_nim_collection_resets(self):
-        """clear_nim_collection() wipes all stored data."""
-        from backend.agent.gap_detection.gap_nim_store import (
-            upsert_papers_nim, query_by_vector_nim, clear_nim_collection,
-        )
-        upsert_papers_nim([{"paper_id": "p0", "vector": _nim_vec(), "title": "T", "year": 2023}])
-        result_before = query_by_vector_nim(_nim_vec(), top_k=5)
-        assert len(result_before) > 0
+@pytest.mark.asyncio
+async def test_upsert_empty_list_does_not_crash(fake_gap_nim_store):
+    """upsert_papers_nim([]) → 0, no crash."""
+    from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
+    count = await upsert_papers_nim([])
+    assert count == 0
 
-        clear_nim_collection()
-        result_after = query_by_vector_nim(_nim_vec(), top_k=5)
-        assert result_after == []
+
+@pytest.mark.asyncio
+async def test_upsert_skips_papers_without_vector(fake_gap_nim_store):
+    """Papers with no vector are skipped silently."""
+    from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
+    papers = [
+        {"paper_id": "p_no_vec", "title": "T"},   # no "vector" key
+        {"paper_id": "p_ok", "title": "T2", "vector": _nim_vec()},
+    ]
+    count = await upsert_papers_nim(papers)
+    assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_clear_nim_collection_resets(fake_gap_nim_store):
+    """clear_nim_collection() wipes all stored data."""
+    from backend.agent.gap_detection.gap_nim_store import (
+        clear_nim_collection,
+        query_by_vector_nim,
+        upsert_papers_nim,
+    )
+    await upsert_papers_nim([{"paper_id": "p0", "vector": _nim_vec(), "title": "T", "year": 2023}])
+    result_before = await query_by_vector_nim(_nim_vec(), top_k=5)
+    assert len(result_before) > 0
+
+    await clear_nim_collection()
+    result_after = await query_by_vector_nim(_nim_vec(), top_k=5)
+    assert result_after == []
 
 
 # ── FIX-B: hyde.py NIM functions ─────────────────────────────────────────────

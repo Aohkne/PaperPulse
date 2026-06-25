@@ -35,8 +35,8 @@ from __future__ import annotations
 import logging
 
 from backend.agent.gap_detection.gap_nim_store import upsert_papers_nim
-from backend.agent.gap_detection.settings import get_hyde_abstract_words
 from backend.agent.gap_detection.services.embedding import embed_text
+from backend.agent.gap_detection.settings import get_hyde_abstract_words
 from backend.shared.services.llm_client import chat_completion
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ async def upsert_paper_to_nim_store(
     try:
         vector = await embed_text(abstract.strip(), input_type="passage")
         if vector:
-            upsert_papers_nim([{
+            await upsert_papers_nim([{
                 "paper_id": paper_id,
                 "title": title,
                 "year": year,
