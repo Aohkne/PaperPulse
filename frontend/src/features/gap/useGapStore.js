@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { API_ENDPOINTS } from '@/shared/constant/endpoints';
 
 // warm-start disabled (Lưu ý 2) — re-enable later
 // import useResearchStore from '@/shared/store/useResearchStore';
@@ -29,7 +30,7 @@ const useGapStore = create((set) => ({
     set({ gapLoading: true, gapError: null, gapReport: null, gapNarrative: null });
 
     try {
-      const res = await fetch('/api/gap', {
+      const res = await fetch(API_ENDPOINTS.GAP.BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ topic: trimmed }),
@@ -62,7 +63,7 @@ const useGapStore = create((set) => ({
     set({ gapLoading: true, gapError: null, gapReport: null, gapNarrative: null, streamEvents: [] });
 
     try {
-      const res = await fetch(`/api/gap/stream?topic=${encodeURIComponent(trimmed)}`, {
+      const res = await fetch(`${API_ENDPOINTS.GAP.STREAM}?topic=${encodeURIComponent(trimmed)}`, {
         headers: { ...authHeader() },
       });
       if (!res.ok) {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { API_ENDPOINTS } from '@/shared/constant/endpoints';
 
 const authHeader = () => ({ Authorization: `Bearer ${useAuthStore.getState().token}` });
 
@@ -77,7 +78,7 @@ export const useChatStore = create((set, get) => ({
     }));
 
     try {
-      const res = await fetch('/api/research/stream', {
+      const res = await fetch(API_ENDPOINTS.RESEARCH.STREAM, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ query: trimmed }),
@@ -115,7 +116,7 @@ export const useChatStore = create((set, get) => ({
     }));
 
     try {
-      const res = await fetch('/api/research/resume', {
+      const res = await fetch(API_ENDPOINTS.RESEARCH.RESUME, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ thread_id: session.threadId, resume_value: plan }),
@@ -143,7 +144,7 @@ export const useChatStore = create((set, get) => ({
 
       const threadId = get().sessions.find((s) => s.id === activeId)?.threadId;
       if (!threadId) break;
-      response = await fetch('/api/research/resume', {
+      response = await fetch(API_ENDPOINTS.RESEARCH.RESUME, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ thread_id: threadId, resume_value: true }),

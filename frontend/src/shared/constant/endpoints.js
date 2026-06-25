@@ -15,9 +15,14 @@ export const API_ENDPOINTS = {
   RESEARCH: {
     STREAM: `${BASE_URL}/api/research/stream`,
     RESUME: `${BASE_URL}/api/research/resume`,
+    GRAPH: `${BASE_URL}/api/research/graph`,
   },
   SURVEY: {
     SEARCH: `${BASE_URL}/api/survey/search`,
+  },
+  GAP: {
+    BASE: `${BASE_URL}/api/gap`,
+    STREAM: `${BASE_URL}/api/gap/stream`,
   },
   REVIEWS: {
     BASE: `${BASE_URL}/api/reviews`,

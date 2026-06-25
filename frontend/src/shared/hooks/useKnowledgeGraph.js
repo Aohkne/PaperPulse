@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Graph from 'graphology';
+import { API_ENDPOINTS } from '@/shared/constant/endpoints';
 
 /**
  * useKnowledgeGraph — fetches the Step ⑨bis knowledge graph for a session
@@ -29,7 +30,7 @@ export function useKnowledgeGraph(threadId) {
     if (!threadId) return;
     let cancelled = false;
 
-    fetch(`/api/research/graph?thread_id=${encodeURIComponent(threadId)}`)
+    fetch(`${API_ENDPOINTS.RESEARCH.GRAPH}?thread_id=${encodeURIComponent(threadId)}`)
       .then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
