@@ -1,0 +1,118 @@
+[project]
+name = "paper-pulse"
+version = "0.1.0"
+description = "AI Assistant for Literature Review and Research Gap Detection"
+requires-python = ">=3.11"
+authors = [
+    {name = "Team C2-App-069"},
+]
+
+# Runtime dependencies
+dependencies = [
+    # Core web framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.28.0",
+
+    # AI / LangChain / LangGraph
+    "langchain>=0.3.0",
+    "langchain-openai>=0.3.0",
+    "langgraph>=0.2.0",
+    "langchain-mcp-adapters>=0.3.0",
+
+    # Vector DB & Search
+    "chromadb>=0.5.0",
+    "rank-bm25>=0.2.2",
+
+    # Database
+    "supabase>=2.3.0",
+
+    # Payment (PayOS — payment_SPEC_2.0.md)
+    "payos>=1.1.0",
+
+    # Search & HTTP
+    "aiohttp>=3.9.0",
+    "tavily-python>=0.5.0",
+
+    # MCP (Model Context Protocol)
+    "mcp>=1.0.0",
+
+    # PDF parsing (gap-detection full-text extraction)
+    "pymupdf>=1.25.0",
+
+    # PDF generation (review export)
+    "fpdf2>=2.7.0",
+
+    # Research pipeline v2 additions
+    "rapidfuzz>=3.0.0",       # cross-source title fuzzy dedup
+    "arxiv>=2.1.0",           # arXiv keyword search client
+    "jinja2>=3.1.0",          # LaTeX template rendering
+    "langgraph-checkpoint-sqlite>=2.0.0",  # persistent checkpointer (survives restarts)
+    "aiosqlite>=0.20.0",                   # async sqlite driver for the checkpointer
+    "networkx>=3.0",          # Knowledge Graph assembly (Step ⑨bis)
+    "python-slugify>=8.0",    # stable theme node ids for the Knowledge Graph
+
+    # Knowledge Graph (Step ⑨bis)
+    "networkx>=3.0",          # in-memory graph assembly (paper/theme/claim layers)
+    "python-slugify>=8.0.0",  # stable theme node ids ("theme:rag-efficiency")
+
+    # PDF Agent (pdf-agent_PLAN_2.0.md)
+    "pylatexenc>=2.10",       # .tex parsing (LatexWalker) — sections/citations/figures
+]
+
+# Optional / dev dependencies
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+# MinerU (pdf-agent_PLAN_2.0.md §1) — kept OUT of the base `dependencies` list:
+# requires Python >=3.10,<3.14 (this project's own `requires-python` has no upper
+# bound), needs multi-GB model weights (`mineru-models-download`, baked into the
+# Docker image — see Dockerfile), and is heavy (PaddleOCR/layout/formula models).
+# `services/mineru_client.py` shells out to the CLI binary (no Python import), and
+# `services/pdf_parser.py` (PyMuPDF) is the automatic fallback when this extra
+# isn't installed — so the base install stays light and Python-version-portable.
+#
+# `mineru[pipeline]`, NOT `mineru[all]` — `[all]` also pulls in the `vllm`/`mlx`/
+# `lmdeploy` extras (GPU VLM-backend serving stacks: vllm alone drags in torch+CUDA
+# packages) which this project never uses, since MINERU_DEVICE_MODE=cpu always
+# selects the `-b pipeline` backend. `[pipeline]` is the correct, much lighter
+# dependency set for that backend (confirmed against mineru's own pyproject.toml).
+mineru = [
+    "mineru[pipeline]>=2.0; python_version >= '3.10' and python_version < '3.14'",
+]
+
+[project.urls]
+repository = "https://github.com/AI20K-Build-Cohort-2/C2-App-069"
+
+# Build system
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+
+# Ruff (linting & formatting)
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# Pytest
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,779 @@
+-- ============================================================
+-- PaperPulse – Supabase schema
+-- Run on a fresh database (tables dropped manually beforehand).
+-- ============================================================
+
+
+-- 1. ENUM
+CREATE TYPE public.user_role AS ENUM ('admin', 'user');
+
+
+-- 2. profiles
+CREATE TABLE public.profiles (
+    id          UUID             PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email       TEXT             NOT NULL,
+    full_name   TEXT,
+    avatar_url  TEXT,
+    role        public.user_role NOT NULL DEFAULT 'user',
+    is_banned   BOOLEAN          NOT NULL DEFAULT false,
+    banned_at   TIMESTAMPTZ,
+    ban_reason  TEXT,
+    created_at  TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ      NOT NULL DEFAULT NOW()
+);
+
+
+-- 3. login_logs
+CREATE TABLE public.login_logs (
+    id           BIGSERIAL   PRIMARY KEY,
+    user_id      UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    email        TEXT        NOT NULL,
+    event_type   TEXT        NOT NULL DEFAULT 'login',
+    logged_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ip_address   TEXT
+);
+
+
+-- 4. reviews
+-- source_type/content_format/pending_annotations support PDF Agent (pdf-agent_SPEC_2.0.md
+-- Step P6) — 'uploaded' reviews come from PDF Agent, 'generated' from Research Agent.
+-- query is nullable because an uploaded document has no original research query.
+CREATE TABLE public.reviews (
+    id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    title                TEXT        NOT NULL,
+    query                TEXT,
+    markdown_content     TEXT        NOT NULL,
+    source_type          TEXT        NOT NULL DEFAULT 'generated'
+                                     CHECK (source_type IN ('generated', 'uploaded')),
+    content_format       TEXT        NOT NULL DEFAULT 'markdown'
+                                     CHECK (content_format IN ('markdown', 'tex')),
+    pending_annotations  JSONB,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_reviews_user_created ON public.reviews (user_id, created_at DESC);
+CREATE INDEX idx_reviews_title_fts    ON public.reviews USING GIN (to_tsvector('english', title));
+
+
+-- 5. auto-update updated_at
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER profiles_set_updated_at
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER reviews_set_updated_at
+    BEFORE UPDATE ON public.reviews
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+-- 6. auto-create profile on sign-up
+--    admin@gmail.com → role = 'admin', others → role = 'user'
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, full_name, role)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+        CASE WHEN NEW.email = 'admin@gmail.com' THEN 'admin'::public.user_role
+             ELSE 'user'::public.user_role END
+    );
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- 7. Grant permissions to authenticated role
+GRANT USAGE ON SCHEMA public TO authenticated, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles   TO authenticated;
+GRANT SELECT, INSERT                  ON public.login_logs TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE  ON public.reviews    TO authenticated;
+GRANT USAGE ON SEQUENCE public.login_logs_id_seq TO authenticated;
+
+
+-- 8. Row Level Security for reviews
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "reviews_select_own" ON public.reviews
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "reviews_insert_own" ON public.reviews
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "reviews_update_own" ON public.reviews
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "reviews_delete_own" ON public.reviews
+    FOR DELETE USING (auth.uid() = user_id);
+
+
+-- 9. chats
+CREATE TABLE IF NOT EXISTS public.chats (
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid        NOT NULL REFERENCES public.profiles(id)
+                         ON DELETE CASCADE,
+  title      text        NOT NULL DEFAULT 'New chat',
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chats_user_id
+  ON public.chats(user_id);
+
+DROP TRIGGER IF EXISTS chats_set_updated_at ON public.chats;
+CREATE TRIGGER chats_set_updated_at
+  BEFORE UPDATE ON public.chats
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON public.chats TO authenticated;
+
+ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "chats_all_own" ON public.chats
+  FOR ALL USING (
+    auth.uid() = user_id
+  );
+
+
+-- 10. messages
+CREATE TABLE IF NOT EXISTS public.messages (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id        uuid        NOT NULL REFERENCES public.chats(id)
+                             ON DELETE CASCADE,
+  role           text        NOT NULL
+                             CHECK (role IN ('user', 'assistant')),
+  content        text        NOT NULL,
+  papers_cited   jsonb       NOT NULL DEFAULT '[]',
+  verify_result  jsonb       NOT NULL DEFAULT '{}',
+  snowball_meta  jsonb       NOT NULL DEFAULT '{}',
+  created_at     timestamptz NOT NULL DEFAULT NOW()
+);
+-- Không có updated_at — messages là immutable sau khi tạo
+-- papers_cited  : [{id, title, doi, url, year, authors:[]}]
+-- verify_result : {status, claims:[{text,verdict,source_excerpt}]}
+-- snowball_meta : {backward:[{id,title,doi}], forward:[{id,title,doi}]}
+
+CREATE INDEX IF NOT EXISTS idx_messages_chat_id
+  ON public.messages(chat_id);
+
+GRANT SELECT, INSERT
+  ON public.messages TO authenticated;
+-- UPDATE/DELETE không cần — messages là immutable
+
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "messages_all_own_chat" ON public.messages
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.chats
+      WHERE chats.id    = messages.chat_id
+        AND chats.user_id = auth.uid()
+    )
+  );
+
+
+-- 11. notifications
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid        NOT NULL REFERENCES public.profiles(id)
+                         ON DELETE CASCADE,
+  type       text        NOT NULL
+                         CHECK (type IN ('new_paper', 'system')),
+  content    text        NOT NULL,
+  paper_ref  jsonb       NOT NULL DEFAULT '{}',
+  is_read    boolean     NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT NOW()
+);
+-- paper_ref shape: {id, title, doi, url, abstract_snippet, year}
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+  ON public.notifications(user_id)
+  WHERE is_read = false;
+
+GRANT SELECT, UPDATE
+  ON public.notifications TO authenticated;
+-- INSERT chỉ từ service role (backend) — không GRANT cho authenticated
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "notifications_select_own" ON public.notifications
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "notifications_update_own" ON public.notifications
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "notifications_insert_service" ON public.notifications
+  FOR INSERT WITH CHECK (true);
+
+
+-- 12. Đồng kiến tạo (Community Feedback) — normal_feature_SPEC_2.0.md.
+-- 12a extends profiles RLS (needed before 12b, since contributions/votes'
+-- policies reference profiles.role for admin checks).
+
+-- 12a. RLS trên profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Cần thấy full_name/avatar_url của người khác cho leaderboard/contribution list
+CREATE POLICY "profiles_select_all" ON public.profiles
+    FOR SELECT USING (true);
+
+CREATE POLICY "profiles_update_own" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+-- Chặn user tự nâng role hoặc tự unban — chỉ admin (qua SECURITY DEFINER) mới đổi được.
+-- Backend vẫn dùng service-role key (bypass RLS) cho ban/unban thật — trigger này là
+-- lớp phòng thủ thứ 2 nếu sau này có client gọi UPDATE profiles trực tiếp.
+CREATE OR REPLACE FUNCTION public.protect_privileged_profile_fields()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+    ) THEN
+        NEW.role       := OLD.role;
+        NEW.is_banned  := OLD.is_banned;
+        NEW.banned_at  := OLD.banned_at;
+        NEW.ban_reason := OLD.ban_reason;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER profiles_protect_privileged_fields
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.protect_privileged_profile_fields();
+
+
+-- 12b. contributions + contribution_votes
+CREATE TYPE public.contribution_status AS ENUM ('pending', 'approved', 'rejected');
+
+CREATE TABLE public.contributions (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id          UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    title            TEXT        NOT NULL,
+    content          TEXT        NOT NULL,                 -- markdown
+    review_id        UUID        REFERENCES public.reviews(id) ON DELETE SET NULL,  -- optional, gắn vào review đã lưu
+    status           public.contribution_status NOT NULL DEFAULT 'pending',
+    reviewed_by      UUID        REFERENCES auth.users(id),
+    reviewed_at      TIMESTAMPTZ,
+    rejection_reason TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_contributions_status_created ON public.contributions (status, created_at DESC);
+CREATE INDEX idx_contributions_user           ON public.contributions (user_id);
+
+CREATE TRIGGER contributions_set_updated_at
+    BEFORE UPDATE ON public.contributions
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.contribution_votes (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    contribution_id UUID        NOT NULL REFERENCES public.contributions(id) ON DELETE CASCADE,
+    user_id         UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (contribution_id, user_id)   -- 1 user chỉ vote 1 lần / contribution
+);
+
+CREATE INDEX idx_contribution_votes_contribution ON public.contribution_votes (contribution_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.contributions      TO authenticated;
+GRANT SELECT                        ON public.contributions      TO anon;
+GRANT SELECT, INSERT, DELETE        ON public.contribution_votes TO authenticated;
+
+ALTER TABLE public.contributions ENABLE ROW LEVEL SECURITY;
+
+-- Ai cũng xem được contribution đã approved; chủ + admin xem được cả pending/rejected
+CREATE POLICY "contributions_select" ON public.contributions
+    FOR SELECT USING (
+        status = 'approved'
+        OR user_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    );
+
+-- User chưa bị ban mới được submit; luôn tạo ở status pending
+CREATE POLICY "contributions_insert" ON public.contributions
+    FOR INSERT WITH CHECK (
+        user_id = auth.uid()
+        AND NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_banned = true)
+    );
+
+-- Chủ chỉ sửa được khi còn pending (tránh sửa nội dung sau khi đã approved)
+CREATE POLICY "contributions_update_own_pending" ON public.contributions
+    FOR UPDATE USING (user_id = auth.uid() AND status = 'pending');
+
+-- Admin sửa được mọi lúc (để approve/reject)
+CREATE POLICY "contributions_update_admin" ON public.contributions
+    FOR UPDATE USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    );
+
+CREATE POLICY "contributions_delete" ON public.contributions
+    FOR DELETE USING (
+        user_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    );
+
+ALTER TABLE public.contribution_votes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "votes_select_all" ON public.contribution_votes
+    FOR SELECT USING (true);
+
+-- Chỉ vote được contribution đã approved, và chưa bị ban
+CREATE POLICY "votes_insert" ON public.contribution_votes
+    FOR INSERT WITH CHECK (
+        user_id = auth.uid()
+        AND NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_banned = true)
+        AND EXISTS (SELECT 1 FROM public.contributions WHERE id = contribution_id AND status = 'approved')
+    );
+
+CREATE POLICY "votes_delete_own" ON public.contribution_votes
+    FOR DELETE USING (user_id = auth.uid());
+
+-- Leaderboard (view, không cần bảng riêng — tính trực tiếp từ contributions + contribution_votes)
+CREATE OR REPLACE VIEW public.leaderboard AS
+SELECT
+    p.id  AS user_id,
+    p.full_name,
+    p.avatar_url,
+    COUNT(DISTINCT c.id) AS contributions_count,
+    COUNT(v.id)          AS total_votes
+FROM public.profiles p
+JOIN public.contributions c      ON c.user_id = p.id AND c.status = 'approved'
+LEFT JOIN public.contribution_votes v ON v.contribution_id = c.id
+GROUP BY p.id, p.full_name, p.avatar_url
+ORDER BY total_votes DESC, contributions_count DESC;
+
+GRANT SELECT ON public.leaderboard TO authenticated, anon;
+
+
+-- 13. Payment / Billing (payment_SPEC_2.0.md). Implements: per-tier subscription
+-- quota (Free/Plus/Unlimited) across Literature Review / PDF Agent / Research
+-- Gap, prepaid top-up balances, atomic deduct-at-session-start with idempotent
+-- refunds, soft-cap tracking for Unlimited, and PayOS payment transactions.
+-- Period reset is done LAZILY inside billing_get_or_create_account() — there is
+-- no cron/job-runner in this repo, so every other function calls it first
+-- instead of relying on a scheduled reset.
+
+CREATE TYPE public.billing_tier AS ENUM ('free', 'plus', 'unlimited');
+
+-- 13a. billing_accounts
+CREATE TABLE public.billing_accounts (
+    user_id                 UUID            PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    tier                    public.billing_tier NOT NULL DEFAULT 'free',
+    tier_started_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    tier_period_end         TIMESTAMPTZ     NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
+    pending_downgrade_tier  public.billing_tier,
+    -- NULL = unlimited tier, no hard cap. Non-NULL = remaining quota this period.
+    subscription_lr_quota   INTEGER         DEFAULT 3,
+    subscription_pdf_quota  INTEGER         DEFAULT 5,
+    subscription_gap_quota  INTEGER         DEFAULT 3,
+    -- Prepaid, paid-for units — never reset by period rollover.
+    topup_lr_balance        INTEGER         NOT NULL DEFAULT 0,
+    topup_pdf_balance       INTEGER         NOT NULL DEFAULT 0,
+    topup_gap_balance       INTEGER         NOT NULL DEFAULT 0,
+    -- Counters since last period reset — drive "X/Y used" UI on capped tiers and
+    -- soft-cap comparison on Unlimited (80 LR / 150 PDF / 80 Gap, see billing_start_session).
+    lr_used_this_period     INTEGER         NOT NULL DEFAULT 0,
+    pdf_used_this_period    INTEGER         NOT NULL DEFAULT 0,
+    gap_used_this_period    INTEGER         NOT NULL DEFAULT 0,
+    created_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER billing_accounts_set_updated_at
+    BEFORE UPDATE ON public.billing_accounts
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+GRANT SELECT ON public.billing_accounts TO authenticated;
+-- INSERT/UPDATE only via SECURITY DEFINER functions / service role — no direct
+-- client writes, same convention as notifications.
+
+ALTER TABLE public.billing_accounts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "billing_accounts_select_own" ON public.billing_accounts
+    FOR SELECT USING (auth.uid() = user_id);
+
+
+-- 13b. payment_transactions — one row per PayOS checkout attempt
+CREATE TYPE public.payment_type AS ENUM ('subscription_upgrade', 'topup');
+CREATE TYPE public.payment_status AS ENUM ('pending', 'paid', 'cancelled', 'expired', 'failed');
+
+-- Seeded from wall-clock time (not a fixed literal) so that re-running this
+-- script after reset.sql never reissues order codes PayOS has already seen
+-- from a prior dev/test cycle — PayOS's own uniqueness check is permanent
+-- and survives our local DB being wiped.
+CREATE SEQUENCE public.payos_order_code_seq START 100000;
+SELECT setval('public.payos_order_code_seq', GREATEST(100000, floor(extract(epoch FROM now()))::bigint));
+
+CREATE TABLE public.payment_transactions (
+    id                   UUID                PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID                NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    type                 public.payment_type NOT NULL,
+    tier                 public.billing_tier,           -- set when type = subscription_upgrade
+    topup_pack           TEXT,                          -- set when type = topup ('pdf_5'|'lr_5'|'gap_5'|'combo')
+    amount_vnd           INTEGER             NOT NULL,
+    payos_order_code     BIGINT              NOT NULL UNIQUE,
+    payos_payment_link_id TEXT,
+    status               public.payment_status NOT NULL DEFAULT 'pending',
+    paid_at              TIMESTAMPTZ,
+    applied_at           TIMESTAMPTZ,                   -- idempotency guard for billing_apply_payment
+    created_at           TIMESTAMPTZ         NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payment_transactions_user    ON public.payment_transactions (user_id, created_at DESC);
+CREATE INDEX idx_payment_transactions_order   ON public.payment_transactions (payos_order_code);
+
+GRANT SELECT ON public.payment_transactions TO authenticated;
+
+ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "payment_transactions_select_own" ON public.payment_transactions
+    FOR SELECT USING (auth.uid() = user_id);
+
+
+-- 13c. quota_ledger — audit trail of every deduction/refund, also the
+-- idempotency source-of-truth for refunds (one session_start row per session_id)
+CREATE TABLE public.quota_ledger (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    feature     TEXT        NOT NULL CHECK (feature IN ('lr', 'pdf', 'gap')),
+    delta       INTEGER     NOT NULL,
+    source      TEXT        NOT NULL CHECK (source IN ('subscription', 'topup')),
+    session_id  TEXT        NOT NULL,
+    reason      TEXT        NOT NULL CHECK (reason IN (
+                    'session_start', 'system_error_refund', 'topup_purchase',
+                    'subscription_reset', 'upgrade_carryover'
+                )),
+    refunded    BOOLEAN     NOT NULL DEFAULT false,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_quota_ledger_session ON public.quota_ledger (session_id, feature, reason);
+CREATE INDEX idx_quota_ledger_user    ON public.quota_ledger (user_id, created_at DESC);
+
+GRANT SELECT ON public.quota_ledger TO authenticated;
+
+ALTER TABLE public.quota_ledger ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "quota_ledger_select_own" ON public.quota_ledger
+    FOR SELECT USING (auth.uid() = user_id);
+
+
+-- 13d. billing_get_or_create_account — lazy init + lazy period reset.
+-- Every other billing_* function calls this first, so a separate cron job is
+-- not needed to roll quotas over at renewal.
+CREATE OR REPLACE FUNCTION public.billing_get_or_create_account(p_user_id UUID)
+RETURNS public.billing_accounts LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    acct public.billing_accounts;
+    effective_tier public.billing_tier;
+BEGIN
+    INSERT INTO public.billing_accounts (user_id)
+    VALUES (p_user_id)
+    ON CONFLICT (user_id) DO NOTHING;
+
+    SELECT * INTO acct FROM public.billing_accounts WHERE user_id = p_user_id FOR UPDATE;
+
+    IF acct.tier_period_end < NOW() THEN
+        effective_tier := COALESCE(acct.pending_downgrade_tier, acct.tier);
+
+        UPDATE public.billing_accounts SET
+            tier = effective_tier,
+            tier_started_at = NOW(),
+            tier_period_end = NOW() + INTERVAL '30 days',
+            pending_downgrade_tier = NULL,
+            subscription_lr_quota = CASE effective_tier
+                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
+            subscription_pdf_quota = CASE effective_tier
+                WHEN 'free' THEN 5 WHEN 'plus' THEN 10 WHEN 'unlimited' THEN NULL END,
+            subscription_gap_quota = CASE effective_tier
+                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
+            lr_used_this_period = 0,
+            pdf_used_this_period = 0,
+            gap_used_this_period = 0
+        WHERE user_id = p_user_id
+        RETURNING * INTO acct;
+    END IF;
+
+    RETURN acct;
+END;
+$$;
+
+
+-- 13e. billing_start_session — atomic deduct-at-session-start (subscription
+-- quota first, then topup balance), raises QUOTA_EXCEEDED if both are
+-- exhausted. Unlimited tier (quota column NULL) is never blocked, only logged
+-- via soft_cap_hit for the caller to log+alert on (MVP per spec — no auto-throttle).
+CREATE OR REPLACE FUNCTION public.billing_start_session(
+    p_user_id UUID, p_feature TEXT, p_session_id TEXT
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    acct public.billing_accounts;
+    v_source TEXT;
+    v_soft_cap_hit BOOLEAN := false;
+BEGIN
+    IF p_feature NOT IN ('lr', 'pdf', 'gap') THEN
+        RAISE EXCEPTION 'INVALID_FEATURE';
+    END IF;
+
+    PERFORM public.billing_get_or_create_account(p_user_id);
+    SELECT * INTO acct FROM public.billing_accounts WHERE user_id = p_user_id FOR UPDATE;
+
+    IF p_feature = 'lr' THEN
+        IF acct.subscription_lr_quota IS NULL THEN
+            v_source := 'subscription';
+            UPDATE public.billing_accounts SET lr_used_this_period = lr_used_this_period + 1
+                WHERE user_id = p_user_id RETURNING lr_used_this_period INTO acct.lr_used_this_period;
+            v_soft_cap_hit := acct.lr_used_this_period > 80;
+        ELSIF acct.subscription_lr_quota > 0 THEN
+            v_source := 'subscription';
+            UPDATE public.billing_accounts SET
+                subscription_lr_quota = subscription_lr_quota - 1,
+                lr_used_this_period = lr_used_this_period + 1
+                WHERE user_id = p_user_id;
+        ELSIF acct.topup_lr_balance > 0 THEN
+            v_source := 'topup';
+            UPDATE public.billing_accounts SET
+                topup_lr_balance = topup_lr_balance - 1,
+                lr_used_this_period = lr_used_this_period + 1
+                WHERE user_id = p_user_id;
+        ELSE
+            RAISE EXCEPTION 'QUOTA_EXCEEDED';
+        END IF;
+    ELSIF p_feature = 'pdf' THEN
+        IF acct.subscription_pdf_quota IS NULL THEN
+            v_source := 'subscription';
+            UPDATE public.billing_accounts SET pdf_used_this_period = pdf_used_this_period + 1
+                WHERE user_id = p_user_id RETURNING pdf_used_this_period INTO acct.pdf_used_this_period;
+            v_soft_cap_hit := acct.pdf_used_this_period > 150;
+        ELSIF acct.subscription_pdf_quota > 0 THEN
+            v_source := 'subscription';
+            UPDATE public.billing_accounts SET
+                subscription_pdf_quota = subscription_pdf_quota - 1,
+                pdf_used_this_period = pdf_used_this_period + 1
+                WHERE user_id = p_user_id;
+        ELSIF acct.topup_pdf_balance > 0 THEN
+            v_source := 'topup';
+            UPDATE public.billing_accounts SET
+                topup_pdf_balance = topup_pdf_balance - 1,
+                pdf_used_this_period = pdf_used_this_period + 1
+                WHERE user_id = p_user_id;
+        ELSE
+            RAISE EXCEPTION 'QUOTA_EXCEEDED';
+        END IF;
+    ELSE -- gap
+        IF acct.subscription_gap_quota IS NULL THEN
+            v_source := 'subscription';
+            UPDATE public.billing_accounts SET gap_used_this_period = gap_used_this_period + 1
+                WHERE user_id = p_user_id RETURNING gap_used_this_period INTO acct.gap_used_this_period;
+            v_soft_cap_hit := acct.gap_used_this_period > 80;
+        ELSIF acct.subscription_gap_quota > 0 THEN
+            v_source := 'subscription';
+            UPDATE public.billing_accounts SET
+                subscription_gap_quota = subscription_gap_quota - 1,
+                gap_used_this_period = gap_used_this_period + 1
+                WHERE user_id = p_user_id;
+        ELSIF acct.topup_gap_balance > 0 THEN
+            v_source := 'topup';
+            UPDATE public.billing_accounts SET
+                topup_gap_balance = topup_gap_balance - 1,
+                gap_used_this_period = gap_used_this_period + 1
+                WHERE user_id = p_user_id;
+        ELSE
+            RAISE EXCEPTION 'QUOTA_EXCEEDED';
+        END IF;
+    END IF;
+
+    INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
+    VALUES (p_user_id, p_feature, -1, v_source, p_session_id, 'session_start');
+
+    RETURN jsonb_build_object('source', v_source, 'soft_cap_hit', v_soft_cap_hit);
+END;
+$$;
+
+
+-- 13f. billing_refund_session — idempotent refund for system-error pipeline
+-- failures. No-op if the session was never deducted or already refunded
+-- (distinguishes "pipeline lỗi hệ thống" from "user bỏ giữa đường", per spec —
+-- the latter simply never calls this function at all).
+CREATE OR REPLACE FUNCTION public.billing_refund_session(
+    p_user_id UUID, p_feature TEXT, p_session_id TEXT
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    ledger_row public.quota_ledger;
+BEGIN
+    SELECT * INTO ledger_row FROM public.quota_ledger
+        WHERE session_id = p_session_id AND feature = p_feature
+          AND reason = 'session_start' AND refunded = false
+        FOR UPDATE;
+
+    IF ledger_row.id IS NULL THEN
+        RETURN jsonb_build_object('refunded', false, 'reason', 'not_found_or_already_refunded');
+    END IF;
+
+    PERFORM public.billing_get_or_create_account(p_user_id);
+
+    IF p_feature = 'lr' THEN
+        IF ledger_row.source = 'subscription' THEN
+            UPDATE public.billing_accounts SET subscription_lr_quota = subscription_lr_quota + 1
+                WHERE user_id = p_user_id AND subscription_lr_quota IS NOT NULL;
+        ELSE
+            UPDATE public.billing_accounts SET topup_lr_balance = topup_lr_balance + 1
+                WHERE user_id = p_user_id;
+        END IF;
+    ELSIF p_feature = 'pdf' THEN
+        IF ledger_row.source = 'subscription' THEN
+            UPDATE public.billing_accounts SET subscription_pdf_quota = subscription_pdf_quota + 1
+                WHERE user_id = p_user_id AND subscription_pdf_quota IS NOT NULL;
+        ELSE
+            UPDATE public.billing_accounts SET topup_pdf_balance = topup_pdf_balance + 1
+                WHERE user_id = p_user_id;
+        END IF;
+    ELSE -- gap
+        IF ledger_row.source = 'subscription' THEN
+            UPDATE public.billing_accounts SET subscription_gap_quota = subscription_gap_quota + 1
+                WHERE user_id = p_user_id AND subscription_gap_quota IS NOT NULL;
+        ELSE
+            UPDATE public.billing_accounts SET topup_gap_balance = topup_gap_balance + 1
+                WHERE user_id = p_user_id;
+        END IF;
+    END IF;
+
+    UPDATE public.quota_ledger SET refunded = true WHERE id = ledger_row.id;
+
+    INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
+    VALUES (p_user_id, p_feature, 1, ledger_row.source, p_session_id, 'system_error_refund');
+
+    RETURN jsonb_build_object('refunded', true, 'source', ledger_row.source);
+END;
+$$;
+
+
+-- 13g. billing_apply_payment — apply a PAID transaction's effect. Idempotent
+-- via applied_at — a re-delivered webhook is a safe no-op.
+CREATE OR REPLACE FUNCTION public.billing_apply_payment(p_transaction_id UUID)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    txn public.payment_transactions;
+    acct public.billing_accounts;
+BEGIN
+    SELECT * INTO txn FROM public.payment_transactions WHERE id = p_transaction_id FOR UPDATE;
+
+    IF txn.id IS NULL THEN
+        RAISE EXCEPTION 'TRANSACTION_NOT_FOUND';
+    END IF;
+
+    IF txn.applied_at IS NOT NULL THEN
+        RETURN jsonb_build_object('applied', false, 'reason', 'already_applied');
+    END IF;
+
+    IF txn.status != 'paid' THEN
+        RAISE EXCEPTION 'TRANSACTION_NOT_PAID';
+    END IF;
+
+    PERFORM public.billing_get_or_create_account(txn.user_id);
+
+    IF txn.type = 'topup' THEN
+        IF txn.topup_pack = 'pdf_5' THEN
+            UPDATE public.billing_accounts SET topup_pdf_balance = topup_pdf_balance + 5 WHERE user_id = txn.user_id;
+        ELSIF txn.topup_pack = 'lr_5' THEN
+            UPDATE public.billing_accounts SET topup_lr_balance = topup_lr_balance + 5 WHERE user_id = txn.user_id;
+        ELSIF txn.topup_pack = 'combo' THEN
+            UPDATE public.billing_accounts SET
+                topup_pdf_balance = topup_pdf_balance + 5,
+                topup_lr_balance = topup_lr_balance + 5
+                WHERE user_id = txn.user_id;
+        ELSIF txn.topup_pack = 'gap_5' THEN
+            UPDATE public.billing_accounts SET topup_gap_balance = topup_gap_balance + 5 WHERE user_id = txn.user_id;
+        ELSE
+            RAISE EXCEPTION 'UNKNOWN_TOPUP_PACK';
+        END IF;
+
+        INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
+        VALUES (txn.user_id, 'lr', 0, 'topup', txn.id::text, 'topup_purchase');
+
+    ELSIF txn.type = 'subscription_upgrade' THEN
+        SELECT * INTO acct FROM public.billing_accounts WHERE user_id = txn.user_id FOR UPDATE;
+
+        -- Carry over unused subscription quota 1:1 into topup balance before
+        -- resetting to the new tier's allowance (spec's upgrade-carryover rule).
+        UPDATE public.billing_accounts SET
+            topup_lr_balance = topup_lr_balance + COALESCE(acct.subscription_lr_quota, 0),
+            topup_pdf_balance = topup_pdf_balance + COALESCE(acct.subscription_pdf_quota, 0),
+            topup_gap_balance = topup_gap_balance + COALESCE(acct.subscription_gap_quota, 0),
+            tier = txn.tier,
+            tier_started_at = NOW(),
+            tier_period_end = NOW() + INTERVAL '30 days',
+            pending_downgrade_tier = NULL,
+            subscription_lr_quota = CASE txn.tier
+                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
+            subscription_pdf_quota = CASE txn.tier
+                WHEN 'free' THEN 5 WHEN 'plus' THEN 10 WHEN 'unlimited' THEN NULL END,
+            subscription_gap_quota = CASE txn.tier
+                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
+            lr_used_this_period = 0,
+            pdf_used_this_period = 0,
+            gap_used_this_period = 0
+            WHERE user_id = txn.user_id;
+
+        INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
+        VALUES (txn.user_id, 'lr', 0, 'subscription', txn.id::text, 'upgrade_carryover');
+    END IF;
+
+    UPDATE public.payment_transactions SET applied_at = NOW() WHERE id = p_transaction_id;
+
+    RETURN jsonb_build_object('applied', true);
+END;
+$$;
+
+
+-- 13h. billing_request_downgrade — no payment involved; defers to next
+-- renewal per spec (PayOS has no stored card to prorate/refund against).
+CREATE OR REPLACE FUNCTION public.billing_request_downgrade(p_user_id UUID, p_new_tier public.billing_tier)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+    PERFORM public.billing_get_or_create_account(p_user_id);
+    UPDATE public.billing_accounts SET pending_downgrade_tier = p_new_tier WHERE user_id = p_user_id;
+    RETURN jsonb_build_object('pending_downgrade_tier', p_new_tier);
+END;
+$$;
+
+-- 13i. next_payos_order_code — small wrapper so the backend can pull a fresh
+-- unique orderCode via PostgREST RPC without raw nextval() access.
+CREATE OR REPLACE FUNCTION public.next_payos_order_code()
+RETURNS BIGINT LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    SELECT nextval('public.payos_order_code_seq');
+$$;
+
+-- Postgres grants EXECUTE on new functions to PUBLIC by default (unlike
+-- tables) — explicitly revoke it. Every billing_* function takes p_user_id as
+-- a plain parameter (not derived from auth.uid()), so leaving the default
+-- PUBLIC grant in place would let any authenticated client call these via
+-- PostgREST RPC with an arbitrary p_user_id and manipulate ANY other user's
+-- billing_accounts row. These are called exclusively server-side via the
+-- service-role key (backend/module/payment/services/billing_db.py) — service_role
+-- keeps access through Supabase's own default-privilege grants, independent
+-- of this REVOKE.
+REVOKE EXECUTE ON FUNCTION public.billing_get_or_create_account(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.billing_start_session(UUID, TEXT, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.billing_refund_session(UUID, TEXT, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.billing_apply_payment(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.billing_request_downgrade(UUID, public.billing_tier) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.next_payos_order_code() FROM PUBLIC;

@@ -1,0 +1,553 @@
+{
+  "info": {
+    "name": "PaperPulse — API Collection (code thực tế)",
+    "_postman_id": "paperpulse-c2-app-069-v2",
+    "description": "Endpoints theo flow mới nhất (human-in-the-loop, 4 requests per test case).\nBase URL: http://localhost:8000\n\n⭐ FLOW CHÍNH:\nR1: POST /api/research/stream  {\"query\": \"...\", \"thread_id\": null}\n    → Interrupt 1: plan review → lấy thread_id từ response\nR2: POST /api/research/resume  {\"thread_id\": \"...\", \"resume_value\": true}\n    → Interrupt 2: outline approval\nR3: POST /api/research/resume  (same body)\n    → Interrupt 3: routing summary (informational)\nR4: POST /api/research/resume  (same body)\n    → {\"type\": \"done\"} = output thật sự\n\n⚠️ Lưu thread_id từ R1 vào Postman variable để dùng R2-R4.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "thread_id",
+      "value": "",
+      "type": "string",
+      "description": "Copy từ response R1 (POST /research/stream), dùng cho R2-R4"
+    }
+  ],
+  "item": [
+    {
+      "name": "🟢 Smoke Tests",
+      "item": [
+        {
+          "name": "SMOKE-01 — GET /health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "description": "PASS nếu: status 200 + {\"status\": \"ok\"}"
+          }
+        },
+        {
+          "name": "SMOKE-02 — POST /api/search",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/search",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"machine learning\",\n  \"limit\": 3\n}"
+            },
+            "description": "PASS nếu: status 200 + trả về list papers có paperId, title."
+          }
+        },
+        {
+          "name": "SMOKE-03 — POST /api/chat",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/chat",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"}\n  ]\n}"
+            },
+            "description": "PASS nếu: status 200 + response có field 'reply'."
+          }
+        },
+        {
+          "name": "SMOKE-04 — POST /api/research/stream (pipeline chính)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/research/stream",
+            "description": "⭐ Smoke test pipeline chính.\nChỉ cần R1 — PASS nếu nhận được Interrupt 1 (plan review) hoặc {\"type\": \"step\"} stream.\nFAIL nếu status 4xx/5xx hoặc {\"type\": \"error\"}.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"test\",\n  \"thread_id\": null\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⭐ Pipeline chính — 4-request flow",
+      "description": "Mỗi TC = 4 requests:\nR1: POST /research/stream (lấy thread_id + Interrupt 1)\nR2: POST /research/resume (Interrupt 2: outline)\nR3: POST /research/resume (Interrupt 3: routing)\nR4: POST /research/resume → {type:done}",
+      "item": [
+        {
+          "name": "TC-01 — Topic quá hẹp",
+          "item": [
+            {
+              "name": "[R1] TC-01 — Topic quá hẹp — POST /research/stream",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/stream",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"quantum graph neural networks for drug-target interaction using topological data analysis\",\n  \"thread_id\": null\n}"
+                },
+                "description": "[R1] Chủ đề quá hẹp. Verify step ②: copy paperId → mở semanticscholar.org/paper/{id}. PASS: tất cả ID tồn tại thật.\n\n⚠️ Sau khi nhận response → copy thread_id → lưu vào variable {{thread_id}}"
+              }
+            },
+            {
+              "name": "[R2] Resume → Interrupt 1: plan review",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R2] Interrupt 1: plan review\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R3] Resume → Interrupt 2: outline approval",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R3] Interrupt 2: outline approval\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R4] Resume → type:done (output thật sự)",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R4] Output thật sự. PASS nếu cuối stream có {\"type\": \"done\"}.\nFAIL nếu thấy {\"type\": \"error\"} hoặc response rỗng."
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-03 — Citation drift (RAG topic thường)",
+          "item": [
+            {
+              "name": "[R1] TC-03 — Citation drift (RAG topic thường) — POST /research/stream",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/stream",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"RAG for question answering\",\n  \"thread_id\": null\n}"
+                },
+                "description": "[R1] Citation drift + 3-tier verification. Quan sát step ⑧ → 'A:X B:Y C:Z', step ⑨ → 'X included · Y removed'.\n\n⚠️ Sau khi nhận response → copy thread_id → lưu vào variable {{thread_id}}"
+              }
+            },
+            {
+              "name": "[R2] Resume → Interrupt 1: plan review",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R2] Interrupt 1: plan review\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R3] Resume → Interrupt 2: outline approval",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R3] Interrupt 2: outline approval\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R4] Resume → type:done (output thật sự)",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R4] Output thật sự. PASS nếu cuối stream có {\"type\": \"done\"}.\nFAIL nếu thấy {\"type\": \"error\"} hoặc response rỗng."
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-04 — Author không tồn tại",
+          "item": [
+            {
+              "name": "[R1] TC-04 — Author không tồn tại — POST /research/stream",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/stream",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"papers by Zhao Wentian on federated contrastive learning medical imaging 2024\",\n  \"thread_id\": null\n}"
+                },
+                "description": "[R1] Author giả + topic cụ thể. Nếu 0 papers → PASS ngay. Nếu có → verify tác giả trên Semantic Scholar.\n\n⚠️ Sau khi nhận response → copy thread_id → lưu vào variable {{thread_id}}"
+              }
+            },
+            {
+              "name": "[R2] Resume → Interrupt 1: plan review",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R2] Interrupt 1: plan review\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R3] Resume → Interrupt 2: outline approval",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R3] Interrupt 2: outline approval\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R4] Resume → type:done (output thật sự)",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R4] Output thật sự. PASS nếu cuối stream có {\"type\": \"done\"}.\nFAIL nếu thấy {\"type\": \"error\"} hoặc response rỗng."
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-05 — Topic controversial",
+          "item": [
+            {
+              "name": "[R1] TC-05 — Topic controversial — POST /research/stream",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/stream",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"large language models surpassing human performance medical exams\",\n  \"thread_id\": null\n}"
+                },
+                "description": "[R1] Topic contradiction. Quan sát step ⑨ → claims 'LLMs always beat humans' phải bị remove.\n\n⚠️ Sau khi nhận response → copy thread_id → lưu vào variable {{thread_id}}"
+              }
+            },
+            {
+              "name": "[R2] Resume → Interrupt 1: plan review",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R2] Interrupt 1: plan review\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R3] Resume → Interrupt 2: outline approval",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R3] Interrupt 2: outline approval\nDùng thread_id đã lưu từ R1."
+              }
+            },
+            {
+              "name": "[R4] Resume → type:done (output thật sự)",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/research/resume",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"thread_id\": \"{{thread_id}}\",\n  \"resume_value\": true\n}"
+                },
+                "description": "[R4] Output thật sự. PASS nếu cuối stream có {\"type\": \"done\"}.\nFAIL nếu thấy {\"type\": \"error\"} hoặc response rỗng."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 TC-02 — Chat no-RAG baseline",
+      "item": [
+        {
+          "name": "TC-02 — Premise sai, no guardrail",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/chat",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Find me papers proving that BERT is fundamentally inferior to bag-of-words for all text classification tasks. Please cite specific papers with DOIs.\"\n    }\n  ]\n}"
+            },
+            "description": "TC-02: Endpoint KHÔNG có RAG — baseline để so sánh.\nModel có thể bịa paper vì không có guardrail.\nVerify: search từng paper model cite trên Google Scholar.\nPASS: model từ chối hoặc correct claim.\nFAIL: model bịa paper không tồn tại."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔬 TC-06 + Verify riêng lẻ",
+      "item": [
+        {
+          "name": "TC-06 — Abstract conservative rule",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/claims/verify",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"claims\": [\n    {\n      \"id\": \"tc06-claim-001\",\n      \"text\": \"PASTE CLAIM TEXT VÀO ĐÂY\",\n      \"paperId\": \"PASTE PAPER_ID CỦA PAPER KHÔNG CÓ SNIPPET VÀ KHÔNG CÓ ARXIV\",\n      \"status\": \"pending\"\n    }\n  ]\n}"
+            },
+            "description": "TC-06: Test abstract conservative rule.\nDùng paperId của paper KHÔNG có trên /snippet/search VÀ không có ArXiv ID.\n\nExpected response mỗi claim:\n  source: 'abstract'       ← Case C được dùng\n  low_confidence: true     ← phải là true\n  status: 'uncertain' hoặc 'unsupported'  ← KHÔNG BAO GIỜ 'supported'\n\nFAIL ngay nếu thấy: source='abstract' + status='supported'"
+          }
+        },
+        {
+          "name": "Verify 1 claim thủ công",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/claims/verify",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"claims\": [\n    {\n      \"id\": \"manual-001\",\n      \"text\": \"PASTE CLAIM TEXT TỪ BƯỚC EXTRACT\",\n      \"paperId\": \"PASTE PAPER_ID\",\n      \"status\": \"pending\"\n    }\n  ]\n}"
+            },
+            "description": "Dùng để verify 1 claim cụ thể từ pipeline.\nPaste claim text + paperId từ output của stream endpoint.\nCheck response: status, source, low_confidence, snippet (quote)."
+          }
+        },
+        {
+          "name": "Extract claims từ content",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/claims/extract",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"PASTE CONTENT CÓ (Source: PAPER_ID) VÀO ĐÂY\",\n  \"theme\": \"tên theme\"\n}"
+            },
+            "description": "Tách claims từ content đã generate.\nExpected: list claims [{text, paperId, status: 'pending', intent, source, low_confidence}]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Endpoints lẻ (debug)",
+      "item": [
+        {
+          "name": "POST /api/search",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/search",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"RAG for systematic literature review\",\n  \"limit\": 10\n}"
+            },
+            "description": "Chỉ step ①. Dùng để debug khi stream endpoint bị lỗi ở bước search."
+          }
+        },
+        {
+          "name": "POST /api/snowball",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/snowball",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paper_ids\": [\"PASTE_PAPER_ID_THẬT\"],\n  \"depth\": 1\n}"
+            },
+            "description": "Chỉ step ②bis. Thay paper_ids bằng ID thật từ /api/search."
+          }
+        },
+        {
+          "name": "POST /api/outline",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/outline",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"RAG for systematic literature review\",\n  \"top_k\": 20\n}"
+            },
+            "description": "Chỉ step ④.\nLưu ý: PLAN v1.0.1 nói /api/outline/generate nhưng code thực tế vẫn là /api/outline."
+          }
+        },
+        {
+          "name": "GET /api/review/export",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/review/export",
+            "description": "Chỉ step ⑩ — export review đã generate."
+          }
+        }
+      ]
+    }
+  ]
+}

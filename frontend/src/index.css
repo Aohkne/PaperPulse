@@ -1,0 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=Inknut+Antiqua:wght@400;500;600&family=Calistoga&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+@import "tailwindcss";
+
+/* Enable class-based dark mode: dark: utilities apply inside .dark */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-50: #fdf1ee;
+  --color-brand-100: #f5d5ce;
+  --color-brand-500: #BB6A57;
+  --color-brand-600: #793937;
+  --color-brand-700: #5e2c2c;
+
+  --color-paper-bg: #FFFCF0;
+  --color-paper-dark: #291100;
+  --color-paper-mid: #5A6B33;
+  --color-paper-light: #B5A23F;
+  --color-paper-surface: #EDE8D4;
+
+  --font-sans: "Inter", "Segoe UI", "Noto Sans", system-ui, -apple-system, Roboto, sans-serif;
+  --font-inknut: 'Inknut Antiqua', Georgia, serif;
+}
+
+/* Dark mode — same paper palette shifted for night reading */
+html.dark {
+  --color-paper-bg: #1F1F1E;
+  --color-paper-dark: #EDE8D4;
+  --color-paper-mid: #9BAD5A;
+  --color-paper-light: #CDBFAD;
+  --color-paper-surface: #403728;
+
+  /* Brand purple — lighter/softer for dark backgrounds */
+  --color-brand-50: #1e1033;
+  --color-brand-100: #2d1a5c;
+  --color-brand-500: #a370f5;
+  --color-brand-600: #9b6df5;
+  --color-brand-700: #8b5cf6;
+
+  /* Admin UI — dark mode, aligned with paper palette */
+  --color-admin-bg: #1F1F1E;
+  --color-admin-surface: #2e2618;
+  --color-admin-border: #5a4a37;
+  --color-admin-text: #EDE8D4;
+  --color-admin-mid: #9BAD5A;
+  --color-admin-muted: #CDBFAD;
+  --color-admin-input-bg: #1F1F1E;
+  --color-admin-accent: #a370f5;
+  --color-admin-accent-bg: #1e1033;
+  --color-admin-accent-text: #c4a0f8;
+  --color-admin-role-bg: #403728;
+  --color-admin-role-border: #2d1a5c;
+}
+
+/* Admin UI — light mode, aligned with paper palette */
+:root {
+  --color-admin-bg: #EDE8D4;
+  --color-admin-surface: #FFFCF0;
+  --color-admin-border: #d4c9a8;
+  --color-admin-text: #291100;
+  --color-admin-mid: #5A6B33;
+  --color-admin-muted: #8a9a6a;
+  --color-admin-input-bg: #FFFCF0;
+  --color-admin-accent: #8040e8;
+  --color-admin-accent-bg: #f3eeff;
+  --color-admin-accent-text: #6c27da;
+  --color-admin-role-bg: #EDE8D4;
+  --color-admin-role-border: #e0ccff;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-paper-bg);
+  color: var(--color-paper-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Rendered markdown inside assistant bubbles */
+.markdown-body h2 {
+  font-family: var(--font-inknut);
+  color: var(--color-paper-mid);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 10px 0 4px;
+  line-height: 1.4;
+}
+
+.markdown-body h3 {
+  font-family: var(--font-inknut);
+  color: var(--color-paper-mid);
+  font-size: 15px;
+  font-weight: 500;
+  margin: 8px 0 3px;
+}
+
+.markdown-body p {
+  color: var(--color-paper-mid);
+  font-family: Georgia, serif;
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 4px 0;
+}
+
+.markdown-body strong {
+  color: var(--color-paper-dark);
+  font-weight: 600;
+}
+
+.markdown-body em {
+  font-style: italic;
+}
+
+.markdown-body blockquote {
+  border-left: 2px solid var(--color-paper-light);
+  padding-left: 10px;
+  margin: 8px 0;
+  font-style: italic;
+}
+
+.markdown-body blockquote p {
+  margin: 0;
+}
+
+.markdown-body ul {
+  padding-left: 18px;
+  margin: 4px 0;
+}
+
+.markdown-body li {
+  color: var(--color-paper-mid);
+  font-family: Georgia, serif;
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 2px 0;
+}
+
+.markdown-body h2:first-child {
+  margin-top: 0;
+}

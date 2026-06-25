@@ -1,0 +1,36 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage[margin=1in]{geometry}
+
+\title{Document Review}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+{% for section in sections %}
+\section{ {{ section.title }} }
+
+{{ section.raw_latex }}
+
+{% endfor %}
+{% if leftover_figures %}
+\section{Figures}
+
+{% for fig in leftover_figures %}
+{{ fig.block }}
+
+{% endfor %}
+{% endif %}
+{% if bibliography %}
+\begin{thebibliography}{99}
+{% for entry in bibliography %}
+\bibitem{ {{ entry.key }} } {{ entry.raw_text }}
+{% endfor %}
+\end{thebibliography}
+{% endif %}
+\end{document}

@@ -1,0 +1,37 @@
+# Standalone `mineru-api` service — for local dev khi backend chạy NATIVE (không
+# Docker) và chỉ muốn MinerU's nặng deps (torch/paddle/onnxruntime, model weights)
+# sống cách ly trong container. Backend (chạy native) gọi qua HTTP — xem
+# `backend/module/pdf_agent/services/mineru_client.py`'s `run_mineru_http()`.
+#
+# Khác Dockerfile chính: không cần texlive (pdflatex chỉ backend dùng để mô tả
+# yêu cầu compile cho user, không tự gọi), không COPY toàn bộ repo — chỉ cần
+# package `mineru` + model weights.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgl1 libglib2.0-0 libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir "mineru[pipeline]>=2.0" six
+
+RUN groupadd -r appuser && useradd -r -m -g appuser appuser
+RUN mkdir -p /output && chown -R appuser:appuser /output /app
+USER appuser
+
+ENV MINERU_DEVICE_MODE=cpu \
+    MINERU_MODEL_SOURCE=huggingface \
+    MINERU_API_OUTPUT_ROOT=/output
+
+RUN mineru-models-download -s huggingface -m pipeline
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+CMD ["mineru-api", "--host", "0.0.0.0", "--port", "8000"]

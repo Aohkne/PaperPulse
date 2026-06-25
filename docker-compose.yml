@@ -1,0 +1,54 @@
+services:
+  # ============================================
+  # API Server — FastAPI + LangGraph (full container, production)
+  # ============================================
+  # MinerU (CLI subprocess, MINERU_MODE=cli) + ChromaDB (embedded,
+  # CHROMA_MODE=embedded) đều sống TRONG container này, đúng kiến trúc gốc.
+  # Cho local dev tách backend ra native + chỉ MinerU/ChromaDB riêng trong
+  # Docker, dùng `docker-compose.dev.yml` thay vì file này.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lit-surveyor-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - app-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - agent-network
+    deploy:
+      resources:
+        # Bump từ 512M/0.5 cpu — MinerU pipeline backend (PP-DocLayout + UniMERNet +
+        # PaddleOCR + table/formula recognition) load nhiều model vào RAM cùng lúc khi
+        # parse PDF, 512M không đủ (sẽ bị OOM-killed). Nếu không dùng MinerU (PDF Agent
+        # tự fallback PyMuPDF), có thể hạ lại mức cũ.
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 2G
+          cpus: "1.0"
+    restart: unless-stopped
+
+# ============================================
+# Named Volumes — Data persistence
+# ============================================
+volumes:
+  app-data:
+    driver: local
+
+# ============================================
+# Network — Cách ly các dịch vụ
+# ============================================
+networks:
+  agent-network:
+    driver: bridge
