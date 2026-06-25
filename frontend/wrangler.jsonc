@@ -1,0 +1,13 @@
+{
+  // Worker name — phải khớp đúng tên project trên Cloudflare Dashboard
+  // (Workers & Pages → c2-app-069-paperpulse) để wrangler deploy đúng chỗ.
+  "name": "c2-app-069-paperpulse",
+  "compatibility_date": "2026-06-26",
+  // Static Assets — serve thư mục build của Vite (dist/), "single-page-application"
+  // fallback thay cho file _redirects (cách cũ của Cloudflare Pages) — mọi route
+  // không khớp file tĩnh sẽ trả về index.html với status 200, đúng cho React Router.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
