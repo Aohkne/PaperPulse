@@ -17,6 +17,7 @@ import unicodedata
 from backend.config import get_llm, get_settings
 from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
+from backend.module.research_agent.services.llm_timeout import ainvoke_with_timeout
 from backend.shared.models.paper import Paper
 from backend.shared.services.latex_utils import escape_latex
 
@@ -46,7 +47,7 @@ async def _generate_intro_conclusion(query: str, theme_contents: list[dict]) -> 
 
     llm = get_llm(temperature=settings.export_temperature)
     try:
-        response = await llm.ainvoke([
+        response = await ainvoke_with_timeout(llm, [
             ("system", _INTRO_CONCLUSION_SYSTEM),
             ("human", f"Topic: {query}\n\nThemes:\n{themes_block}"),
         ])

@@ -13,9 +13,20 @@ import functools
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
+from backend.config import get_settings
 from backend.shared.models.paper import Paper
 
-_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="arxiv_search")
+_executor: ThreadPoolExecutor | None = None
+
+
+def _get_executor() -> ThreadPoolExecutor:
+    global _executor
+    if _executor is None:
+        _executor = ThreadPoolExecutor(
+            max_workers=get_settings().arxiv_search_max_workers,
+            thread_name_prefix="arxiv_search",
+        )
+    return _executor
 
 # `arxiv.Client` exposes no timeout option and its underlying `requests.Session`
 # can hang indefinitely on a stalled connection — since these calls run in a
@@ -89,7 +100,7 @@ async def search_arxiv(query: str, limit: int = 50) -> list[Paper]:
     """Search arXiv and return Paper objects (async wrapper)."""
     loop = asyncio.get_event_loop()
     try:
-        return await loop.run_in_executor(_executor, _sync_search, query, limit)
+        return await loop.run_in_executor(_get_executor(), _sync_search, query, limit)
     except Exception as exc:
         logging.warning("arXiv search failed: %s", exc)
         return []
@@ -136,7 +147,7 @@ async def lookup_by_arxiv_id(arxiv_id: str) -> Paper | None:
     """Single-paper lookup by arXiv id — PDF Agent citation verification waterfall."""
     loop = asyncio.get_event_loop()
     try:
-        return await loop.run_in_executor(_executor, _sync_lookup_by_id, arxiv_id)
+        return await loop.run_in_executor(_get_executor(), _sync_lookup_by_id, arxiv_id)
     except Exception as exc:
         logging.warning("arXiv lookup_by_id failed: %s", exc)
         return None

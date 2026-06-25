@@ -8,6 +8,7 @@ import httpx
 from backend.config import get_settings
 from backend.shared.models.paper import Paper
 from backend.shared.services.s2_rate_limiter import s2_acquire
+from backend.shared.services.search_cache import get_cached, make_query_hash, set_cached
 
 BASE_URL = "https://api.semanticscholar.org/graph/v1"
 FIELDS = "paperId,title,abstract,year,citationCount,authors,url,externalIds,openAccessPdf"
@@ -62,8 +63,17 @@ async def search_papers(
     params: dict = {"query": query, "fields": FIELDS, "limit": limit}
     if fields_of_study:
         params["fieldsOfStudy"] = ",".join(fields_of_study)
-    async with httpx.AsyncClient() as client:
-        data = await _get(client, f"{BASE_URL}/paper/search", params)
+
+    query_hash = make_query_hash("semantic_scholar", query=query, limit=limit, fields_of_study=fields_of_study)
+    cached = await get_cached(query_hash)
+    if cached is not None:
+        data = cached
+    else:
+        async with httpx.AsyncClient() as client:
+            data = await _get(client, f"{BASE_URL}/paper/search", params)
+        if data:  # don't cache empty/failed responses — let the next call retry live
+            await set_cached(query_hash, "semantic_scholar", data)
+
     return [_to_paper(p) for p in (data.get("data") or []) if p and p.get("paperId")]
 
 

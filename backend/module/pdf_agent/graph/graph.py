@@ -1,7 +1,7 @@
 """PDF Agent — LangGraph `StateGraph` assembly (PLAN §3).
 
 Graph riêng, KHÔNG chung `ResearchState`/checkpointer với research_agent —
-SQLite file riêng (`PDF_AGENT_CHECKPOINT_DB`) để tránh lẫn `thread_id` giữa
+Postgres schema riêng (`pdf_agent_checkpoints`) để tránh lẫn `thread_id` giữa
 2 domain khác nhau (session nghiên cứu vs document upload).
 
 KHÔNG có `interrupt_before`: P0→P4 chạy 1 lần xong hết, user tương tác
@@ -12,7 +12,6 @@ endpoint riêng dùng `graph.aupdate_state()` — không phải `resume()`.
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, StateGraph
@@ -49,15 +48,26 @@ def build_pdf_agent_graph(checkpointer: BaseCheckpointSaver) -> CompiledStateGra
 
 
 async def _open_checkpointer() -> BaseCheckpointSaver:
-    import aiosqlite
-    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    """Postgres-backed checkpointer (Supabase) — own schema
+    (`pdf_agent_checkpoints`) so its thread_id namespace can never collide
+    with research_agent's checkpointer (same isolation intent as the old
+    separate SQLite file, see module docstring above)."""
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+    from psycopg_pool import AsyncConnectionPool
 
     settings = get_settings()
-    db_path = settings.pdf_agent_checkpoint_db
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-
-    conn = await aiosqlite.connect(db_path)
-    saver = AsyncSqliteSaver(conn)
+    pool = AsyncConnectionPool(
+        conninfo=settings.supabase_db_url,
+        max_size=10,
+        open=False,
+        kwargs={
+            "autocommit": True,
+            "prepare_threshold": None,  # Supavisor transaction-mode pooler doesn't support prepared statements
+            "options": "-c search_path=pdf_agent_checkpoints,public",
+        },
+    )
+    await pool.open()
+    saver = AsyncPostgresSaver(pool)
     await saver.setup()
     return saver
 

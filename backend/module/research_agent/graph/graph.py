@@ -18,7 +18,6 @@ Interrupt points:
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from typing import Literal
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -32,10 +31,10 @@ from backend.module.research_agent.graph.nodes.embed import embed_node
 from backend.module.research_agent.graph.nodes.export import export_node
 from backend.module.research_agent.graph.nodes.extract_claims import extract_claims_node
 from backend.module.research_agent.graph.nodes.intent_router import intent_router_node
-from backend.module.research_agent.graph.nodes.reply_generator import reply_generator_node
 from backend.module.research_agent.graph.nodes.outline_gen import outline_gen_node
 from backend.module.research_agent.graph.nodes.parallel_search import parallel_search_node
 from backend.module.research_agent.graph.nodes.plan_review import plan_review_node
+from backend.module.research_agent.graph.nodes.reply_generator import reply_generator_node
 from backend.module.research_agent.graph.nodes.route_claims import route_claims_node
 from backend.module.research_agent.graph.nodes.snowball import snowball_node
 from backend.module.research_agent.graph.nodes.verify_claims import verify_claims_node
@@ -103,19 +102,24 @@ def build_research_graph(checkpointer: BaseCheckpointSaver) -> CompiledStateGrap
 
 
 async def _open_checkpointer() -> BaseCheckpointSaver:
-    """SQLite-backed checkpointer — survives server restarts so an interrupted
-    session (plan / outline / claim review) can be resumed via thread_id later.
+    """Postgres-backed checkpointer (Supabase) — survives server restarts AND
+    Cloud Run scale-to-zero (local disk doesn't) so an interrupted session
+    (plan / outline / claim review) can be resumed via thread_id later.
 
-    Connection is opened once and kept alive for the process lifetime (never
-    closed) — same lifecycle as the cached graph singleton below.
+    Uses its own Postgres schema (`research_agent_checkpoints`, set via the
+    connection's `search_path`) so its thread_id namespace can never collide
+    with pdf_agent's checkpointer — same isolation intent as the old
+    per-domain SQLite files, just schemas instead of separate files.
+
+    Pool (not a single connection) is opened once and kept alive for the
+    process lifetime — same lifecycle as the cached graph singleton below,
+    but safe under Cloud Run's per-instance concurrency.
     """
-    import aiosqlite
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
     from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
-    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    from psycopg_pool import AsyncConnectionPool
 
     settings = get_settings()
-    db_path = settings.langgraph_checkpoint_db
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     # ResearchState stores these Pydantic models directly (Paper, Claim, Theme) —
     # allow-list them so checkpointing doesn't warn/eventually fail to
@@ -126,8 +130,21 @@ async def _open_checkpointer() -> BaseCheckpointSaver:
         ("backend.shared.models.review", "Theme"),
     ])
 
-    conn = await aiosqlite.connect(db_path)
-    saver = AsyncSqliteSaver(conn, serde=serde)
+    pool = AsyncConnectionPool(
+        conninfo=settings.supabase_db_url,
+        max_size=10,
+        open=False,
+        kwargs={
+            "autocommit": True,
+            # Supabase's pooled connection string (Supavisor, transaction
+            # mode, port 6543) doesn't support server-side prepared
+            # statements — psycopg must not try to use them.
+            "prepare_threshold": None,
+            "options": "-c search_path=research_agent_checkpoints,public",
+        },
+    )
+    await pool.open()
+    saver = AsyncPostgresSaver(pool, serde=serde)
     await saver.setup()
     return saver
 
@@ -137,8 +154,8 @@ _graph_lock = asyncio.Lock()
 
 
 async def get_research_graph() -> CompiledStateGraph:
-    """Return the singleton compiled graph, built (and its SQLite checkpointer
-    connection opened) once per process.
+    """Return the singleton compiled graph, built (and its Postgres checkpointer
+    pool opened) once per process.
     """
     global _graph_singleton
     if _graph_singleton is not None:

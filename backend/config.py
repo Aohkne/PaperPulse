@@ -41,19 +41,19 @@ class Settings(BaseSettings):
     # OpenAlex (polite pool — no key required, but email improves rate limits)
     openalex_email: str = ""
 
-    # ChromaDB — "embedded" runs in-process (chromadb.PersistentClient, default,
-    # no extra setup); "http" talks to a chroma server (e.g. the official
-    # `chromadb/chroma` Docker image) via chromadb.HttpClient — lets the backend
-    # run natively while only the (heavier-to-install) Chroma server lives in Docker.
-    chroma_mode: Literal["embedded", "http"] = "embedded"
-    chroma_persist_path: str = "./data/chroma"
-    chroma_host: str = "localhost"
-    chroma_port: int = 8002
-
     # Supabase
     supabase_url: str = ""
     supabase_key: str = ""
     supabase_service_key: str = ""  # service_role key — bypasses RLS, used for server-side admin checks
+
+    # Supabase Postgres — pooled connection string (Supavisor, transaction
+    # mode, port 6543). Used directly by psycopg for: (1) the LangGraph
+    # checkpointers (research_agent/graph/graph.py, pdf_agent/graph/graph.py)
+    # — that library talks raw SQL, not PostgREST, so it can't go through
+    # supabase_url. paper_embeddings/search_cache (pgvector) still go through
+    # PostgREST/RPC via supabase_url + supabase_service_key, matching the
+    # admin.py convention (see WORKLOG.md re: supabase-py + sb_publishable_ keys).
+    supabase_db_url: str = ""
 
     # Per-role LLM temperatures (SPEC 2.0 §temperature routing)
     intent_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
@@ -76,9 +76,12 @@ class Settings(BaseSettings):
     max_papers_total: int = 1500
     max_search_calls: int = 15
     min_sources_required: int = 2
+    arxiv_search_max_workers: int = 2  # ThreadPoolExecutor size for the arxiv CLI subprocess
 
-    # LangGraph checkpointer (SQLite, persists across server restarts)
-    langgraph_checkpoint_db: str = "./data/checkpoints.db"
+    # Research Agent LLM call timeout — same protection pdf_agent already has
+    # via ainvoke_with_timeout() (optimize_Plan.html §2.3); without it an SSE
+    # stream can hang indefinitely if the LLM provider stalls.
+    research_agent_llm_call_timeout_s: float = 60.0
 
     # Knowledge Graph guardrails — knowledge-graph_SPEC_2.0.md §System Guardrails
     kg_max_nodes_rendered: int = 500
@@ -86,8 +89,9 @@ class Settings(BaseSettings):
     kg_contradicts_cluster_min_size: int = 2
 
     # ── PDF Agent (pdf-agent_PLAN_2.0.md) ──────────────────────────────────
-    pdf_agent_checkpoint_db: str = "./data/pdf_agent_checkpoints.db"
     pdf_agent_output_dir: str = "./data/pdf_agent_output"
+    pdf_parser_max_workers: int = 2  # ThreadPoolExecutor size — tune to Cloud Run instance's CPU allocation
+    pdf_agent_upload_concurrency: int = 4  # max simultaneous /upload requests before returning 429 (optimize_Plan.html §2.2)
 
     # MinerU (self-host) — see services/mineru_client.py. Falls back to PyMuPDF
     # (services/pdf_parser.py) if unavailable in either mode.
@@ -125,6 +129,9 @@ class Settings(BaseSettings):
     pdf_agent_match_threshold_high: float = 0.85
     pdf_agent_match_threshold_low: float = 0.55
     pdf_agent_llm_call_timeout_s: float = 30.0
+
+    # ── Monitoring (optimize_Plan.html §5) ─────────────────────────────────
+    sentry_dsn: str = ""  # empty = Sentry disabled (no-op), see main.py lifespan
 
 
 @lru_cache

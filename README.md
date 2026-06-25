@@ -16,7 +16,7 @@
 |---|---|
 | ① | Search Semantic Scholar (lên tới 100 bài) |
 | ②/②bis | Lọc + citation snowballing (dual-pool seed, backward/forward expand) |
-| ③ | Embed bài báo (SPECTER v2) → lưu ChromaDB |
+| ③ | Embed bài báo (SPECTER v2) → lưu Supabase pgvector |
 | ④ | Generate outline (LLM, MMR-diverse 20 bài) → **user approve outline** |
 | ⑤/⑥ | Hybrid search (semantic + BM25 + RRF) theo theme → LLM viết nội dung kèm `(Source: PAPER_ID)` |
 | ⑦ | Tách claims từ nội dung sinh ra |
@@ -38,13 +38,13 @@ Các module khác (Research Gap Detection, Knowledge Graph, Admin dashboard, Cha
 |---|---|
 | Backend | FastAPI (Python 3.11+) |
 | LLM agent layer | Module LLM tự build (`backend/agent/`) — không qua LangChain, trừ `gap_detection` dùng LangGraph `StateGraph` |
-| Vector DB | ChromaDB (local persistent) |
+| Vector DB | Supabase pgvector (xem `deploy_Plan.html` — migrated từ ChromaDB để chạy stateless trên Cloud Run) |
 | Search | Semantic Scholar API + BM25 (`rank_bm25`) + RRF merge |
 | Embedding | SPECTER v2 (Semantic Scholar Batch API, document) + SPECTER2 adapter `proximity` (local, query) |
 | Auth & DB | Supabase (Postgres + Auth + RLS) |
 | Frontend | React 19 + Vite + Zustand + Tailwind v4, `react-markdown`, `framer-motion` |
 | Package manager (FE) | Bun |
-| Deployment | Docker (multi-stage) + GitHub Actions CI/CD |
+| Deployment | Google Cloud Run (backend) + Cloudflare Pages (frontend) — xem `deploy_Plan.html` |
 
 ## Thành viên
 
@@ -95,19 +95,23 @@ python backend/main.py
 
 Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs) · Health check: [http://localhost:8000/health](http://localhost:8000/health)
 
-#### (Optional) MinerU + ChromaDB qua Docker, backend vẫn chạy native
+#### (Optional) MinerU qua Docker, backend vẫn chạy native
 
-Mặc định backend chạy native dùng MinerU CLI (`MINERU_MODE=cli`) + ChromaDB embedded
-(`CHROMA_MODE=embedded`) — không cần Docker. Nếu không muốn cài MinerU's deps nặng
-(torch/paddle/onnxruntime) vào env dev, chạy 2 service này riêng trong Docker và set
-`MINERU_MODE=http` + `CHROMA_MODE=http` trong `.env`:
+Mặc định backend chạy native dùng MinerU CLI (`MINERU_MODE=cli`) — không cần Docker,
+và nếu không cài MinerU thì PDF Agent tự fallback sang PyMuPDF. Vector store + LangGraph
+checkpointer luôn trỏ vào Supabase Postgres/pgvector (`SUPABASE_DB_URL`), kể cả ở dev.
+
+Nếu muốn test MinerU thật mà không cài torch/paddle/onnxruntime vào env dev, chạy
+service `mineru` riêng trong Docker và set `MINERU_MODE=http` trong `.env`:
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d   # MinerU :8001, ChromaDB :8002
+docker compose -f docker-compose.dev.yml up -d   # MinerU :8001
 ```
 
-`docker-compose.yml` (không có `-f`) là bản full container — toàn bộ backend +
-MinerU CLI + ChromaDB embedded gói chung 1 image, dùng cho production:
+`docker-compose.yml` (không có `-f`) là bản full container (production image, không
+có MinerU/torch — xem `optimize_Plan.html` §4) dùng cho self-host trên VM riêng
+(Oracle/Hetzner — xem `deploy_Plan.html` §9). Đường deploy chính là Google Cloud Run
+(`deploy_Plan.html` §4), không qua docker-compose:
 
 ```bash
 docker compose up -d
@@ -151,10 +155,10 @@ Biến **bắt buộc** để chạy được flow Literature Review end-to-end:
 | `EMBEDDING_MODEL` | `nv-embed-v1` | Model embedding fallback (khi không dùng SPECTER batch) |
 | `EMBEDDING_BASE_URL` | — | Base URL nếu dùng custom embedding endpoint |
 | `SEMANTIC_SCHOLAR_API_KEY` | — | Optional nhưng nên có — tăng rate limit (100 req/10s so với 1 req/s) |
-| `CHROMA_PERSIST_PATH` | `./data/chroma` | Đường dẫn lưu ChromaDB local |
 | `SUPABASE_URL` | — | **Bắt buộc.** URL project Supabase (`https://<ref>.supabase.co`) |
 | `SUPABASE_KEY` | — | **Bắt buộc.** Anon hoặc service-role key |
-| `SUPABASE_SERVICE_KEY` | — | Service-role key — cần cho `/api/admin/*` (bypass RLS) |
+| `SUPABASE_SERVICE_KEY` | — | Service-role key — cần cho `/api/admin/*`, vector store, search cache (bypass RLS) |
+| `SUPABASE_DB_URL` | — | **Bắt buộc.** Pooled connection string (port 6543, transaction mode) cho LangGraph checkpointer — xem `deploy_Plan.html` §3.3 |
 | `CORS_ORIGINS` | `http://localhost:5173` | Danh sách origin được phép gọi API, ngăn cách bằng dấu phẩy |
 | `APP_ENV` | `development` | `development` \| `production` \| `test` |
 | `LOG_LEVEL` | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` |
@@ -171,7 +175,7 @@ Biến **bắt buộc** để chạy được flow Literature Review end-to-end:
 | GET | `/api/research/stream?query=...` | ①→⑩ | **Chạy toàn bộ pipeline**, stream SSE từng step (ReAct trace) |
 | POST | `/api/search` | ① | Search Semantic Scholar, trả về tối đa `limit` bài |
 | POST | `/api/snowball` | ②bis | Citation snowballing từ seed papers |
-| POST | `/api/embed` | ③ | Lấy SPECTER v2 embeddings, lưu ChromaDB |
+| POST | `/api/embed` | ③ | Lấy SPECTER v2 embeddings, lưu Supabase pgvector |
 | POST | `/api/outline` | ④ | Sinh outline (themes) từ top-K bài |
 | POST | `/api/review/theme` | ⑤⑥ | Hybrid search + sinh nội dung theo theme, kèm `(Source: PAPER_ID)` |
 | POST | `/api/claims/extract` | ⑦ | Tách claims từ nội dung đã sinh |

@@ -30,7 +30,17 @@ from backend.shared.services.latex_utils import escape_latex
 
 logger = logging.getLogger(__name__)
 
-_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pdf_parser")
+_executor: ThreadPoolExecutor | None = None
+
+
+def _get_executor() -> ThreadPoolExecutor:
+    global _executor
+    if _executor is None:
+        _executor = ThreadPoolExecutor(
+            max_workers=get_settings().pdf_parser_max_workers,
+            thread_name_prefix="pdf_parser",
+        )
+    return _executor
 
 _HEADING_RE = re.compile(
     r"^(?:\d{1,2}[\.\)]?\s+)?"
@@ -60,7 +70,7 @@ def get_pdf_page_count(pdf_path: str) -> int:
 async def extract_structure_from_pdf(pdf_path: str, figures_dir: str) -> dict:
     """Returns {"sections": list[Section], "figures": list[Figure], "raw_reference_lines": list[str]}."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_executor, _extract_sync, pdf_path, figures_dir)
+    return await loop.run_in_executor(_get_executor(), _extract_sync, pdf_path, figures_dir)
 
 
 def _extract_sync(pdf_path: str, figures_dir: str) -> dict:

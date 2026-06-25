@@ -1,12 +1,15 @@
 # Local dev: backend chạy NATIVE (anaconda env, `uvicorn backend.main:app --reload`),
-# chỉ MinerU + ChromaDB sống trong Docker — tránh phải cài torch/paddle/onnxruntime
-# (MinerU) hoặc deps embedded storage (ChromaDB) vào env dev.
+# chỉ MinerU sống trong Docker — tránh phải cài torch/paddle/onnxruntime vào env dev.
+# Vector store + LangGraph checkpointer trỏ thẳng vào Supabase (như production) —
+# không còn ChromaDB container ở đây nữa (optimize_Plan.html §3 — migrated sang
+# pgvector, xem supabase/schema.sql §14-16).
 #
 # Chạy:    docker compose -f docker-compose.dev.yml up -d
 # Dừng:    docker compose -f docker-compose.dev.yml down
 #
-# .env cần set MINERU_MODE=http + MINERU_API_URL=http://localhost:8001 và
-# CHROMA_MODE=http + CHROMA_HOST=localhost + CHROMA_PORT=8002 — xem
+# .env cần set MINERU_MODE=http + MINERU_API_URL=http://localhost:8001 (chỉ nếu
+# muốn test MinerU thật — bỏ qua thì PDF Agent tự fallback PyMuPDF) và
+# SUPABASE_DB_URL trỏ vào project Supabase dev/shared — xem
 # `backend/module/pdf_agent/services/mineru_client.py` / `vector_store.py`.
 services:
   # MinerU API — backend native gọi qua HTTP (`run_mineru_http()`). Không cần
@@ -37,20 +40,3 @@ services:
           memory: 2G
           cpus: "1.0"
     restart: unless-stopped
-
-  # ChromaDB — backend native gọi qua HTTP (`vector_store.py`'s HttpClient).
-  # Tag pin đúng version pip package `chromadb` client đang dùng (1.5.9) —
-  # tránh lệch API ngầm giữa client/server (image `:latest` từng là 1.0.0,
-  # cách xa client 1.5.9).
-  chromadb:
-    image: chromadb/chroma:1.5.9
-    container_name: paperpulse-chromadb
-    ports:
-      - "8002:8000"
-    volumes:
-      - chroma-data:/chroma/chroma
-    restart: unless-stopped
-
-volumes:
-  chroma-data:
-    driver: local

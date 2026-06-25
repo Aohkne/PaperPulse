@@ -88,7 +88,7 @@ async def _stream_pdf_graph(graph, initial_state: dict, config: dict):
         while True:
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_SECONDS)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 yield _sse({"type": "heartbeat"})
                 continue
 
@@ -118,52 +118,73 @@ async def _stream_pdf_graph(graph, initial_state: dict, config: dict):
             producer_task.cancel()
 
 
+# Per-instance in-flight counter (optimize_Plan.html §2.2) — each PDF upload
+# holds a PyMuPDF ThreadPoolExecutor slot + LLM calls for the whole SSE
+# stream lifetime, so unbounded concurrent uploads can starve the pool/OOM
+# the Cloud Run instance. Returns 429 fast instead of queuing silently.
+_inflight_uploads = 0
+
+
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
     credentials: HTTPAuthorizationCredentials = Security(_bearer),
     user=Depends(get_current_user),
 ):
+    global _inflight_uploads
     settings = get_settings()
-    raw_bytes = await file.read()
-    max_bytes = settings.pdf_agent_max_file_size_mb * 1024 * 1024
-    if len(raw_bytes) > max_bytes:
-        raise HTTPException(413, f"File quá lớn — tối đa {settings.pdf_agent_max_file_size_mb}MB")
 
-    doc_id = str(uuid4())
+    if _inflight_uploads >= settings.pdf_agent_upload_concurrency:
+        raise HTTPException(429, "Server đang xử lý quá nhiều PDF cùng lúc — vui lòng thử lại sau vài giây.")
+    _inflight_uploads += 1
 
-    # Deduct 1 PDF Agent unit at session start, before any file I/O/graph work
-    # (payment_SPEC_2.0.md §Logic deduction — "trừ ngay khi session bắt đầu").
     try:
-        await billing_db.start_session(str(user.id), "pdf", doc_id)
-    except QuotaExceededError as exc:
-        raise HTTPException(402, "Hết quota PDF Agent — vui lòng nâng cấp gói hoặc mua thêm.") from exc
+        raw_bytes = await file.read()
+        max_bytes = settings.pdf_agent_max_file_size_mb * 1024 * 1024
+        if len(raw_bytes) > max_bytes:
+            raise HTTPException(413, f"File quá lớn — tối đa {settings.pdf_agent_max_file_size_mb}MB")
 
-    doc_dir = Path(settings.pdf_agent_output_dir) / doc_id
-    doc_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = doc_dir / f"raw_{file.filename or 'upload'}"
-    raw_path.write_bytes(raw_bytes)
+        doc_id = str(uuid4())
 
-    graph = await get_pdf_agent_graph()
-    config = pdf_agent_config(doc_id)
-    initial_state = {"doc_id": doc_id, "user_id": str(user.id), "raw_file_path": str(raw_path)}
+        # Deduct 1 PDF Agent unit at session start, before any file I/O/graph work
+        # (payment_SPEC_2.0.md §Logic deduction — "trừ ngay khi session bắt đầu").
+        try:
+            await billing_db.start_session(str(user.id), "pdf", doc_id)
+        except QuotaExceededError as exc:
+            raise HTTPException(402, "Hết quota PDF Agent — vui lòng nâng cấp gói hoặc mua thêm.") from exc
+
+        doc_dir = Path(settings.pdf_agent_output_dir) / doc_id
+        doc_dir.mkdir(parents=True, exist_ok=True)
+        raw_path = doc_dir / f"raw_{file.filename or 'upload'}"
+        raw_path.write_bytes(raw_bytes)
+
+        graph = await get_pdf_agent_graph()
+        config = pdf_agent_config(doc_id)
+        initial_state = {"doc_id": doc_id, "user_id": str(user.id), "raw_file_path": str(raw_path)}
+    except Exception:
+        _inflight_uploads -= 1
+        raise
 
     async def generator():
-        yield _sse({"type": "doc_id", "doc_id": doc_id})
-        error_occurred = False
-        async for raw in _stream_pdf_graph(graph, initial_state, config):
-            if '"type": "error"' in raw:  # cheap check — avoids re-parsing every event's JSON
-                error_occurred = True
-            yield raw
-        # Only signal completion if the pipeline actually reached build_annotations —
-        # an error mid-pipeline (e.g. parse_document fails on a malformed PDF) means
-        # main_tex_path/annotations were never set, so a "done" here would make the
-        # frontend call GET /content on a state that doesn't have it yet (KeyError 500).
-        if not error_occurred:
-            yield _sse({"type": "done", "doc_id": doc_id})
-        else:
-            # System pipeline error (no interrupts in PDF Agent, so this is the
-            # only refund path needed — payment_SPEC_2.0.md §refund table).
-            await billing_db.refund_session(str(user.id), "pdf", doc_id)
+        global _inflight_uploads
+        try:
+            yield _sse({"type": "doc_id", "doc_id": doc_id})
+            error_occurred = False
+            async for raw in _stream_pdf_graph(graph, initial_state, config):
+                if '"type": "error"' in raw:  # cheap check — avoids re-parsing every event's JSON
+                    error_occurred = True
+                yield raw
+            # Only signal completion if the pipeline actually reached build_annotations —
+            # an error mid-pipeline (e.g. parse_document fails on a malformed PDF) means
+            # main_tex_path/annotations were never set, so a "done" here would make the
+            # frontend call GET /content on a state that doesn't have it yet (KeyError 500).
+            if not error_occurred:
+                yield _sse({"type": "done", "doc_id": doc_id})
+            else:
+                # System pipeline error (no interrupts in PDF Agent, so this is the
+                # only refund path needed — payment_SPEC_2.0.md §refund table).
+                await billing_db.refund_session(str(user.id), "pdf", doc_id)
+        finally:
+            _inflight_uploads -= 1
 
     return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)

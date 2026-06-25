@@ -1,11 +1,16 @@
 services:
   # ============================================
-  # API Server — FastAPI + LangGraph (full container, production)
+  # API Server — FastAPI + LangGraph (full container)
   # ============================================
-  # MinerU (CLI subprocess, MINERU_MODE=cli) + ChromaDB (embedded,
-  # CHROMA_MODE=embedded) đều sống TRONG container này, đúng kiến trúc gốc.
-  # Cho local dev tách backend ra native + chỉ MinerU/ChromaDB riêng trong
-  # Docker, dùng `docker-compose.dev.yml` thay vì file này.
+  # File này KHÔNG còn nằm trong đường deploy chính (deploy_Plan.html chọn
+  # Google Cloud Run, build trực tiếp từ Dockerfile qua Cloud Build, không
+  # qua docker-compose) — chỉ giữ làm phương án self-host dự phòng trên VM
+  # (Oracle/Hetzner, xem deploy_Plan.html §9). Dockerfile không còn cài
+  # MinerU/torch (optimize_Plan.html §4) và vector store/checkpointer đã
+  # migrate sang Supabase pgvector/Postgres (§3) — container này hoàn toàn
+  # stateless, volume `app-data` chỉ còn giữ PDF Agent output + LaTeX export.
+  # Cho local dev, chỉ MinerU (optional) sống trong Docker — dùng
+  # `docker-compose.dev.yml` thay vì file này.
   api:
     build:
       context: .
@@ -27,16 +32,17 @@ services:
       - agent-network
     deploy:
       resources:
-        # Bump từ 512M/0.5 cpu — MinerU pipeline backend (PP-DocLayout + UniMERNet +
-        # PaddleOCR + table/formula recognition) load nhiều model vào RAM cùng lúc khi
-        # parse PDF, 512M không đủ (sẽ bị OOM-killed). Nếu không dùng MinerU (PDF Agent
-        # tự fallback PyMuPDF), có thể hạ lại mức cũ.
+        # Hạ lại từ 4G/2.0 cpu (mức cũ khi MinerU còn baked vào image — PP-DocLayout +
+        # UniMERNet + PaddleOCR load nhiều model vào RAM khi parse PDF). Image giờ chỉ
+        # còn PyMuPDF (nhẹ) — 1.5G đủ cho FastAPI + LangGraph + nhiều LLM call song song
+        # (Step ⑥/⑧ research agent), còn dư margin nếu host VM (Oracle/Hetzner) thực ra
+        # có nhiều RAM hơn mức limits này.
         limits:
-          memory: 4G
-          cpus: "2.0"
-        reservations:
-          memory: 2G
+          memory: 1.5G
           cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
     restart: unless-stopped
 
 # ============================================

@@ -23,12 +23,13 @@ dependencies = [
     "langgraph>=0.2.0",
     "langchain-mcp-adapters>=0.3.0",
 
-    # Vector DB & Search
-    "chromadb>=0.5.0",
+    # Vector DB & Search — pgvector lives in Supabase Postgres (see "Database"
+    # below); no separate vector DB client needed.
     "rank-bm25>=0.2.2",
 
     # Database
     "supabase>=2.3.0",
+    "psycopg[binary,pool]>=3.1.0",  # direct Postgres conn for the LangGraph checkpointer (not via PostgREST)
 
     # Payment (PayOS — payment_SPEC_2.0.md)
     "payos>=1.1.0",
@@ -50,8 +51,7 @@ dependencies = [
     "rapidfuzz>=3.0.0",       # cross-source title fuzzy dedup
     "arxiv>=2.1.0",           # arXiv keyword search client
     "jinja2>=3.1.0",          # LaTeX template rendering
-    "langgraph-checkpoint-sqlite>=2.0.0",  # persistent checkpointer (survives restarts)
-    "aiosqlite>=0.20.0",                   # async sqlite driver for the checkpointer
+    "langgraph-checkpoint-postgres>=2.0.0",  # persistent checkpointer (Supabase Postgres — survives restarts AND Cloud Run scale-to-zero)
     "networkx>=3.0",          # Knowledge Graph assembly (Step ⑨bis)
     "python-slugify>=8.0",    # stable theme node ids for the Knowledge Graph
 
@@ -61,6 +61,11 @@ dependencies = [
 
     # PDF Agent (pdf-agent_PLAN_2.0.md)
     "pylatexenc>=2.10",       # .tex parsing (LatexWalker) — sections/citations/figures
+
+    # Monitoring (optimize_Plan.html §5) — no-op if SENTRY_DSN is unset. No
+    # extra needed: FastAPI support rides on Starlette, which FastAPI already
+    # depends on (sentry-sdk doesn't define a separate "fastapi" extra).
+    "sentry-sdk>=2.0.0",
 ]
 
 # Optional / dev dependencies

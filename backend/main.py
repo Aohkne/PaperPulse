@@ -12,6 +12,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api import api_router
 from backend.config import get_settings
 
+_settings_for_sentry = get_settings()
+if _settings_for_sentry.sentry_dsn:
+    import sentry_sdk
+
+    # Initialized once at process start, before the app handles any request —
+    # no-op (never imported/called) when SENTRY_DSN is unset, matching every
+    # other optional integration in this codebase (optimize_Plan.html §5).
+    sentry_sdk.init(dsn=_settings_for_sentry.sentry_dsn, environment=_settings_for_sentry.app_env, traces_sample_rate=0.1)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,8 +57,10 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    # Exclude data/ — the LangGraph SQLite checkpointer and ChromaDB persist here,
-    # and reload-on-write would kill in-flight research streams mid-pipeline.
+    # Exclude data/ — PDF Agent output/figures and LaTeX export files write here
+    # during a request, and reload-on-write would kill in-flight streams
+    # mid-pipeline. (LangGraph checkpointer + paper embeddings now live in
+    # Supabase, not under ./data/ — see optimize_Plan.html §3.)
     uvicorn.run(
         "backend.main:app",
         host=settings.app_host,

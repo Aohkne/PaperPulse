@@ -25,6 +25,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from backend.config import get_llm
 from backend.module.research_agent.graph.state import ResearchState
+from backend.module.research_agent.services.llm_timeout import ainvoke_with_timeout
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ async def reply_generator_node(state: ResearchState) -> dict:
 
     if intent == "clarify":
         llm = get_llm(temperature=0, streaming=True)
-        response = await llm.ainvoke([
+        response = await ainvoke_with_timeout(llm, [
             SystemMessage(content=_CLARIFY_SYSTEM),
             HumanMessage(content=query),
         ])
@@ -85,7 +86,7 @@ async def reply_generator_node(state: ResearchState) -> dict:
 
     else:  # greeting (or any non-search, non-clarify intent)
         llm = get_llm(temperature=0.7, streaming=True)
-        response = await llm.ainvoke([
+        response = await ainvoke_with_timeout(llm, [
             SystemMessage(content=_GREETING_SYSTEM),
             HumanMessage(content=query),
         ])

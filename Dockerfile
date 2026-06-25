@@ -16,9 +16,13 @@ COPY pyproject.toml .
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Cài torch/torchvision bản CPU-only TRƯỚC — wheel mặc định của PyPI cho Linux luôn
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
-RUN pip install --no-cache-dir -e ".[dev,mineru]" six
+# KHÔNG cài torch/mineru ở production image (optimize_Plan.html §4) — backend
+# chạy trên Google Cloud Run, image nhẹ giúp cold start nhanh hơn nhiều khi
+# scale-to-zero. PDF Agent tự fallback sang PyMuPDF khi thiếu mineru binary
+# (xem backend/module/pdf_agent/services/mineru_client.py is_available()).
+# Muốn test MinerU thật → chạy local qua docker-compose.dev.yml (service `mineru`,
+# build từ Dockerfile.mineru) + MINERU_MODE=http, không phải image này.
+RUN pip install --no-cache-dir -e ".[dev]"
 
 # Stage 2: Production — image cuối cùng
 FROM python:3.11-slim AS production
@@ -27,22 +31,19 @@ FROM python:3.11-slim AS production
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PORT=8000 \
-    MINERU_DEVICE_MODE=cpu \
-    MINERU_MODEL_SOURCE=huggingface
+    PORT=8000
 
 WORKDIR /app
 
-# texlive: pdflatex để compile bundle .tex của PDF Agent khi export PDF (Phase 3)
-# libgl1/libglib2.0-0/libgomp1: runtime deps của OpenCV/PaddleOCR (MinerU pipeline backend)
+# texlive: pdflatex để compile bundle .tex của PDF Agent khi export PDF (Phase 3).
+# (libgl1/libglib2.0-0/libgomp1 — runtime deps của OpenCV/PaddleOCR — đã bỏ cùng
+# với MinerU, không còn dependency nào trong image này cần chúng.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base texlive-latex-extra \
-    libgl1 libglib2.0-0 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Tạo non-root user CÓ home dir (-m) — mineru-models-download cần ghi cache/config
-# (mineru.json) vào $HOME, phải chạy đúng dưới appuser để tránh lệch quyền sở hữu
-# nếu chạy lúc còn là root.
+# Non-root user, có home dir (-m) — một số lib Python (HF cache, matplotlib config)
+# vẫn muốn ghi vào $HOME dù không có MinerU.
 RUN groupadd -r appuser && useradd -r -m -g appuser appuser
 
 # Copy virtual environment từ builder stage
@@ -56,8 +57,6 @@ RUN mkdir -p /app/data && chown -R appuser:appuser /app
 
 # Chuyển sang non-root user
 USER appuser
-
-RUN mineru-models-download -s huggingface -m pipeline
 
 EXPOSE 8000
 

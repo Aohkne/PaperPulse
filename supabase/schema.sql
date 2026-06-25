@@ -777,3 +777,101 @@ REVOKE EXECUTE ON FUNCTION public.billing_refund_session(UUID, TEXT, TEXT) FROM 
 REVOKE EXECUTE ON FUNCTION public.billing_apply_payment(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.billing_request_downgrade(UUID, public.billing_tier) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.next_payos_order_code() FROM PUBLIC;
+
+-- ============================================================================
+-- 14. VECTOR STORE (pgvector) — replaces the embedded ChromaDB "papers"
+-- collection used by research_agent/services/vector_store.py. Deploy plan:
+-- Cloud Run scale-to-zero wipes local disk, so the vector index must live in
+-- Supabase instead of ./data/chroma. Same single-shared-keyspace semantics
+-- as the old ChromaDB collection (upsert by paper_id, not session-scoped) —
+-- this migration only swaps the storage backend, not the data model.
+-- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS public.paper_embeddings (
+    paper_id TEXT PRIMARY KEY,
+    embedding VECTOR(768),  -- SPECTER v2 dim (S2 batch API) — see vector_store.py upsert_papers() docstring
+    title TEXT NOT NULL DEFAULT '',
+    year INT,
+    citation_count INT,
+    abstract TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_paper_embeddings_hnsw
+    ON public.paper_embeddings USING hnsw (embedding vector_cosine_ops);
+
+ALTER TABLE public.paper_embeddings ENABLE ROW LEVEL SECURITY;
+-- No policy for anon/authenticated — only service_role (used exclusively by
+-- backend/module/research_agent/services/vector_store.py) can read/write.
+
+-- 14a. upsert_paper_embedding — single-row upsert via RPC. PostgREST cannot
+-- cast a JSON array directly to `vector` on a plain table POST, so writes
+-- always go through this function (param typed float8[], cast inside SQL).
+CREATE OR REPLACE FUNCTION public.upsert_paper_embedding(
+    p_paper_id TEXT,
+    p_embedding FLOAT8[],
+    p_title TEXT,
+    p_year INT,
+    p_citation_count INT,
+    p_abstract TEXT
+) RETURNS VOID LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+    INSERT INTO public.paper_embeddings (paper_id, embedding, title, year, citation_count, abstract)
+    VALUES (p_paper_id, p_embedding::vector, p_title, p_year, p_citation_count, p_abstract)
+    ON CONFLICT (paper_id) DO UPDATE SET
+        embedding = EXCLUDED.embedding,
+        title = EXCLUDED.title,
+        year = EXCLUDED.year,
+        citation_count = EXCLUDED.citation_count,
+        abstract = EXCLUDED.abstract;
+$$;
+
+-- 14b. match_papers — cosine similarity search (same `1 - distance` score
+-- shape the old ChromaDB query_by_vector() returned).
+CREATE OR REPLACE FUNCTION public.match_papers(
+    query_embedding FLOAT8[],
+    match_count INT
+) RETURNS TABLE(
+    paper_id TEXT, title TEXT, year INT, citation_count INT, abstract TEXT, similarity FLOAT8
+) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT paper_id, title, year, citation_count, abstract,
+           1 - (embedding <=> query_embedding::vector) AS similarity
+    FROM public.paper_embeddings
+    ORDER BY embedding <=> query_embedding::vector
+    LIMIT match_count;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.upsert_paper_embedding(TEXT, FLOAT8[], TEXT, INT, INT, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.match_papers(FLOAT8[], INT) FROM PUBLIC;
+
+-- ============================================================================
+-- 15. SEARCH/LLM RESPONSE CACHE — optimize_Plan.html §2.1. Not session/user
+-- scoped on purpose (cache hits should be shared across users querying the
+-- same source). Lazy-expire on read (no cron needed for MVP scale).
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.search_cache (
+    query_hash TEXT PRIMARY KEY,
+    source TEXT NOT NULL,        -- 'semantic_scholar' | 'arxiv' | 'openalex' | 'llm'
+    payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_search_cache_created ON public.search_cache(created_at);
+
+ALTER TABLE public.search_cache ENABLE ROW LEVEL SECURITY;
+-- No policy for anon/authenticated — only service_role reads/writes this table.
+
+-- ============================================================================
+-- 16. LANGGRAPH CHECKPOINTER SCHEMAS — replaces the two SQLite files
+-- (./data/checkpoints.db, ./data/pdf_agent_checkpoints.db). Separate Postgres
+-- schemas (not just separate tables) so research_agent and pdf_agent thread_id
+-- namespaces can never collide, matching the original SQLite-per-domain
+-- design intent. Tables inside each schema are created at runtime by
+-- AsyncPostgresSaver.setup() — see backend/module/research_agent/graph/graph.py
+-- and backend/module/pdf_agent/graph/graph.py.
+-- ============================================================================
+
+CREATE SCHEMA IF NOT EXISTS research_agent_checkpoints;
+CREATE SCHEMA IF NOT EXISTS pdf_agent_checkpoints;

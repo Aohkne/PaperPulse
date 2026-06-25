@@ -26,6 +26,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.config import get_llm, get_settings
 from backend.module.research_agent.graph.state import ResearchState
+from backend.module.research_agent.services.llm_timeout import ainvoke_with_timeout
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ async def intent_router_node(state: ResearchState) -> dict:
         lc_messages.append(HumanMessage(content=query))
 
     try:
-        response = await llm.ainvoke(lc_messages)
+        response = await ainvoke_with_timeout(llm, lc_messages)
         text = response.content.strip()
         data = _parse_response(text)
     except Exception as exc:
