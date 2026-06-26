@@ -1,4 +1,6 @@
 {
+  // Trigger commit: force a fresh Cloudflare build after adding
+  // VITE_GOOGLE_CLIENT_ID — same build-cache gotcha as VITE_API_URL.
   "name": "c2-app-069-paperpulse",
   "compatibility_date": "2026-06-26",
   "assets": {
