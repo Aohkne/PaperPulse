@@ -3,6 +3,7 @@ import { Icon } from '@iconify/react';
 
 import useGapStore from './useGapStore';
 import UsageExhaustedBanner from '@/features/billing/UsageExhaustedBanner';
+import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
 
 /**
  * ColdStartInput - Topic input + submit button for cold-start gap detection.
@@ -15,9 +16,10 @@ const ColdStartInput = ({ onSubmit }) => {
   const [topic, setTopic] = useState('');
   const { findGapsFromTopic, gapLoading } = useGapStore();
   const handleSubmitAction = onSubmit || findGapsFromTopic;
+  const quotaExhausted = useQuotaExhausted('gap');
 
   const trimmed = topic.trim();
-  const disabled = !trimmed || trimmed.length < 3 || gapLoading;
+  const disabled = !trimmed || trimmed.length < 3 || gapLoading || quotaExhausted;
 
   const handleSubmit = () => {
     if (!disabled) handleSubmitAction(trimmed);
@@ -49,8 +51,8 @@ const ColdStartInput = ({ onSubmit }) => {
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={gapLoading}
-          placeholder="Enter research topic... (e.g. transformer long-context NLP)"
+          disabled={gapLoading || quotaExhausted}
+          placeholder={quotaExhausted ? 'Quota used up for this period…' : 'Enter research topic... (e.g. transformer long-context NLP)'}
           rows={4}
           style={{
             width: '100%',
@@ -63,7 +65,7 @@ const ColdStartInput = ({ onSubmit }) => {
             resize: 'vertical',
             fontFamily: 'var(--font-inknut)',
             color: 'var(--color-paper-dark)',
-            background: gapLoading ? 'var(--color-paper-surface)' : '#fff',
+            background: gapLoading || quotaExhausted ? 'var(--color-paper-surface)' : 'var(--color-paper-bg)',
             outline: 'none',
             boxSizing: 'border-box',
             transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -83,7 +85,7 @@ const ColdStartInput = ({ onSubmit }) => {
             id="gap-find-btn"
             onClick={handleSubmit}
             disabled={disabled}
-            title={trimmed.length < 3 ? 'Enter at least 3 characters' : 'Find research gaps'}
+            title={quotaExhausted ? 'Quota used up for this period' : trimmed.length < 3 ? 'Enter at least 3 characters' : 'Find research gaps'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

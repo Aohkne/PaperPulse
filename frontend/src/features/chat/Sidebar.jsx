@@ -100,8 +100,9 @@ const Sidebar = ({ collapsed, onToggle }) => {
           title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--color-paper-mid)', padding: '2px',
-            display: 'flex', alignItems: 'center',
+            color: 'var(--color-paper-mid)', padding: 0,
+            width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
           }}
         >
           <Icon icon={sidebarOpen ? 'mdi:chevron-left' : 'mdi:chevron-right'} style={{ width: 18, height: 18 }} />
@@ -167,7 +168,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
           <button
             onClick={() => navigate(ROUTES.MY_REVIEWS)}
             style={{
-              width: '100%', textAlign: 'left', padding: '6px 12px',
+              width: '100%', textAlign: 'left', padding: '10px 12px', minHeight: 40,
               background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '8px',
             }}
@@ -182,7 +183,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
           <button
             onClick={() => setLauncherOpen(true)}
             style={{
-              width: '100%', textAlign: 'left', padding: '6px 12px',
+              width: '100%', textAlign: 'left', padding: '10px 12px', minHeight: 40,
               background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '8px',
             }}
@@ -199,7 +200,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
               onClick={handleNewSession}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '6px 10px', border: '1px solid var(--color-paper-light)',
+                padding: '10px 10px', minHeight: 40, border: '1px solid var(--color-paper-light)',
                 borderRadius: '4px', background: 'none', cursor: 'pointer',
               }}
             >
@@ -216,7 +217,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
               onClick={() => setProfileOpen(true)}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '7px 10px',
+                padding: '10px 10px', minHeight: 44,
                 background: profileOpen ? 'var(--color-paper-surface)' : 'none',
                 border: '1px solid var(--color-paper-light)',
                 borderRadius: '4px', cursor: 'pointer',

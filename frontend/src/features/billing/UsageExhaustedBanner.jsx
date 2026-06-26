@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Icon } from '@iconify/react';
 import { useBillingStore } from '@/shared/store/useBillingStore';
+import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
 
 const formatResetTime = (iso) => {
   if (!iso) return '';
@@ -13,18 +14,10 @@ const FEATURE_LABELS = { lr: 'Literature Review', pdf: 'PDF Agent', gap: 'Resear
 
 const UsageExhaustedBanner = ({ feature = 'lr' }) => {
   const account = useBillingStore((s) => s.account);
-  const fetchAccount = useBillingStore((s) => s.fetchAccount);
+  const exhausted = useQuotaExhausted(feature);
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => { fetchAccount(); }, [fetchAccount]);
-
-  const subscriptionQuota = account?.[`subscription_${feature}_quota`];
-  const usedThisPeriod = account?.[`${feature}_used_this_period`];
-  const topupBalance = account?.[`topup_${feature}_balance`];
-
-  if (!account || subscriptionQuota === null || subscriptionQuota === undefined) return null;
-  const remaining = (subscriptionQuota - usedThisPeriod) + topupBalance;
-  if (remaining > 0 || dismissed) return null;
+  if (!account || !exhausted || dismissed) return null;
 
   return (
     <div style={{

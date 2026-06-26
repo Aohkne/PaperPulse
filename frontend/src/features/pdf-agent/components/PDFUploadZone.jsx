@@ -3,21 +3,22 @@ import { Icon } from '@iconify/react';
 
 const ACCEPT = '.pdf,.tex,.zip';
 
-const PDFUploadZone = ({ onFile }) => {
+const PDFUploadZone = ({ onFile, disabled = false }) => {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 
   const handleFiles = (files) => {
+    if (disabled) return;
     const file = files?.[0];
     if (file) onFile(file);
   };
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-      onClick={() => inputRef.current?.click()}
+      onClick={() => { if (!disabled) inputRef.current?.click(); }}
       style={{
         flex: 1,
         margin: '32px',
@@ -29,7 +30,8 @@ const PDFUploadZone = ({ onFile }) => {
         alignItems: 'center',
         justifyContent: 'center',
         gap: '14px',
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
         transition: 'all 0.15s',
       }}
     >
@@ -37,12 +39,13 @@ const PDFUploadZone = ({ onFile }) => {
         ref={inputRef}
         type="file"
         accept={ACCEPT}
+        disabled={disabled}
         style={{ display: 'none' }}
         onChange={(e) => handleFiles(e.target.files)}
       />
       <Icon icon="mdi:file-upload-outline" style={{ width: 48, height: 48, color: 'var(--color-paper-light)' }} />
       <div style={{ fontFamily: 'Georgia, serif', fontSize: '16px', color: 'var(--color-paper-dark)', fontWeight: 600 }}>
-        Drag and drop a file here, or click to select
+        {disabled ? 'Quota used up for this period' : 'Drag and drop a file here, or click to select'}
       </div>
       <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-mid)' }}>
         Supports .pdf, .tex, .zip (Overleaf project export) — up to 20MB

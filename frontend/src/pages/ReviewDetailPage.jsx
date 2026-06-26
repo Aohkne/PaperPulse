@@ -231,6 +231,7 @@ const ReviewDetailPage = () => {
                     { icon: 'mdi:file-code-outline', label: 'LaTeX (.tex)', format: 'tex' },
                     { icon: 'mdi:language-markdown-outline', label: 'Markdown (.md)', format: 'markdown' },
                     { icon: 'mdi:file-pdf-box', label: 'PDF (.pdf)', format: 'pdf' },
+                    { icon: 'mdi:folder-zip-outline', label: 'ZIP (.zip)', format: 'zip' },
                   ].map(({ icon, label, format }) => (
                     <button
                       key={format}

@@ -1,15 +1,17 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Icon } from '@iconify/react';
 import { useChatStore } from '@/shared/store/useChatStore';
 import UsageExhaustedBanner from '@/features/billing/UsageExhaustedBanner';
+import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
 
 const ChatInput = () => {
   const [value, setValue] = useState('');
   const sendMessage = useChatStore((s) => s.sendMessage);
   const status = useChatStore((s) => s.sessions.find((sess) => sess.id === s.activeSessionId)?.status ?? 'idle');
   const textareaRef = useRef(null);
+  const quotaExhausted = useQuotaExhausted('lr');
   const isLoading = status === 'loading' || status === 'awaiting_plan';
+  const inputDisabled = isLoading || quotaExhausted;
 
   const handleChange = (e) => {
     setValue(e.target.value);
@@ -21,7 +23,7 @@ const ChatInput = () => {
   };
 
   const handleSend = () => {
-    if (!value.trim() || isLoading) return;
+    if (!value.trim() || inputDisabled) return;
     sendMessage(value);
     setValue('');
     if (textareaRef.current) {
@@ -60,19 +62,14 @@ const ChatInput = () => {
             backgroundColor: 'var(--color-paper-bg)',
           }}
         >
-          <Icon
-            icon="mdi:paperclip"
-            style={{ color: 'var(--color-paper-light)', width: 18, height: 18, flexShrink: 0, marginBottom: '2px' }}
-          />
-
           <textarea
             ref={textareaRef}
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            disabled={isLoading}
+            disabled={inputDisabled}
             rows={1}
-            placeholder="Ask PaperPulse, attach PDFs, or paste a DOI…"
+            placeholder={quotaExhausted ? 'Quota used up for this period…' : 'Ask PaperPulse, attach PDFs, or paste a DOI…'}
             style={{
               flex: 1,
               background: 'transparent',
@@ -90,16 +87,17 @@ const ChatInput = () => {
 
           <button
             onClick={handleSend}
-            disabled={isLoading || !value.trim()}
+            disabled={inputDisabled || !value.trim()}
             style={{
-              backgroundColor: isLoading || !value.trim() ? 'var(--color-paper-surface)' : 'var(--color-paper-mid)',
+              backgroundColor: inputDisabled || !value.trim() ? 'var(--color-paper-surface)' : 'var(--color-paper-mid)',
               color: 'var(--color-paper-bg)',
               border: 'none',
               borderRadius: '2px',
-              padding: '5px 14px',
+              padding: '8px 14px',
+              minHeight: 36,
               fontFamily: 'Georgia, serif',
               fontSize: '15px',
-              cursor: isLoading || !value.trim() ? 'not-allowed' : 'pointer',
+              cursor: inputDisabled || !value.trim() ? 'not-allowed' : 'pointer',
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',

@@ -11,6 +11,9 @@ import AnnotationCard from '@/features/pdf-agent/components/AnnotationCard';
 import SelectionToolbar from '@/features/pdf-agent/components/SelectionToolbar';
 import RewritePreview from '@/features/pdf-agent/components/RewritePreview';
 import { ROUTES } from '@/shared/constant/routes';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
+import UsageExhaustedBanner from '@/features/billing/UsageExhaustedBanner';
 
 const getToken = () => useAuthStore.getState().token;
 
@@ -50,8 +53,33 @@ const PDFAgentPage = () => {
   const [activeAnnotationId, setActiveAnnotationId] = useState(null);
   const [toast, setToast] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [mobileTab, setMobileTab] = useState('editor');
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const editorRef = useRef(null);
   const resumeAttempted = useRef(false);
+  const exportMenuRef = useRef(null);
+  const isMobile = useIsMobile(860);
+  const quotaExhausted = useQuotaExhausted('pdf');
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handler = (e) => { if (!exportMenuRef.current?.contains(e.target)) setExportMenuOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [exportMenuOpen]);
+
+  const handleExport = async (format) => {
+    setExportMenuOpen(false);
+    setExportLoading(true);
+    try {
+      await pdfAgentApi.download(getToken(), docId, format);
+    } catch (e) {
+      showToast(e.message || 'Export failed', false);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   useEffect(() => {
     reset();
@@ -156,13 +184,47 @@ const PDFAgentPage = () => {
             <span style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-light)' }}>
               {suggestCount} suggest · {warningCount} warning
             </span>
-            <button
-              onClick={() => pdfAgentApi.downloadBundle(getToken(), docId)}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
-            >
-              <Icon icon="mdi:download-outline" style={{ width: 13, height: 13 }} />
-              .zip
-            </button>
+            <div style={{ position: 'relative' }} ref={exportMenuRef}>
+              <button
+                onClick={() => setExportMenuOpen((v) => !v)}
+                disabled={exportLoading}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: exportLoading ? 'wait' : 'pointer' }}
+              >
+                {exportLoading
+                  ? <Icon icon="mdi:loading" style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} />
+                  : <Icon icon="mdi:download-outline" style={{ width: 13, height: 13 }} />}
+                Export
+                <Icon icon="mdi:chevron-down" style={{ width: 12, height: 12 }} />
+              </button>
+              <AnimatePresence>
+                {exportMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    style={{ position: 'absolute', right: 0, top: '32px', background: 'var(--color-paper-bg)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', boxShadow: '0 6px 20px rgba(0,0,0,0.1)', minWidth: '148px', zIndex: 200, overflow: 'hidden' }}
+                  >
+                    {[
+                      { icon: 'mdi:file-code-outline', label: 'LaTeX (.tex)', format: 'tex' },
+                      { icon: 'mdi:file-pdf-box', label: 'PDF (.pdf)', format: 'pdf' },
+                      { icon: 'mdi:folder-zip-outline', label: 'ZIP (.zip)', format: 'zip' },
+                    ].map(({ icon, label, format }) => (
+                      <button
+                        key={format}
+                        onClick={() => handleExport(format)}
+                        style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-dark)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      >
+                        <Icon icon={icon} style={{ width: 14, height: 14, color: 'var(--color-paper-mid)' }} />
+                        {label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <button
               onClick={handleSave}
               disabled={saving}
@@ -185,12 +247,19 @@ const PDFAgentPage = () => {
       </div>
 
       {/* ── Body ──────────────────────────────────────────────────────── */}
-      {status === 'idle' && <PDFUploadZone onFile={upload} />}
+      {status === 'idle' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 32px 0' }}>
+            <UsageExhaustedBanner feature="pdf" />
+          </div>
+          <PDFUploadZone onFile={upload} disabled={quotaExhausted} />
+        </div>
+      )}
 
       {(status === 'uploading' || status === 'streaming') && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div style={{
-            width: '380px', border: '1px solid var(--color-paper-light)', borderRadius: '10px',
+            width: '380px', maxWidth: '90vw', border: '1px solid var(--color-paper-light)', borderRadius: '10px',
             background: 'var(--color-paper-bg)', padding: '20px 22px',
             boxShadow: '0 8px 28px rgba(0,0,0,0.06)',
           }}>
@@ -247,9 +316,36 @@ const PDFAgentPage = () => {
       )}
 
       {(status === 'ready' || status === 'saving') && (
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
+          {isMobile && (
+            <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--color-paper-light)' }}>
+              {[
+                { key: 'editor', label: 'Editor' },
+                { key: 'annotations', label: `Annotations (${pendingAnnotations.length})` },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setMobileTab(tab.key)}
+                  style={{
+                    flex: 1, padding: '12px 8px', minHeight: 44,
+                    border: 'none', borderBottom: mobileTab === tab.key ? '2px solid var(--color-paper-dark)' : '2px solid transparent',
+                    background: 'none', cursor: 'pointer',
+                    fontFamily: 'Georgia, serif', fontSize: '13px', fontWeight: mobileTab === tab.key ? 600 : 400,
+                    color: mobileTab === tab.key ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Left: editor */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--color-paper-light)' }}>
+          <div style={{
+            flex: 1, display: (!isMobile || mobileTab === 'editor') ? 'flex' : 'none',
+            flexDirection: 'column', overflow: 'hidden',
+            borderRight: isMobile ? 'none' : '1px solid var(--color-paper-light)',
+          }}>
             <SelectionToolbar selection={selection} onExplain={handleExplain} onRewrite={handleRewrite} />
             <RewritePreview result={selectionResult} onApply={handleApply} onClose={clearSelectionResult} />
             <div style={{ flex: 1, minHeight: 0 }}>
@@ -265,12 +361,18 @@ const PDFAgentPage = () => {
           </div>
 
           {/* Right: annotations sidebar */}
-          <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--color-paper-surface)' }}>
-            <div style={{ flexShrink: 0, padding: '10px 14px', borderBottom: '1px solid var(--color-paper-light)' }}>
-              <span style={{ fontFamily: 'Georgia, serif', fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Annotations ({pendingAnnotations.length})
-              </span>
-            </div>
+          <div style={{
+            width: isMobile ? '100%' : '360px', flexShrink: 0,
+            display: (!isMobile || mobileTab === 'annotations') ? 'flex' : 'none',
+            flexDirection: 'column', overflow: 'hidden', background: 'var(--color-paper-surface)',
+          }}>
+            {!isMobile && (
+              <div style={{ flexShrink: 0, padding: '10px 14px', borderBottom: '1px solid var(--color-paper-light)' }}>
+                <span style={{ fontFamily: 'Georgia, serif', fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Annotations ({pendingAnnotations.length})
+                </span>
+              </div>
+            )}
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
               {pendingAnnotations.length === 0 ? (
                 <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-light)', textAlign: 'center', marginTop: '24px' }}>
@@ -285,6 +387,7 @@ const PDFAgentPage = () => {
                     onClick={() => {
                       setActiveAnnotationId(a.id);
                       editorRef.current?.revealAnnotation(a.id);
+                      if (isMobile) setMobileTab('editor');
                     }}
                     onAction={(action) => handleAnnotationAction(a, action)}
                   />

@@ -36,7 +36,7 @@ const Centered = ({ icon, children }) => (
   <div style={{
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     height: '100%', minHeight: '320px', gap: '16px', fontFamily: 'var(--font-inknut)',
-    background: 'rgba(255,252,240,0.6)', border: '1px dashed var(--color-paper-surface)',
+    background: 'var(--color-paper-surface)', border: '1px dashed var(--color-paper-light)',
     borderRadius: '14px', padding: '40px 24px',
   }}>
     <Icon icon={icon} style={{ fontSize: '64px', color: 'var(--color-paper-light)' }} />
@@ -109,14 +109,14 @@ function GapCard({ gap }) {
         <span
           title={gap.gap_type === 'topical' ? 'A gap about an underexplored research topic or direction.' : undefined}
           className={`gap-badge ${gap.gap_type}`}
-          style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontFamily: 'var(--font-inknut)', fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-dark)', background: 'rgba(237, 232, 212, 0.85)', border: '1px solid var(--color-paper-light)' }}
+          style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontFamily: 'var(--font-inknut)', fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-dark)', background: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)' }}
         >
           {gap.gap_type === 'topical' ? 'Topic gap' : gap.gap_type}
         </span>
         <GapQualityBadge quality={gap.quality_score ?? null} origin={gap.origin} />
       </div>
 
-      <div style={{ marginBottom: '12px', padding: '12px 14px', borderLeft: '4px solid var(--color-paper-light)', borderRadius: '0 12px 12px 0', background: 'linear-gradient(90deg, rgba(237, 232, 212, 0.92) 0%, rgba(255, 252, 240, 0.98) 100%)' }}>
+      <div style={{ marginBottom: '12px', padding: '12px 14px', borderLeft: '4px solid var(--color-paper-light)', borderRadius: '0 12px 12px 0', background: 'linear-gradient(90deg, var(--color-paper-surface) 0%, var(--color-paper-bg) 100%)' }}>
         <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-paper-light)', marginBottom: '6px' }}>
           Gap
         </div>
@@ -131,7 +131,7 @@ function GapCard({ gap }) {
       </div>
 
       {gap.quality_score != null && (
-        <div style={{ padding: '10px 12px', borderRadius: '8px', background: '#fff', border: '1px solid var(--color-paper-surface)', marginBottom: '10px' }}>
+        <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--color-paper-bg)', border: '1px solid var(--color-paper-surface)', marginBottom: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' }}>
             <strong style={{ fontFamily: 'var(--font-inknut)', fontSize: '13px', color: 'var(--color-paper-dark)' }}>
               Quality
@@ -160,7 +160,7 @@ function GapCard({ gap }) {
           </button>
 
           {detailsOpen && (
-            <div style={{ display: 'grid', gap: '8px', margin: '8px 0 0', padding: '10px 12px', background: 'rgba(255,252,240,0.6)', borderRadius: '8px' }}>
+            <div style={{ display: 'grid', gap: '8px', margin: '8px 0 0', padding: '10px 12px', background: 'var(--color-paper-surface)', borderRadius: '8px' }}>
               {gap.suggested_method && (
                 <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '13px', color: 'var(--color-paper-dark)', lineHeight: '1.6' }}>
                   <strong>Suggested method:</strong> {normalizeVi(gap.suggested_method)}
@@ -214,7 +214,7 @@ const GapResultPanel = ({ narrative, gapReport, loading, error }) => {
       <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '0 0 14px', fontFamily: 'var(--font-inknut)', flexShrink: 0 }}>
         Research Gaps
       </h2>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px', background: 'rgba(255,252,240,0.72)', border: '1px solid var(--color-paper-surface)', borderRadius: '14px', fontFamily: 'var(--font-inknut)', boxShadow: '0 10px 28px rgba(41, 17, 0, 0.04)' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px', background: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '14px', fontFamily: 'var(--font-inknut)', boxShadow: '0 10px 28px rgba(41, 17, 0, 0.04)' }}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
           {normalizeVi(stripGapSummary(narrative))}
         </ReactMarkdown>

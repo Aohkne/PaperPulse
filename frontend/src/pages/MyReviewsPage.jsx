@@ -90,6 +90,7 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
                 { icon: 'mdi:file-code-outline', label: 'Export LaTeX', action: () => reviewsApi.download(token(), review.id, 'tex').catch(() => {}) },
                 { icon: 'mdi:language-markdown-outline', label: 'Export Markdown', action: () => reviewsApi.download(token(), review.id, 'markdown').catch(() => {}) },
                 { icon: 'mdi:file-pdf-box', label: 'Export PDF', action: () => reviewsApi.download(token(), review.id, 'pdf').catch(() => {}) },
+                { icon: 'mdi:folder-zip-outline', label: 'Export ZIP', action: () => reviewsApi.download(token(), review.id, 'zip').catch(() => {}) },
                 { icon: 'mdi:content-copy', label: 'Duplicate', action: () => { onDuplicate(review.id); setMenuOpen(false); } },
                 { icon: 'mdi:delete-outline', label: 'Delete', action: () => { onDelete(review.id); setMenuOpen(false); }, danger: true },
               ].map(({ icon, label, action, danger }) => (

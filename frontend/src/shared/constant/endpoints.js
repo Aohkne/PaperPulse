@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
   PDF_AGENT: {
     UPLOAD: `${BASE_URL}/api/pdf-agent/upload`,
     BUNDLE: (docId) => `${BASE_URL}/api/pdf-agent/${docId}/bundle`,
+    EXPORT: (docId) => `${BASE_URL}/api/pdf-agent/${docId}/export`,
     CONTENT: (docId) => `${BASE_URL}/api/pdf-agent/${docId}/content`,
     ANNOTATIONS: (docId) => `${BASE_URL}/api/pdf-agent/${docId}/annotations`,
     ANNOTATION_ITEM: (docId, id) => `${BASE_URL}/api/pdf-agent/${docId}/annotations/${id}`,

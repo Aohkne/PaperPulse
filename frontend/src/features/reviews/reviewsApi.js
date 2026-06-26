@@ -74,7 +74,7 @@ export const reviewsApi = {
     const blob = await res.blob();
     const disposition = res.headers.get('Content-Disposition') ?? '';
     const match = disposition.match(/filename="?([^";\n]+)"?/);
-    const extension = format === 'pdf' ? 'pdf' : format === 'tex' ? 'tex' : 'md';
+    const extension = format === 'pdf' ? 'pdf' : format === 'tex' ? 'tex' : format === 'zip' ? 'zip' : 'md';
     const filename = match ? match[1] : `review.${extension}`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

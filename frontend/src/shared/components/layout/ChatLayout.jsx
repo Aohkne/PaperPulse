@@ -4,10 +4,13 @@ import Sidebar from '@/features/chat/Sidebar';
 import KnowledgeGraphDrawer from '@/features/graph/KnowledgeGraphDrawer';
 import { useChatStore } from '@/shared/store/useChatStore';
 import { useUIStore } from '@/shared/store/useUIStore';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
 const ChatLayout = ({ children }) => {
+  const isMobile = useIsMobile(768);
   const [sidebarW, setSidebarW] = useState(20);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const graphOpen = useUIStore((s) => s.graphOpen);
   const setGraphOpen = useUIStore((s) => s.setGraphOpen);
@@ -48,6 +51,68 @@ const ChatLayout = ({ children }) => {
     background: 'var(--color-paper-light)',
     transition: 'background 0.15s',
   };
+
+  if (isMobile) {
+    return (
+      <div style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-paper-bg)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '6px 8px', borderBottom: '1px solid var(--color-paper-light)', flexShrink: 0,
+        }}>
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            title="Open menu"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)',
+              padding: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Icon icon="mdi:menu" style={{ fontSize: 22 }} />
+          </button>
+          <button
+            onClick={() => setGraphOpen(true)}
+            title="Open Knowledge Graph"
+            style={{
+              background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
+              cursor: 'pointer', color: 'var(--color-paper-mid)',
+              width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Icon icon="mdi:graph-outline" style={{ fontSize: '16px' }} />
+          </button>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0, overflow: 'auto', position: 'relative' }}>
+          {children}
+        </div>
+
+        {mobileSidebarOpen && (
+          <>
+            <div
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200 }}
+            />
+            <div
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{
+                position: 'fixed', top: 0, left: 0, height: '100vh',
+                width: 'min(82vw, 320px)', zIndex: 201,
+                boxShadow: '2px 0 24px rgba(0,0,0,0.18)',
+              }}
+            >
+              <Sidebar collapsed={false} onToggle={() => setMobileSidebarOpen(false)} />
+            </div>
+          </>
+        )}
+
+        <KnowledgeGraphDrawer
+          open={graphOpen}
+          onClose={() => setGraphOpen(false)}
+          threadId={activeThreadId}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

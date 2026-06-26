@@ -9,6 +9,7 @@ import { ROUTES } from '@/shared/constant/routes';
 import MessageList from '@/features/chat/MessageList';
 import ChatInput from '@/features/chat/ChatInput';
 import UsageExhaustedBanner from '@/features/billing/UsageExhaustedBanner';
+import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
 
 const PILLARS = [
   { key: 'literature-review', icon: 'mdi:text-search', title: 'Literature Review', description: 'Search, screen, and summarise papers on any topic.' },
@@ -31,9 +32,10 @@ const WelcomeInput = () => {
   const setGraphOpen = useUIStore((s) => s.setGraphOpen);
   const navigate = useNavigate();
   const textareaRef = useRef(null);
+  const quotaExhausted = useQuotaExhausted('lr');
 
   const handleSend = () => {
-    if (!text.trim()) return;
+    if (!text.trim() || quotaExhausted) return;
     sendMessage(text);
     setText('');
   };
@@ -72,7 +74,8 @@ const WelcomeInput = () => {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Describe the topic, research question, and requirements..."
+          disabled={quotaExhausted}
+          placeholder={quotaExhausted ? 'Quota used up for this period…' : 'Describe the topic, research question, and requirements...'}
           style={{
             width: '100%',
             border: 'none',
@@ -90,16 +93,17 @@ const WelcomeInput = () => {
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={handleSend}
-            disabled={!text.trim()}
+            disabled={!text.trim() || quotaExhausted}
             style={{
               background: 'var(--color-paper-dark)',
               border: 'none',
               borderRadius: '4px',
-              padding: '6px 14px',
+              padding: '8px 16px',
+              minHeight: 36,
               color: 'var(--color-paper-bg)',
               fontFamily: 'Georgia, serif',
               fontSize: '13px',
-              cursor: text.trim() ? 'pointer' : 'not-allowed',
+              cursor: text.trim() && !quotaExhausted ? 'pointer' : 'not-allowed',
             }}
           >
             →
@@ -108,7 +112,7 @@ const WelcomeInput = () => {
       </div>
 
       {!text.trim() && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginTop: '14px' }}>
           {PILLARS.map(({ key, icon, title, description }) => (
             <button
               key={key}

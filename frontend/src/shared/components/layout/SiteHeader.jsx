@@ -6,6 +6,7 @@ import { Icon } from '@iconify/react';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ROUTES } from '@/shared/constant/routes';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
 const useIsScrolled = (threshold = 8) => {
   const [scrolled, setScrolled] = useState(false);
@@ -31,7 +32,7 @@ const NAV_LINKS = [
 ];
 
 // ── Avatar dropdown (auth + profile menu) ────────────────────────────────────
-const AvatarMenu = ({ user, onClose, menuRef }) => {
+const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
   const theme = useThemeStore((s) => s.theme);
@@ -93,7 +94,7 @@ const AvatarMenu = ({ user, onClose, menuRef }) => {
         border: '1px solid var(--color-paper-surface)',
         borderRadius: 4,
         boxShadow: '0 8px 32px rgba(41,17,0,0.12)',
-        width: 256,
+        width: isMobile ? 'min(256px, calc(100vw - 24px))' : 256,
         overflow: 'hidden',
         transformOrigin: 'top right',
       }}
@@ -210,6 +211,7 @@ const SiteHeader = () => {
   const user = useAuthStore((s) => s.user);
   const scrolled = useIsScrolled();
   const isLanding = location.pathname === ROUTES.HOME;
+  const isMobile = useIsMobile(640);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
@@ -258,29 +260,32 @@ const SiteHeader = () => {
           WebkitBackdropFilter: scrolled ? 'blur(12px)' : 'none',
           borderBottom: scrolled ? 'none' : '1px solid var(--color-paper-surface)',
           boxShadow: scrolled ? '0 1px 0 var(--color-paper-surface), 0 10px 30px rgba(41,17,0,0.06)' : 'none',
-          padding: '12px 40px',
+          padding: isMobile ? '10px 16px' : '12px 40px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 8,
           transition: 'background 0.2s, box-shadow 0.2s',
         }}
       >
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => navigate(ROUTES.HOME)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0 }} onClick={() => navigate(ROUTES.HOME)}>
           <img
             src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
             alt="PaperPulse"
-            style={{ height: 32, width: 'auto' }}
+            style={{ height: isMobile ? 26 : 32, width: 'auto' }}
           />
-          <span style={{
-            fontFamily: 'Georgia, serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-            color: 'var(--color-brand-600)', background: 'var(--color-brand-50)',
-            border: '1px solid var(--color-brand-100)', borderRadius: 4, padding: '2px 6px',
-          }}>
-            BETA
-          </span>
+          {!isMobile && (
+            <span style={{
+              fontFamily: 'Georgia, serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+              color: 'var(--color-brand-600)', background: 'var(--color-brand-50)',
+              border: '1px solid var(--color-brand-100)', borderRadius: 4, padding: '2px 6px',
+            }}>
+              BETA
+            </span>
+          )}
         </div>
 
         {/* Center nav links */}
-        <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: isMobile ? 14 : 32, alignItems: 'center' }}>
           {NAV_LINKS.map((item) => {
             const isActive = location.pathname === item.to;
             return (
@@ -289,8 +294,8 @@ const SiteHeader = () => {
                 onClick={() => navigate(item.to)}
                 style={{
                   position: 'relative',
-                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
-                  fontFamily: 'Georgia, serif', fontSize: 15,
+                  background: 'none', border: 'none', cursor: 'pointer', padding: isMobile ? '6px 0' : '4px 0',
+                  fontFamily: 'Georgia, serif', fontSize: isMobile ? 13 : 15,
                   color: isActive ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
                   fontWeight: isActive ? 600 : 400,
                   transition: 'color 0.15s',
@@ -313,16 +318,17 @@ const SiteHeader = () => {
         </div>
 
         {/* Right */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: isMobile ? 6 : 10, alignItems: 'center', flexShrink: 0 }}>
           <button
             onClick={toggleTheme}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{
               background: 'none',
               border: '1px solid var(--color-paper-surface)',
-              borderRadius: 999, padding: '6px 8px',
+              borderRadius: 999, padding: isMobile ? '8px' : '6px 8px',
+              minWidth: isMobile ? 38 : undefined, minHeight: isMobile ? 38 : undefined,
               cursor: 'pointer', color: 'var(--color-paper-mid)',
-              display: 'flex', alignItems: 'center', lineHeight: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
             }}
           >
             <Icon icon={isDark ? 'mdi:weather-sunny' : 'mdi:weather-night'} style={{ fontSize: 18 }} />
@@ -334,7 +340,7 @@ const SiteHeader = () => {
               onClick={openMenu}
               title="Account"
               style={{
-                width: 34, height: 34,
+                width: isMobile ? 38 : 34, height: isMobile ? 38 : 34,
                 borderRadius: 4,
                 border: menuOpen ? '1px solid var(--color-paper-dark)' : '1px solid var(--color-paper-light)',
                 background: 'var(--color-paper-surface)',
@@ -358,8 +364,9 @@ const SiteHeader = () => {
                 style={{
                   background: 'transparent',
                   border: '1px solid var(--color-paper-mid)',
-                  color: 'var(--color-paper-mid)', padding: '7px 20px',
-                  borderRadius: 999, fontFamily: 'Georgia, serif', fontSize: 15, cursor: 'pointer',
+                  color: 'var(--color-paper-mid)', padding: isMobile ? '8px 12px' : '7px 20px',
+                  borderRadius: 999, fontFamily: 'Georgia, serif', fontSize: isMobile ? 13 : 15, cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 Log in
@@ -368,11 +375,12 @@ const SiteHeader = () => {
                 onClick={() => navigate(ROUTES.SIGNUP)}
                 style={{
                   background: 'var(--color-paper-dark)', border: 'none',
-                  color: 'var(--color-paper-bg)', padding: '7px 20px',
-                  borderRadius: 999, fontFamily: 'Georgia, serif', fontSize: 15, cursor: 'pointer',
+                  color: 'var(--color-paper-bg)', padding: isMobile ? '8px 12px' : '7px 20px',
+                  borderRadius: 999, fontFamily: 'Georgia, serif', fontSize: isMobile ? 13 : 15, cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                Get Started
+                {isMobile ? 'Sign up' : 'Get Started'}
               </button>
             </>
           )}
@@ -383,11 +391,17 @@ const SiteHeader = () => {
       {isAuthenticated && createPortal(
         <AnimatePresence>
           {menuOpen && (
-            <div style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 9999 }}>
+            <div style={{
+              position: 'fixed',
+              top: menuPos.top,
+              right: Math.max(12, menuPos.right),
+              zIndex: 9999,
+            }}>
               <AvatarMenu
                 user={user}
                 onClose={() => setMenuOpen(false)}
                 menuRef={menuRef}
+                isMobile={isMobile}
               />
             </div>
           )}

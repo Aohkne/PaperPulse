@@ -107,16 +107,24 @@ export const pdfAgentApi = {
   resume: (token, reviewId) =>
     _req(E.RESUME(reviewId), { method: 'POST', headers: authHeaders(token) }),
 
-  bundleDownloadUrl: (docId) => E.BUNDLE(docId),
-
-  downloadBundle: async (token, docId) => {
-    const res = await _fetchWithRefresh(E.BUNDLE(docId), { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  /** Export the current document as .tex, .pdf, or .zip — same format trio as
+   * reviewsApi.download, so My Reviews and PDF Agent download consistently. */
+  download: async (token, docId, format = 'zip') => {
+    const res = await _fetchWithRefresh(`${E.EXPORT(docId)}?format=${format}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail ?? `Download failed: ${res.status}`);
+    }
     const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') ?? '';
+    const match = disposition.match(/filename="?([^";\n]+)"?/);
+    const filename = match ? match[1] : `${docId}.${format}`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${docId}.zip`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();

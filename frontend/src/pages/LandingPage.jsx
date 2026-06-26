@@ -229,13 +229,13 @@ const LandingPage = () => {
             <h1 style={{ margin: 0, lineHeight: 1.15 }}>
               <motion.span {...fadeUp(0.25)} style={{
                 display: 'block', fontFamily: 'var(--font-inknut)',
-                fontSize: 56, color: 'var(--color-paper-dark)', fontWeight: 500, letterSpacing: '-0.01em',
+                fontSize: 'clamp(32px, 8vw, 56px)', color: 'var(--color-paper-dark)', fontWeight: 500, letterSpacing: '-0.01em',
               }}>
                 Your Literature Review,
               </motion.span>
               <motion.span {...fadeUp(0.38)} style={{
                 display: 'block', fontFamily: 'var(--font-inknut)',
-                fontSize: 56, color: 'var(--color-paper-mid)', fontWeight: 500, letterSpacing: '-0.01em',
+                fontSize: 'clamp(32px, 8vw, 56px)', color: 'var(--color-paper-mid)', fontWeight: 500, letterSpacing: '-0.01em',
               }}>
                 Done in Hours.
               </motion.span>
@@ -283,8 +283,8 @@ const LandingPage = () => {
           </div>
 
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-            maxWidth: 900, margin: '0 auto',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '32px 0', maxWidth: 900, margin: '0 auto',
           }}>
             {STEPS.map(({ num, icon, title, body }, i) => (
               <motion.div
@@ -339,7 +339,7 @@ const LandingPage = () => {
           </div>
 
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: 20, maxWidth: 940, margin: '0 auto',
           }}>
             {FEATURES.map(({ icon, title, body }, i) => (
@@ -395,7 +395,7 @@ const LandingPage = () => {
           </div>
 
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 24, maxWidth: 900, margin: '0 auto', alignItems: 'start',
           }}>
             {PLANS.map((plan, i) => (
