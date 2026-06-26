@@ -39,6 +39,15 @@ export const authApi = {
     return handleResponse<TokenResponse>(res);
   },
 
+  loginWithGoogle: async (idToken: string, nonce: string): Promise<TokenResponse> => {
+    const res = await fetch(API_ENDPOINTS.AUTH.GOOGLE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: idToken, nonce }),
+    });
+    return handleResponse<TokenResponse>(res);
+  },
+
   logout: async (token: string): Promise<void> => {
     await fetch(API_ENDPOINTS.AUTH.LOGOUT, {
       method: 'POST',

@@ -1,6 +1,30 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import SiteHeader from '@/shared/components/layout/SiteHeader';
 import ContentFooter from './_shared/ContentFooter';
+
+const NOTES = [
+  {
+    rot: '-2.2deg', pin: '#BB6A57', bg: '#f8ded5ff',
+    title: 'Verified citations, always',
+    body: 'Every claim traces back to a real paper — multi-tier pipeline from snippet matching to arXiv full-text. Low-confidence claims are flagged, never silently included.',
+  },
+  {
+    rot: '1.8deg', pin: '#457a5bff', bg: '#ffe8d2ff',
+    title: 'You stay in control',
+    body: 'Step in at any point. Adjust scope, refine themes, exclude papers, redirect the synthesis. PaperPulse is a collaborator, not a black box.',
+  },
+  {
+    rot: '2.4deg', pin: '#5775bbff', bg: '#e0eff0ff',
+    title: 'Surfaces the gap',
+    body: "Contradictions between studies, underexplored angles, open questions — PaperPulse names what existing work hasn't addressed so you can define your contribution.",
+  },
+  {
+    rot: '-1.6deg', pin: '#B5A23F', bg: '#f5fef3ff',
+    title: 'Works with your files',
+    body: 'Upload PDFs, ZIP archives, or .tex files. A live knowledge graph maps how concepts, authors, and findings connect across your entire literature set.',
+  },
+];
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 22 },
@@ -16,10 +40,66 @@ const inView = (delay = 0) => ({
 });
 
 const TEAM = [
-  { name: 'Nguyễn Phan Duy Bảo', id: '[ID TBD]' },
-  { name: 'Lê Hữu Khoa', id: '[ID TBD]' },
-  { name: 'Trần Nguyễn Anh Thư', id: '[ID TBD]' },
+  { name: 'Nguyễn Phan Duy Bảo', id: '2A202600688' },
+  { name: 'Lê Hữu Khoa', id: '2A202600863' },
+  { name: 'Trần Nguyễn Anh Thư', id: '2A202600915' },
 ];
+
+const NoteCard = ({ rot, pin, bg, title, body, delay }) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 28, rotate: 0 }}
+      whileInView={{ opacity: 1, y: 0, rotate: rot }}
+      whileHover={{
+        y: -10, rotate: '0deg', scale: 1.03,
+        transition: { type: 'spring', stiffness: 260, damping: 18 },
+      }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay }}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        background: bg,
+        padding: '36px 24px 28px',
+        boxShadow: hovered
+          ? '6px 14px 36px rgba(41,17,0,0.18)'
+          : '3px 6px 20px rgba(41,17,0,0.10)',
+        cursor: 'default',
+        transition: 'box-shadow 0.25s',
+      }}
+    >
+      {/* Pin — lifts on hover */}
+      <motion.div
+        animate={{ y: hovered ? -5 : 0, scale: hovered ? 1.12 : 1 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 14 }}
+        style={{
+          position: 'absolute', top: -10, left: '50%', marginLeft: -10,
+          width: 20, height: 20, borderRadius: '50%',
+          background: pin,
+          boxShadow: '0 2px 6px rgba(0,0,0,0.28)',
+          border: '2px solid rgba(255,255,255,0.35)',
+          zIndex: 1,
+        }}
+      />
+
+      <p style={{
+        fontFamily: 'var(--font-inknut)', fontSize: 15, fontWeight: 500,
+        color: 'var(--color-paper-dark)', margin: '0 0 12px', lineHeight: 1.4,
+      }}>
+        {title}
+      </p>
+      <p style={{
+        fontFamily: 'Georgia, serif', fontSize: 14, lineHeight: 1.8,
+        color: 'var(--color-paper-mid)', margin: 0,
+      }}>
+        {body}
+      </p>
+    </motion.div>
+  );
+};
 
 const Divider = () => (
   <div style={{ borderTop: '1px solid var(--color-paper-surface)', maxWidth: 720, margin: '0 auto' }} />
@@ -66,29 +146,24 @@ const AboutPage = () => (
       <Divider />
 
       {/* What makes us different */}
-      <section style={{ maxWidth: 720, margin: '0 auto', padding: '64px 24px' }}>
+      <section style={{ maxWidth: 760, margin: '0 auto', padding: '64px 24px' }}>
         <motion.h2 {...inView()} style={{
           fontFamily: 'var(--font-inknut)', fontSize: 26, fontWeight: 500,
-          color: 'var(--color-paper-dark)', margin: '0 0 24px',
+          color: 'var(--color-paper-dark)', margin: '0 0 48px',
         }}>
-          Rigorous by design
+          What makes us different
         </motion.h2>
 
-        <motion.p {...inView(0.1)} style={{
-          fontSize: 17, lineHeight: 1.8, color: 'var(--color-paper-mid)', margin: '0 0 16px',
-        }}>
-          Unlike general-purpose AI assistants, PaperPulse only cites papers that actually
-          exist. Every claim in a generated review is traced back to a real source via a
-          multi-tier verification pipeline — from snippet matching to full-text retrieval on
-          arXiv.
-        </motion.p>
-
-        <motion.p {...inView(0.15)} style={{
-          fontSize: 17, lineHeight: 1.8, color: 'var(--color-paper-mid)', margin: 0,
-        }}>
-          Low-confidence claims are flagged for human review rather than silently included.
-          No fabricated authors, no hallucinated DOIs, no citation drift — ever.
-        </motion.p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px 32px' }}>
+          {NOTES.map(({ rot, pin, bg, title, body }, i) => (
+            <NoteCard
+              key={title}
+              rot={rot} pin={pin} bg={bg}
+              title={title} body={body}
+              delay={i * 0.1}
+            />
+          ))}
+        </div>
       </section>
 
       <Divider />
@@ -99,7 +174,7 @@ const AboutPage = () => (
           fontFamily: 'var(--font-inknut)', fontSize: 26, fontWeight: 500,
           color: 'var(--color-paper-dark)', margin: '0 0 32px',
         }}>
-          The team
+          Meet the Team
         </motion.h2>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -133,7 +208,7 @@ const AboutPage = () => (
           fontSize: 15, lineHeight: 1.7, color: 'var(--color-paper-mid)', margin: 0,
           fontStyle: 'italic',
         }}>
-          PaperPulse was built as part of an intensive 6-week AI engineering program in 2026,
+          PaperPulse was built as part of an intensive 6-week AI in Action program Cohort 2 in 2026,
           with a focus on production-quality LLM + RAG systems for the research domain.
         </motion.p>
       </section>

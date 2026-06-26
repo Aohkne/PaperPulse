@@ -58,6 +58,11 @@ class RegisterRequest(BaseModel):
     redirect_to: str | None = None
 
 
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+    nonce: str | None = None
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -108,6 +113,40 @@ async def register(
 
     ip = request.client.host if request.client else None
     await _log_event(str(res.user.id), res.user.email, "register", ip)
+
+    return TokenResponse(
+        access_token=res.session.access_token,
+        refresh_token=res.session.refresh_token,
+        expires_in=res.session.expires_in,
+    )
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_login(
+    request: Request,
+    body: GoogleLoginRequest,
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Exchange a Google Identity Services ID token for a PaperPulse session.
+
+    Supabase validates the token's signature/audience itself (the Google
+    provider must be enabled in the Supabase dashboard) and auto-creates the
+    auth.users row on first sign-in, so this covers both login and signup.
+    """
+    try:
+        res = supabase.auth.sign_in_with_id_token({
+            "provider": "google",
+            "token": body.id_token,
+            "nonce": body.nonce,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if res.session is None or res.user is None:
+        raise HTTPException(status_code=400, detail="Google sign-in failed")
+
+    ip = request.client.host if request.client else None
+    await _log_event(str(res.user.id), res.user.email, "google_login", ip)
 
     return TokenResponse(
         access_token=res.session.access_token,

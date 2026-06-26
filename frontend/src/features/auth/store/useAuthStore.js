@@ -8,11 +8,11 @@ async function fetchProfile(token) {
     const res = await fetch(API_ENDPOINTS.AUTH.ME, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return { id: null, role: 'user' };
+    if (!res.ok) return { id: null, email: null, role: 'user' };
     const data = await res.json();
-    return { id: data.id ?? null, role: data.role ?? 'user' };
+    return { id: data.id ?? null, email: data.email ?? null, role: data.role ?? 'user' };
   } catch {
-    return { id: null, role: 'user' };
+    return { id: null, email: null, role: 'user' };
   }
 }
 
@@ -42,6 +42,20 @@ export const useAuthStore = create(
           token: data.access_token,
           refreshToken: data.refresh_token,
           user: { id, email, name: name || email.split('@')[0], role },
+          isAuthenticated: true,
+        });
+      },
+
+      // Google Identity Services hands us an ID token; the backend exchanges
+      // it for a session via Supabase (auto-creates the account on first
+      // sign-in), so this one call covers both Google login and signup.
+      loginWithGoogle: async (idToken, nonce) => {
+        const data = await authApi.loginWithGoogle(idToken, nonce);
+        const { id, email, role } = await fetchProfile(data.access_token);
+        set({
+          token: data.access_token,
+          refreshToken: data.refresh_token,
+          user: { id, email, name: email?.split('@')[0] || 'User', role },
           isAuthenticated: true,
         });
       },

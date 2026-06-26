@@ -3,16 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useThemeStore } from '@/shared/store/useThemeStore';
+import { useGoogleIdentity } from '@/features/auth/hooks/useGoogleIdentity';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
   const theme = useThemeStore((s) => s.theme);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const isDark =
     theme === 'dark' ||
@@ -31,9 +34,20 @@ const LoginPage = () => {
     outline: 'none',
   };
 
-  const handleGoogleLogin = () => {
-    // Google OAuth not yet implemented
-  };
+  const { prompt: promptGoogle } = useGoogleIdentity(async (idToken, nonce) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle(idToken, nonce);
+      navigate('/app');
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed. Please try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  });
+
+  const handleGoogleLogin = () => promptGoogle();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,6 +199,7 @@ const LoginPage = () => {
           <button
             type="button"
             onClick={handleGoogleLogin}
+            disabled={googleLoading}
             style={{
               width: '100%',
               display: 'flex',
@@ -195,7 +210,8 @@ const LoginPage = () => {
               background: 'var(--color-paper-bg)',
               border: '1px solid var(--color-paper-surface)',
               borderRadius: '2px',
-              cursor: 'pointer',
+              cursor: googleLoading ? 'not-allowed' : 'pointer',
+              opacity: googleLoading ? 0.7 : 1,
               fontFamily: 'Georgia, serif',
               fontSize: '15px',
               color: 'var(--color-paper-dark)',
@@ -207,7 +223,7 @@ const LoginPage = () => {
               <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
               <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
             </svg>
-            Sign in with Google
+            {googleLoading ? 'Signing in…' : 'Sign in with Google'}
           </button>
         </form>
 

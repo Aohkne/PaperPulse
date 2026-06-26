@@ -9,6 +9,13 @@ const fadeUp = (delay = 0) => ({
   transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay },
 });
 
+const scrollUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-60px' },
+  transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1], delay },
+});
+
 const prose = { fontSize: 16, lineHeight: 1.85, color: 'var(--color-paper-mid)', margin: '0 0 16px' };
 const h2Style = {
   fontFamily: 'var(--font-inknut)', fontSize: 20, fontWeight: 500,
@@ -43,7 +50,7 @@ const TermsPage = () => (
 
         <div style={{ borderTop: '1px solid var(--color-paper-surface)', marginBottom: 8 }} />
 
-        <motion.div {...fadeUp(0.35)}>
+        <motion.div {...scrollUp(0.1)}>
           <h2 style={h2Style}>1. Acceptance of Terms</h2>
           <p style={prose}>
             By accessing or using PaperPulse, you agree to be bound by these Terms of Service.
