@@ -348,7 +348,10 @@ const Sidebar = ({ collapsed, onToggle }) => {
               width: '100%', textAlign: 'left', padding: '10px 12px', minHeight: 40,
               background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '8px',
+              transition: 'background-color 0.15s',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-paper-surface)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             <Icon icon="mdi:bookshelf" style={{ width: 14, height: 14, color: 'var(--color-paper-light)', flexShrink: 0 }} />
             <span style={{ fontSize: '14px', color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif" }}>
@@ -362,7 +365,10 @@ const Sidebar = ({ collapsed, onToggle }) => {
               width: '100%', textAlign: 'left', padding: '10px 12px', minHeight: 40,
               background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '8px',
+              transition: 'background-color 0.15s',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-paper-surface)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             <Icon icon="mdi:apps" style={{ width: 14, height: 14, color: 'var(--color-paper-light)', flexShrink: 0 }} />
             <span style={{ fontSize: '14px', color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif" }}>
