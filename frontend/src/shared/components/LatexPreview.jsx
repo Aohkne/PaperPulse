@@ -142,9 +142,70 @@ const citationStyle = {
   padding: '1px 5px', borderRadius: '3px', fontFamily: 'monospace',
 };
 
+const citationLinkStyle = {
+  ...citationStyle,
+  color: 'var(--color-brand-600)',
+  textDecoration: 'none',
+  cursor: 'pointer',
+};
+
 const linkStyle = { color: 'var(--color-brand-600)', textDecoration: 'underline', textUnderlineOffset: '2px' };
 
-function renderInline(text, keyPrefix) {
+// Maps \bibitem{key} → its position + full reference text, so inline \cite{key}
+// markers can link straight to the matching entry (and show its title on
+// hover) instead of being a dead, untraceable "(key)" span — this is what lets
+// a user actually tell which paper a citation refers to without scrolling.
+function extractBibliography(blocks) {
+  const indexByKey = new Map();
+  const textByKey = new Map();
+  let n = 0;
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i].type !== 'bibitem') continue;
+    const key = blocks[i].key;
+    n += 1;
+    indexByKey.set(key, n);
+    let j = i + 1;
+    const textParts = [];
+    while (j < blocks.length && blocks[j].type === 'para') { textParts.push(blocks[j].text); j++; }
+    textByKey.set(key, textParts.join(' ').trim());
+  }
+  return { indexByKey, textByKey };
+}
+
+function jumpToCitation(citeKey) {
+  document.getElementById(`cite-${citeKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Renders a \cite{key1,key2,...} group as one clickable badge per key, linking
+// to its \bibitem entry below (with the reference text as a hover tooltip) —
+// falls back to a plain, unclickable badge if the key isn't in the bibliography
+// (e.g. content saved before export finished, or a key that was never resolved).
+function renderCiteKeys(rawKeys, keyPrefix, bibliography) {
+  const keys = rawKeys.split(',').map((k) => k.trim()).filter(Boolean);
+  return keys.map((citeKey, i) => {
+    const refText = bibliography?.textByKey.get(citeKey);
+    const refIndex = bibliography?.indexByKey.get(citeKey);
+    const nodeKey = `${keyPrefix}-${i}`;
+    if (refIndex === undefined) {
+      return <span key={nodeKey} style={citationStyle}>({citeKey})</span>;
+    }
+    return (
+      <span
+        key={nodeKey}
+        role="link"
+        tabIndex={0}
+        title={refText || citeKey}
+        onClick={() => jumpToCitation(citeKey)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') jumpToCitation(citeKey); }}
+        style={citationLinkStyle}
+      >
+        [{refIndex}]
+      </span>
+    );
+  });
+}
+
+function renderInline(text, keyPrefix, bibliography) {
   const nodes = [];
   let lastIndex = 0;
   let idx = 0;
@@ -160,15 +221,15 @@ function renderInline(text, keyPrefix) {
     } else if (g.hrefText !== undefined) {
       nodes.push(<a key={key} href={g.hrefUrl} target="_blank" rel="noopener noreferrer" style={linkStyle}>{g.hrefText}</a>);
     } else if (g.cite !== undefined) {
-      nodes.push(<span key={key} style={citationStyle}>({g.cite})</span>);
+      nodes.push(...renderCiteKeys(g.cite, key, bibliography));
     } else if (g.sourceCite !== undefined) {
       nodes.push(<span key={key} style={citationStyle}>(Source: {g.sourceCite})</span>);
     } else if (g.bf !== undefined) {
-      nodes.push(<strong key={key}>{renderInline(g.bf, key)}</strong>);
+      nodes.push(<strong key={key}>{renderInline(g.bf, key, bibliography)}</strong>);
     } else if (g.it !== undefined) {
-      nodes.push(<em key={key}>{renderInline(g.it, key)}</em>);
+      nodes.push(<em key={key}>{renderInline(g.it, key, bibliography)}</em>);
     } else if (g.emph !== undefined) {
-      nodes.push(<em key={key}>{renderInline(g.emph, key)}</em>);
+      nodes.push(<em key={key}>{renderInline(g.emph, key, bibliography)}</em>);
     } else if (g.math1 !== undefined) {
       nodes.push(<MathJax key={key} inline dynamic>{`\\(${g.math1}\\)`}</MathJax>);
     } else if (g.math2 !== undefined) {
@@ -176,11 +237,11 @@ function renderInline(text, keyPrefix) {
     } else if (g.mdlinktext !== undefined) {
       nodes.push(<a key={key} href={g.mdlinkurl} target="_blank" rel="noopener noreferrer" style={linkStyle}>{g.mdlinktext}</a>);
     } else if (g.mdbf !== undefined) {
-      nodes.push(<strong key={key}>{renderInline(g.mdbf, key)}</strong>);
+      nodes.push(<strong key={key}>{renderInline(g.mdbf, key, bibliography)}</strong>);
     } else if (g.mdbf2 !== undefined) {
-      nodes.push(<strong key={key}>{renderInline(g.mdbf2, key)}</strong>);
+      nodes.push(<strong key={key}>{renderInline(g.mdbf2, key, bibliography)}</strong>);
     } else if (g.mdit !== undefined) {
-      nodes.push(<em key={key}>{renderInline(g.mdit, key)}</em>);
+      nodes.push(<em key={key}>{renderInline(g.mdit, key, bibliography)}</em>);
     } else if (g.mdcode !== undefined) {
       nodes.push(<code key={key} style={citationStyle}>{g.mdcode}</code>);
     } else if (m[0] === '\\\\') {
@@ -197,21 +258,22 @@ function renderInline(text, keyPrefix) {
 // ── Typography ────────────────────────────────────────────────────────────
 
 const styles = {
-  h1: { fontFamily: 'Georgia, serif', fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '20px 0 10px' },
-  h2: { fontFamily: 'Georgia, serif', fontSize: '18px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '16px 0 8px' },
-  h3: { fontFamily: 'Georgia, serif', fontSize: '16px', fontWeight: 600, color: 'var(--color-paper-dark)', margin: '12px 0 6px' },
-  p: { fontFamily: 'Georgia, serif', fontSize: '15px', lineHeight: '1.75', color: 'var(--color-paper-dark)', margin: '0 0 12px' },
-  li: { fontFamily: 'Georgia, serif', fontSize: '15px', lineHeight: '1.7', color: 'var(--color-paper-dark)', marginBottom: '4px' },
+  h1: { fontFamily: "'Noto Serif', serif", fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '20px 0 10px' },
+  h2: { fontFamily: "'Noto Serif', serif", fontSize: '18px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '16px 0 8px' },
+  h3: { fontFamily: "'Noto Serif', serif", fontSize: '16px', fontWeight: 600, color: 'var(--color-paper-dark)', margin: '12px 0 6px' },
+  p: { fontFamily: "'Noto Serif', serif", fontSize: '15px', lineHeight: '1.75', color: 'var(--color-paper-dark)', margin: '0 0 12px' },
+  li: { fontFamily: "'Noto Serif', serif", fontSize: '15px', lineHeight: '1.7', color: 'var(--color-paper-dark)', marginBottom: '4px' },
   list: { margin: '6px 0 12px', paddingLeft: '22px' },
   hr: { border: 'none', borderTop: '1px solid var(--color-paper-light)', margin: '18px 0' },
-  blockquote: { borderLeft: '3px solid var(--color-paper-light)', paddingLeft: '14px', margin: '10px 0', color: 'var(--color-paper-mid)', fontStyle: 'italic', fontFamily: 'Georgia, serif', fontSize: '15px' },
+  blockquote: { borderLeft: '3px solid var(--color-paper-light)', paddingLeft: '14px', margin: '10px 0', color: 'var(--color-paper-mid)', fontStyle: 'italic', fontFamily: "'Noto Serif', serif", fontSize: '15px' },
   pre: { background: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '12px', overflowX: 'auto', margin: '10px 0' },
   code: { fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.6' },
-  empty: { fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-light)', fontStyle: 'italic' },
+  empty: { fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-light)', fontStyle: 'italic' },
 };
 
 const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
   const blocks = useMemo(() => parseLatexBlocks(content || ''), [content]);
+  const bibliography = useMemo(() => extractBibliography(blocks), [blocks]);
 
   if (!content || !content.trim()) {
     return <span style={styles.empty}>{emptyText}</span>;
@@ -224,9 +286,9 @@ const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
   while (i < blocks.length) {
     const b = blocks[i];
 
-    if (b.type === 'h1') { elements.push(<h1 key={key++} style={styles.h1}>{renderInline(b.text, `h1-${key}`)}</h1>); i++; continue; }
-    if (b.type === 'h2') { elements.push(<h2 key={key++} style={styles.h2}>{renderInline(b.text, `h2-${key}`)}</h2>); i++; continue; }
-    if (b.type === 'h3') { elements.push(<h3 key={key++} style={styles.h3}>{renderInline(b.text, `h3-${key}`)}</h3>); i++; continue; }
+    if (b.type === 'h1') { elements.push(<h1 key={key++} style={styles.h1}>{renderInline(b.text, `h1-${key}`, bibliography)}</h1>); i++; continue; }
+    if (b.type === 'h2') { elements.push(<h2 key={key++} style={styles.h2}>{renderInline(b.text, `h2-${key}`, bibliography)}</h2>); i++; continue; }
+    if (b.type === 'h3') { elements.push(<h3 key={key++} style={styles.h3}>{renderInline(b.text, `h3-${key}`, bibliography)}</h3>); i++; continue; }
     if (b.type === 'hr') { elements.push(<hr key={key++} style={styles.hr} />); i++; continue; }
     if (b.type === 'displaymath') {
       elements.push(<MathJax key={key++} dynamic>{`\\[${b.text}\\]`}</MathJax>);
@@ -248,7 +310,7 @@ const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
       const ListTag = groupType === 'item_num' ? 'ol' : 'ul';
       elements.push(
         <ListTag key={key++} style={styles.list}>
-          {items.map((it, idx) => <li key={idx} style={styles.li}>{renderInline(it.text, `li-${key}-${idx}`)}</li>)}
+          {items.map((it, idx) => <li key={idx} style={styles.li}>{renderInline(it.text, `li-${key}-${idx}`, bibliography)}</li>)}
         </ListTag>,
       );
       continue;
@@ -257,7 +319,7 @@ const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
     if (b.type === 'mdquote') {
       const lines = [];
       while (i < blocks.length && blocks[i].type === 'mdquote') { lines.push(blocks[i].text); i++; }
-      elements.push(<blockquote key={key++} style={styles.blockquote}>{renderInline(lines.join(' '), `mdq-${key}`)}</blockquote>);
+      elements.push(<blockquote key={key++} style={styles.blockquote}>{renderInline(lines.join(' '), `mdq-${key}`, bibliography)}</blockquote>);
       continue;
     }
 
@@ -269,7 +331,7 @@ const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
         i++;
       }
       i++; // skip quote_end
-      elements.push(<blockquote key={key++} style={styles.blockquote}>{renderInline(innerText.join(' '), `bq-${key}`)}</blockquote>);
+      elements.push(<blockquote key={key++} style={styles.blockquote}>{renderInline(innerText.join(' '), `bq-${key}`, bibliography)}</blockquote>);
       continue;
     }
 
@@ -295,9 +357,9 @@ const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
             <h2 style={styles.h1}>References</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
               {entries.map((entry, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px', fontSize: '13px', lineHeight: '1.6', fontFamily: 'Georgia, serif', color: 'var(--color-paper-dark)' }}>
+                <div key={idx} id={`cite-${entry.key}`} style={{ display: 'flex', gap: '8px', fontSize: '13px', lineHeight: '1.6', fontFamily: "'Noto Serif', serif", color: 'var(--color-paper-dark)' }}>
                   <span style={{ minWidth: '24px', color: 'var(--color-paper-light)', flexShrink: 0, paddingTop: '1px' }}>[{idx + 1}]</span>
-                  <span>{renderInline(entry.text, `bib-${key}-${idx}`)}</span>
+                  <span>{renderInline(entry.text, `bib-${key}-${idx}`, bibliography)}</span>
                 </div>
               ))}
             </div>
@@ -314,7 +376,7 @@ const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
     if (b.type === 'para') {
       const lines = [];
       while (i < blocks.length && blocks[i].type === 'para') { lines.push(blocks[i].text); i++; }
-      elements.push(<p key={key++} style={styles.p}>{renderInline(lines.join(' '), `p-${key}`)}</p>);
+      elements.push(<p key={key++} style={styles.p}>{renderInline(lines.join(' '), `p-${key}`, bibliography)}</p>);
       continue;
     }
 

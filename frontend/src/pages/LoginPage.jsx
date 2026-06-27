@@ -4,6 +4,7 @@ import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { useGoogleIdentity } from '@/features/auth/hooks/useGoogleIdentity';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const LoginPage = () => {
     borderRadius: '2px',
     padding: '10px 12px',
     background: 'var(--color-paper-bg)',
-    fontFamily: 'Georgia, serif',
+    fontFamily: "'Noto Serif', serif",
     fontSize: '16px',
     color: 'var(--color-paper-dark)',
     width: '100%',
@@ -41,7 +42,7 @@ const LoginPage = () => {
       await loginWithGoogle(idToken, nonce);
       navigate('/app');
     } catch (err) {
-      setError(err.message || 'Google sign-in failed. Please try again.');
+      setError(friendlyError(err, 'Google sign-in failed. Please try again.'));
     } finally {
       setGoogleLoading(false);
     }
@@ -61,14 +62,14 @@ const LoginPage = () => {
       await login(email, password);
       navigate('/app');
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
+      setError(friendlyError(err, 'Login failed. Please try again.'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
+    <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: "'Noto Serif', serif" }}>
       <button
         onClick={() => navigate('/')}
         style={{
@@ -78,7 +79,7 @@ const LoginPage = () => {
           padding: '20px 28px',
           background: 'none',
           border: 'none',
-          fontFamily: 'Georgia, serif',
+          fontFamily: "'Noto Serif', serif",
           fontSize: '15px',
           color: 'var(--color-paper-mid)',
           cursor: 'pointer',
@@ -106,13 +107,13 @@ const LoginPage = () => {
         }}>
           Welcome back
         </h1>
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', margin: '0 0 32px' }}>
+        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', margin: '0 0 32px' }}>
           Sign in to continue your research
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
               Email
             </label>
             <input
@@ -126,7 +127,7 @@ const LoginPage = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
               Password
             </label>
             <div style={{ position: 'relative' }}>
@@ -172,7 +173,7 @@ const LoginPage = () => {
               border: 'none',
               borderRadius: '2px',
               padding: '11px',
-              fontFamily: 'Georgia, serif',
+              fontFamily: "'Noto Serif', serif",
               fontSize: '17px',
               cursor: loading ? 'not-allowed' : 'pointer',
               marginTop: '4px',
@@ -190,7 +191,7 @@ const LoginPage = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
-            <span style={{ fontSize: '13px', color: 'var(--color-paper-mid)', fontFamily: 'Georgia, serif' }}>
+            <span style={{ fontSize: '13px', color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif" }}>
               or continue with
             </span>
             <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
@@ -212,7 +213,7 @@ const LoginPage = () => {
               borderRadius: '2px',
               cursor: googleLoading ? 'not-allowed' : 'pointer',
               opacity: googleLoading ? 0.7 : 1,
-              fontFamily: 'Georgia, serif',
+              fontFamily: "'Noto Serif', serif",
               fontSize: '15px',
               color: 'var(--color-paper-dark)',
             }}
@@ -227,7 +228,7 @@ const LoginPage = () => {
           </button>
         </form>
 
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '20px' }}>
+        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '20px' }}>
           Don't have an account?{' '}
           <span
             onClick={() => navigate('/signup')}

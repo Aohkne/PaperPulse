@@ -36,7 +36,7 @@ const ContentNavbar = () => {
       <Link
         to="/"
         style={{
-          fontFamily: 'Georgia, serif', fontSize: 15,
+          fontFamily: "'Noto Serif', serif", fontSize: 15,
           color: 'var(--color-paper-mid)', textDecoration: 'none',
           transition: 'color 0.15s',
         }}
@@ -68,7 +68,7 @@ const ContentNavbar = () => {
             style={{
               background: 'var(--color-paper-dark)', border: 'none',
               color: 'var(--color-paper-bg)', padding: '7px 20px',
-              borderRadius: 2, fontFamily: 'Georgia, serif', fontSize: 16, cursor: 'pointer',
+              borderRadius: 2, fontFamily: "'Noto Serif', serif", fontSize: 16, cursor: 'pointer',
             }}
           >
             Go to App
@@ -81,7 +81,7 @@ const ContentNavbar = () => {
                 background: 'transparent',
                 border: '1px solid var(--color-paper-mid)',
                 color: 'var(--color-paper-mid)', padding: '7px 20px',
-                borderRadius: 2, fontFamily: 'Georgia, serif', fontSize: 16, cursor: 'pointer',
+                borderRadius: 2, fontFamily: "'Noto Serif', serif", fontSize: 16, cursor: 'pointer',
               }}
             >
               Log in
@@ -91,7 +91,7 @@ const ContentNavbar = () => {
               style={{
                 background: 'var(--color-paper-dark)', border: 'none',
                 color: 'var(--color-paper-bg)', padding: '7px 20px',
-                borderRadius: 2, fontFamily: 'Georgia, serif', fontSize: 16, cursor: 'pointer',
+                borderRadius: 2, fontFamily: "'Noto Serif', serif", fontSize: 16, cursor: 'pointer',
               }}
             >
               Get Started

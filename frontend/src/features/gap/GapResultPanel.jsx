@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Icon } from '@iconify/react';
 import GapQualityBadge from './GapQualityBadge';
+import { friendlyError } from '@/shared/utils/errorMessage';
+import { showError } from '@/shared/utils/toast';
 
 function normalizeVi(text) {
   if (!text) return text;
@@ -194,8 +196,12 @@ function GapCard({ gap }) {
 }
 
 const GapResultPanel = ({ narrative, gapReport, loading, error }) => {
+  useEffect(() => {
+    if (error) showError(error, "We couldn't analyze research gaps for this topic.");
+  }, [error]);
+
   if (loading) return null;
-  if (error) return <Centered icon="mdi:alert-circle-outline">{error}</Centered>;
+  if (error) return <Centered icon="mdi:alert-circle-outline">{friendlyError(error, "We couldn't analyze research gaps for this topic.")}</Centered>;
   if (!narrative) return <Centered icon="mdi:lightbulb-search-outline">Enter a topic to begin analysis.</Centered>
 
   return (

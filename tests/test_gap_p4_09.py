@@ -18,13 +18,11 @@ Also covers:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
-
 import pytest
 
 from backend.agent.gap_detection.nodes.coherence_check import (
-    _SATURATION_TARGET,
     DENSITY_MIN_PAPERS,
+    _SATURATION_TARGET,
     _paper_domain_key,
     _paper_method_key,
     check_coherence,
@@ -33,6 +31,7 @@ from backend.agent.gap_detection.nodes.coherence_check import (
 )
 from backend.agent.gap_detection.schemas import ExtractedPaperData, PaperRef
 from backend.shared.models.paper import Paper
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -195,33 +194,25 @@ def test_coverage_estimate_clamped_above_target():
 # ── AC4: density signal in state ─────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_check_coherence_returns_density_signal_key():
+def test_check_coherence_returns_density_signal_key():
     """AC4: check_coherence() result always includes 'density_signal' key."""
     papers = [_paper(pid=str(i), year=2023) for i in range(3)]
-    result = await check_coherence(papers)
+    result = check_coherence(papers)
     assert "density_signal" in result
     assert isinstance(result["density_signal"], dict)
 
 
-@pytest.mark.asyncio
-async def test_check_coherence_returns_coverage_key():
+def test_check_coherence_returns_coverage_key():
     """check_coherence() result always includes 'coverage' key (None or float)."""
     papers = [_paper(pid=str(i), year=2023) for i in range(3)]
-    result = await check_coherence(papers)
+    result = check_coherence(papers)
     assert "coverage" in result
 
 
-@pytest.mark.asyncio
-async def test_check_coherence_density_signal_has_expected_shape():
+def test_check_coherence_density_signal_has_expected_shape():
     """density_signal from check_coherence has cells / trusted / untrusted keys."""
     papers = [_paper(pid=str(i), year=2023) for i in range(6)]
-    with patch(
-        "backend.agent.gap_detection.nodes.coherence_check._get_specter_vectors",
-        new_callable=AsyncMock,
-        return_value={},
-    ):
-        result = await check_coherence(papers)
+    result = check_coherence(papers)
     ds = result["density_signal"]
     assert "cells" in ds
     assert "trusted_cells" in ds

@@ -15,6 +15,7 @@ Covers:
 
 from __future__ import annotations
 
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -39,39 +40,37 @@ def _make_vector(dim: int = 4, val: float = 1.0) -> list[float]:
 # ── coherence_check unit tests ────────────────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_coherence_fewer_than_min_papers_is_coherent():
+def test_coherence_fewer_than_min_papers_is_coherent():
     """Corpus with < 5 papers → coherent=True, no SPECTER2 lookup."""
     from backend.agent.gap_detection.nodes.coherence_check import check_coherence
 
     papers = _make_papers(4)
-    result = await check_coherence(papers)
+    result = check_coherence(papers)
     assert result["coherent"] is True
     assert result["warning"] is None
     assert result["papers"] == papers
 
 
-@pytest.mark.asyncio
-async def test_coherence_specter_store_empty_returns_coherent():
+def test_coherence_specter_store_empty_returns_coherent():
     """When SPECTER2 store is empty → coherent=True (fail-safe)."""
     from backend.agent.gap_detection.nodes.coherence_check import check_coherence
 
     papers = _make_papers(6)
+    mock_col = MagicMock()
+    mock_col.count.return_value = 0
 
     with patch(
         "backend.agent.gap_detection.nodes.coherence_check._get_specter_vectors",
-        new_callable=AsyncMock,
         return_value={},
     ):
-        result = await check_coherence(papers)
+        result = check_coherence(papers)
 
     assert result["coherent"] is True
     assert result["warning"] is None
     assert result["papers"] == papers
 
 
-@pytest.mark.asyncio
-async def test_coherence_too_few_vectors_returns_coherent():
+def test_coherence_too_few_vectors_returns_coherent():
     """Fewer than MIN_PAPERS vectors available → skip, coherent=True."""
     from backend.agent.gap_detection.nodes.coherence_check import check_coherence
 
@@ -81,16 +80,14 @@ async def test_coherence_too_few_vectors_returns_coherent():
 
     with patch(
         "backend.agent.gap_detection.nodes.coherence_check._get_specter_vectors",
-        new_callable=AsyncMock,
         return_value=sparse_vecs,
     ):
-        result = await check_coherence(papers)
+        result = check_coherence(papers)
 
     assert result["coherent"] is True
 
 
-@pytest.mark.asyncio
-async def test_coherence_high_similarity_corpus_is_coherent():
+def test_coherence_high_similarity_corpus_is_coherent():
     """Papers with avg pairwise cosine > 0.3 → coherent=True."""
     from backend.agent.gap_detection.nodes.coherence_check import check_coherence
 
@@ -100,17 +97,15 @@ async def test_coherence_high_similarity_corpus_is_coherent():
 
     with patch(
         "backend.agent.gap_detection.nodes.coherence_check._get_specter_vectors",
-        new_callable=AsyncMock,
         return_value=high_sim,
     ):
-        result = await check_coherence(papers)
+        result = check_coherence(papers)
 
     assert result["coherent"] is True
     assert result["warning"] is None
 
 
-@pytest.mark.asyncio
-async def test_coherence_grab_bag_detected():
+def test_coherence_grab_bag_detected():
     """Corpus with avg_sim < 0.3 → coherent=False, warning contains 'phân tán'."""
     from backend.agent.gap_detection.nodes.coherence_check import (
         COHERENCE_THRESHOLD,
@@ -130,10 +125,9 @@ async def test_coherence_grab_bag_detected():
 
     with patch(
         "backend.agent.gap_detection.nodes.coherence_check._get_specter_vectors",
-        new_callable=AsyncMock,
         return_value=scattered,
     ):
-        result = await check_coherence(papers)
+        result = check_coherence(papers)
 
     assert result["coherent"] is False
     assert result["warning"] is not None
@@ -141,8 +135,7 @@ async def test_coherence_grab_bag_detected():
     assert f"{COHERENCE_THRESHOLD}" in result["warning"]
 
 
-@pytest.mark.asyncio
-async def test_coherence_grab_bag_reduces_paper_count():
+def test_coherence_grab_bag_reduces_paper_count():
     """When grab-bag detected, returned papers are fewer than original."""
     from backend.agent.gap_detection.nodes.coherence_check import check_coherence
 
@@ -158,18 +151,16 @@ async def test_coherence_grab_bag_reduces_paper_count():
 
     with patch(
         "backend.agent.gap_detection.nodes.coherence_check._get_specter_vectors",
-        new_callable=AsyncMock,
         return_value=scattered,
     ):
-        result = await check_coherence(papers)
+        result = check_coherence(papers)
 
     # MAX_CORE_PAPERS=15 but we only have 6, so all may be kept;
     # the important thing is the function ran and returned something <= original
     assert len(result["papers"]) <= len(papers)
 
 
-@pytest.mark.asyncio
-async def test_coherence_never_raises_on_internal_exception():
+def test_coherence_never_raises_on_internal_exception():
     """Any exception inside check_coherence → safe fallback, no raise."""
     from backend.agent.gap_detection.nodes.coherence_check import check_coherence
 
@@ -177,10 +168,9 @@ async def test_coherence_never_raises_on_internal_exception():
 
     with patch(
         "backend.agent.gap_detection.nodes.coherence_check._get_specter_vectors",
-        new_callable=AsyncMock,
         side_effect=RuntimeError("store exploded"),
     ):
-        result = await check_coherence(papers)
+        result = check_coherence(papers)
 
     assert result["coherent"] is True
     assert result["warning"] is None

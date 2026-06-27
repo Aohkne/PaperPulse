@@ -13,7 +13,7 @@ const MessageList = ({ messages, isLoading }) => {
     return (
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--color-paper-light)', fontFamily: 'Georgia, serif', fontSize: '16px',
+        color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif", fontSize: '16px',
       }}>
         Start a new research session
       </div>

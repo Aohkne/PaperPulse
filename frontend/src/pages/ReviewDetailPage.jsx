@@ -21,7 +21,7 @@ const Toast = ({ message, success }) => (
       position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
       background: success ? 'var(--color-paper-dark)' : '#c0392b',
       color: 'var(--color-paper-bg)',
-      fontFamily: 'Georgia, serif', fontSize: '14px',
+      fontFamily: "'Noto Serif', serif", fontSize: '14px',
       padding: '10px 20px', borderRadius: '4px',
       boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
       zIndex: 9999, whiteSpace: 'nowrap',
@@ -151,8 +151,8 @@ const ReviewDetailPage = () => {
   if (detailError) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-        <span style={{ fontFamily: 'Georgia, serif', color: '#c0392b' }}>{detailError}</span>
-        <button onClick={() => navigate(-1)} style={{ fontFamily: 'Georgia, serif', fontSize: '14px', cursor: 'pointer', color: 'var(--color-paper-mid)', background: 'none', border: 'none' }}>
+        <span style={{ fontFamily: "'Noto Serif', serif", color: '#c0392b' }}>{detailError}</span>
+        <button onClick={() => navigate(-1)} style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', cursor: 'pointer', color: 'var(--color-paper-mid)', background: 'none', border: 'none' }}>
           ← Back
         </button>
       </div>
@@ -176,7 +176,7 @@ const ReviewDetailPage = () => {
       }}>
         <button
           onClick={() => navigate(ROUTES.MY_REVIEWS)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '13px', flexShrink: 0 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '13px', flexShrink: 0 }}
         >
           <Icon icon="mdi:arrow-left" style={{ width: 15, height: 15 }} />
           My Reviews
@@ -191,7 +191,7 @@ const ReviewDetailPage = () => {
             onChange={(e) => setEditTitle(e.target.value)}
             style={{
               flex: 1, minWidth: 0,
-              fontFamily: 'Georgia, serif', fontSize: '14px', fontWeight: 600,
+              fontFamily: "'Noto Serif', serif", fontSize: '14px', fontWeight: 600,
               color: 'var(--color-paper-dark)',
               border: '1px solid var(--color-paper-light)',
               borderRadius: '4px', padding: '4px 8px',
@@ -199,7 +199,7 @@ const ReviewDetailPage = () => {
             }}
           />
         ) : (
-          <span style={{ flex: 1, minWidth: 0, fontFamily: 'Georgia, serif', fontSize: '14px', fontWeight: 600, color: 'var(--color-paper-dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Noto Serif', serif", fontSize: '14px', fontWeight: 600, color: 'var(--color-paper-dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {current.title}
           </span>
         )}
@@ -210,7 +210,7 @@ const ReviewDetailPage = () => {
             <button
               onClick={() => setExportMenuOpen((v) => !v)}
               disabled={exportLoading}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: exportLoading ? 'wait' : 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: exportLoading ? 'wait' : 'pointer' }}
             >
               {exportLoading
                 ? <Icon icon="mdi:loading" style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} />
@@ -236,7 +236,7 @@ const ReviewDetailPage = () => {
                     <button
                       key={format}
                       onClick={() => handleExport(format)}
-                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-dark)' }}
+                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-dark)' }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                     >
@@ -252,7 +252,7 @@ const ReviewDetailPage = () => {
           {current.source_type === 'uploaded' && current.content_format === 'tex' && !editMode && (
             <button
               onClick={() => navigate(`${ROUTES.PDF_AGENT}?resume=${id}`)}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
             >
               <Icon icon="mdi:file-search-outline" style={{ width: 13, height: 13 }} />
               Continue with PDF Agent
@@ -263,14 +263,14 @@ const ReviewDetailPage = () => {
             <>
               <button
                 onClick={handleCancel}
-                style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+                style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-bg)', background: 'var(--color-paper-dark)', border: 'none', borderRadius: '4px', padding: '4px 11px', cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-bg)', background: 'var(--color-paper-dark)', border: 'none', borderRadius: '4px', padding: '4px 11px', cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
                 {saving && <Icon icon="mdi:loading" style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />}
                 Save
@@ -279,7 +279,7 @@ const ReviewDetailPage = () => {
           ) : (
             <button
               onClick={() => setEditMode(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
             >
               <Icon icon="mdi:pencil-outline" style={{ width: 13, height: 13 }} />
               Edit
@@ -288,7 +288,7 @@ const ReviewDetailPage = () => {
 
           <button
             onClick={handleDelete}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: '#c0392b', border: '1px solid #e0b0b0', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: '#c0392b', border: '1px solid #e0b0b0', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
           >
             <Icon icon="mdi:delete-outline" style={{ width: 13, height: 13 }} />
             Delete
@@ -312,7 +312,7 @@ const ReviewDetailPage = () => {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--color-paper-light)' }}>
               <div style={{ flexShrink: 0, padding: '8px 14px', borderBottom: '1px solid var(--color-paper-light)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-paper-surface)' }}>
                 <Icon icon="mdi:code-tags" style={{ width: 13, height: 13, color: 'var(--color-paper-mid)' }} />
-                <span style={{ fontFamily: 'Georgia, serif', fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>LaTeX</span>
+                <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>LaTeX</span>
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
                 <Editor
@@ -336,7 +336,7 @@ const ReviewDetailPage = () => {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ flexShrink: 0, padding: '8px 14px', borderBottom: '1px solid var(--color-paper-light)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-paper-bg)' }}>
                 <Icon icon="mdi:eye-outline" style={{ width: 13, height: 13, color: 'var(--color-paper-mid)' }} />
-                <span style={{ fontFamily: 'Georgia, serif', fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Preview</span>
+                <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Preview</span>
               </div>
               <div ref={previewRef} onScroll={handlePreviewScroll} style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
                 <LatexPreview content={editContent} emptyText="Start typing to see the preview..." />
@@ -354,10 +354,10 @@ const ReviewDetailPage = () => {
             style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}
           >
             <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-              <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '0 0 4px' }}>
+              <h1 style={{ fontFamily: "'Noto Serif', serif", fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '0 0 4px' }}>
                 {current.title}
               </h1>
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-light)', marginBottom: '24px' }}>
+              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)', marginBottom: '24px' }}>
                 {new Date(current.updated_at).toLocaleString()} · {current.query}
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--color-paper-light)', marginBottom: '24px' }} />

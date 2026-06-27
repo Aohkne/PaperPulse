@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useBillingStore } from '@/shared/store/useBillingStore';
 
 // Lora has full Vietnamese Unicode support — fixes "đ" rendering
-const PRICE_FONT = "'Lora', Georgia, serif";
+const PRICE_FONT = "'Lora', 'Noto Serif', serif";
 
 const TIERS = [
   { key: 'free',      label: 'Free',      price: '0đ',              lr: 3,   pdf: 5,   gap: 3   },
@@ -20,7 +20,7 @@ const TOPUP_PACKS = [
 ];
 
 const sectionTitle = {
-  fontFamily: "'Lora', Georgia, serif",
+  fontFamily: "'Lora', 'Noto Serif', serif",
   fontSize: '16px',
   fontWeight: 600,
   color: 'var(--color-paper-dark)',
@@ -165,7 +165,7 @@ const BillingPanel = () => {
               )}
 
               <p style={{
-                fontFamily: "'Inknut Antiqua', Georgia, serif",
+                fontFamily: "'Inknut Antiqua', 'Noto Serif', serif",
                 fontWeight: 500, fontSize: '15px',
                 color: 'var(--color-paper-dark)', margin: '0 0 4px',
               }}>
@@ -246,7 +246,7 @@ const BillingPanel = () => {
             background: pack.combo ? 'var(--color-brand-50)' : 'var(--color-paper-bg)',
             flex: 1, minWidth: '150px',
           }}>
-            <p style={{ fontFamily: "'Inknut Antiqua', Georgia, serif", fontWeight: 500, fontSize: 14, margin: '0 0 2px', color: 'var(--color-paper-dark)' }}>
+            <p style={{ fontFamily: "'Inknut Antiqua', 'Noto Serif', serif", fontWeight: 500, fontSize: 14, margin: '0 0 2px', color: 'var(--color-paper-dark)' }}>
               {pack.label}
             </p>
             <p style={{ fontFamily: PRICE_FONT, fontSize: 17, fontWeight: 600, color: 'var(--color-brand-600)', margin: '0 0 6px' }}>

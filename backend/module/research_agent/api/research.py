@@ -1,23 +1,4 @@
-"""POST /api/research/stream — SSE endpoint (SPEC 2.0 Step 0→⑩).
-
-Uses graph.astream_events(version="v2") to capture three distinct LLM streams:
-  intent_router   → "thinking_token" events  (reasoning: WHY this intent)
-  reply_generator → "reply_token" events     (response: the actual reply / questions)
-  pipeline nodes  → "step_token" events      (narrator text per pipeline step)
-
-SSE event shapes emitted to the frontend:
-  {"type": "thread_id",      "thread_id": "..."}
-  {"type": "thinking_token", "content": "..."}     ← intent_router reasoning stream
-  {"type": "reply_token",    "content": "..."}     ← reply_generator response stream
-  {"type": "greeting",       "content": "..."}     ← intent=greeting (complete)
-  {"type": "clarify",        "questions": [...]}   ← intent=clarify (complete)
-  {"type": "step",           "stepNum": "N", ...}  ← pipeline step progress
-  {"type": "step_token",     "stepNum": "N", ...}  ← pipeline narrator stream
-  {"type": "interrupt",      "thread_id": "...", "data": {...}}
-  {"type": "heartbeat"}                            ← keepalive during silent steps
-  {"type": "done",           "content": "...", "bib": "..."}
-  {"type": "error",          "message": "..."}
-"""
+"""POST /api/research/stream - SSE endpoint for the research pipeline."""
 
 from __future__ import annotations
 
@@ -28,8 +9,9 @@ import uuid
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
 
@@ -38,39 +20,43 @@ from backend.module.payment.services import billing_db
 from backend.module.payment.services.billing_db import QuotaExceededError
 from backend.module.research_agent.graph.graph import get_research_graph
 from backend.shared.models.graph import GraphResponse
+from backend.shared.services import chat_persistence, topic_monitoring
 
 router = APIRouter()
 log = logging.getLogger(__name__)
+_bearer = HTTPBearer(auto_error=True)
 
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
-
-# Emit a heartbeat if no graph event arrives within this many seconds — keeps
-# the SSE connection alive through idle-timing-out proxies during long silent
-# steps (parallel_search, snowball, embed) that make real network calls
-# with no LLM token stream (PLAN_2.0 §SSE risk mitigation).
 _HEARTBEAT_SECONDS = 15
 
-# Nodes that belong to the search pipeline (Steps ① – ⑩)
 _SEARCH_NODES = {
-    "parallel_search", "dedup", "snowball", "embed",
-    "outline_gen", "write_themes", "extract_claims",
-    "verify_claims", "route_claims", "build_graph", "export",
+    "parallel_search",
+    "dedup",
+    "snowball",
+    "embed",
+    "outline_gen",
+    "write_themes",
+    "extract_claims",
+    "verify_claims",
+    "route_claims",
+    "build_graph",
+    "export",
 }
 
 _NODE_STEP_NUM: dict[str, str] = {
-    "intent_router":  "0",
-    "plan_review":    "0",
-    "parallel_search":"1",
-    "dedup":          "2",
-    "snowball":       "3",
-    "embed":          "4",
-    "outline_gen":    "5",
-    "write_themes":   "6",
+    "intent_router": "0",
+    "plan_review": "0",
+    "parallel_search": "1",
+    "dedup": "2",
+    "snowball": "3",
+    "embed": "4",
+    "outline_gen": "5",
+    "write_themes": "6",
     "extract_claims": "7",
-    "verify_claims":  "8",
-    "route_claims":   "9",
-    "build_graph":    "10",
-    "export":         "11",
+    "verify_claims": "8",
+    "route_claims": "9",
+    "build_graph": "10",
+    "export": "11",
 }
 
 
@@ -78,110 +64,153 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-def _node_to_step_event(node_name: str, state_update: dict) -> str:
+def _parse_sse(raw_event: str) -> dict[str, Any] | None:
+    if not raw_event.startswith("data: "):
+        return None
+    try:
+        return json.loads(raw_event[6:].strip())
+    except json.JSONDecodeError:
+        return None
+
+
+def _format_clarify_content(questions: list[str]) -> str:
+    if not questions:
+        return "I need a bit more context."
+    formatted = "\n".join(f"{idx + 1}. {question}" for idx, question in enumerate(questions))
+    return f"I need a bit more context:\n\n{formatted}"
+
+
+def _compact_interrupt_content(data: dict[str, Any]) -> str:
+    if data.get("plan_description"):
+        return f"{data['plan_description']}\n\nAwaiting approval to continue."
+    return "Research plan ready. Awaiting approval to continue."
+
+
+async def _record_assistant_state(
+    token: str,
+    assistant_message_id: str,
+    content: str,
+    status: str,
+    thread_id: str,
+    request_kind: str,
+    steps: list[dict[str, Any]],
+    pending_plan: dict[str, Any] | None = None,
+    bib: str | None = None,
+    events: dict[str, Any] | None = None,
+) -> None:
+    metadata: dict[str, Any] = {
+        "source": "research_stream",
+        "thread_id": thread_id,
+        "request_kind": request_kind,
+        "steps": steps,
+    }
+    if pending_plan is not None:
+        metadata["pending_plan"] = pending_plan
+    if bib is not None:
+        metadata["bib"] = bib
+    if events is not None:
+        metadata["events"] = events
+    await chat_persistence.update_assistant_message(
+        token,
+        assistant_message_id,
+        content=content,
+        status=status,
+        metadata=metadata,
+    )
+
+
+async def _node_to_step_event(node_name: str, state_update: dict) -> str:
     step_num = _NODE_STEP_NUM.get(node_name, node_name)
 
     if node_name == "parallel_search":
-        s = state_update.get("search_stats", {})
-        total = sum(s.values())
-        stat = " ".join(f"{src}:{n}" for src, n in s.items()) + f" total:{total}"
+        search_stats = state_update.get("search_stats", {})
+        total = sum(search_stats.values())
+        stat = " ".join(f"{src}:{count}" for src, count in search_stats.items()) + f" total:{total}"
         content = f"{total} papers fetched."
     elif node_name == "dedup":
-        n = len(state_update.get("papers", []))
-        stat = f"{n} unique"
-        content = f"Corpus after dedup: {n} papers."
+        count = len(state_update.get("papers", []))
+        stat = f"{count} unique"
+        content = f"Corpus after dedup: {count} papers."
     elif node_name == "snowball":
-        n = len(state_update.get("papers", []))
-        stat = f"{n} corpus"
-        content = f"Corpus after snowball: {n} papers."
+        count = len(state_update.get("papers", []))
+        stat = f"{count} corpus"
+        content = f"Corpus after snowball: {count} papers."
     elif node_name == "embed":
-        es = state_update.get("embed_stats", {})
-        stat = f"api={es.get('api_hit',0)} fb={es.get('fallback_hit',0)} stored={es.get('stored',0)}"
+        embed_stats = state_update.get("embed_stats", {})
+        stat = (
+            f"api={embed_stats.get('api_hit', 0)} "
+            f"fb={embed_stats.get('fallback_hit', 0)} "
+            f"stored={embed_stats.get('stored', 0)}"
+        )
         content = f"Embeddings ready. {stat}."
     elif node_name == "outline_gen":
-        n = len(state_update.get("themes", []))
-        stat = f"{n} themes"
-        content = f"{n} themes generated."
+        count = len(state_update.get("themes", []))
+        stat = f"{count} themes"
+        content = f"{count} themes generated."
     elif node_name == "write_themes":
-        n = len(state_update.get("theme_contents", []))
-        stat = f"{n} sections"
-        content = f"{n} theme sections written."
+        count = len(state_update.get("theme_contents", []))
+        stat = f"{count} sections"
+        content = f"{count} theme sections written."
     elif node_name == "extract_claims":
-        n = len(state_update.get("claims", []))
-        stat = f"{n} claims"
-        content = f"{n} claims extracted."
+        count = len(state_update.get("claims", []))
+        stat = f"{count} claims"
+        content = f"{count} claims extracted."
     elif node_name == "verify_claims":
-        vc = state_update.get("verified_claims", [])
-        by_s: dict[str, int] = {}
-        for c in vc:
-            by_s[c.status] = by_s.get(c.status, 0) + 1
-        stat = (f"S:{by_s.get('supported',0)} "
-                f"P:{by_s.get('partial',0)} "
-                f"U:{by_s.get('unsupported',0)}")
-        content = f"{len(vc)} claims verified."
+        verified_claims = state_update.get("verified_claims", [])
+        by_status: dict[str, int] = {}
+        for claim in verified_claims:
+            by_status[claim.status] = by_status.get(claim.status, 0) + 1
+        stat = (
+            f"S:{by_status.get('supported', 0)} "
+            f"P:{by_status.get('partial', 0)} "
+            f"U:{by_status.get('unsupported', 0)}"
+        )
+        content = f"{len(verified_claims)} claims verified."
     elif node_name == "route_claims":
         stat = (
-            f"included={len(state_update.get('included_claims',[]))} "
-            f"review={len(state_update.get('review_claims',[]))} "
-            f"removed={len(state_update.get('removed_claims',[]))}"
+            f"included={len(state_update.get('included_claims', []))} "
+            f"review={len(state_update.get('review_claims', []))} "
+            f"removed={len(state_update.get('removed_claims', []))}"
         )
         content = f"Claims routed. {stat}."
     elif node_name == "build_graph":
-        kg = state_update.get("knowledge_graph", {}) or {}
-        kg_stats = kg.get("stats", {})
-        stat = (f"papers={kg_stats.get('papers',0)} "
-                f"themes={kg_stats.get('themes',0)} "
-                f"claims={kg_stats.get('claims',0)} "
-                f"contradicts={kg_stats.get('contradicts_edges',0)}")
+        graph_stats = (state_update.get("knowledge_graph", {}) or {}).get("stats", {})
+        stat = (
+            f"papers={graph_stats.get('papers', 0)} "
+            f"themes={graph_stats.get('themes', 0)} "
+            f"claims={graph_stats.get('claims', 0)} "
+            f"contradicts={graph_stats.get('contradicts_edges', 0)}"
+        )
         content = "Knowledge graph built."
     elif node_name == "export":
-        stat = f"tex={len(state_update.get('latex_doc',''))}chars"
+        stat = f"tex={len(state_update.get('latex_doc', ''))}chars"
         content = "Export complete."
     else:
         stat = ""
         content = f"{node_name} done."
 
-    return _sse({"type": "step", "step_type": "observation",
-                 "stepNum": step_num, "content": content, "stat": stat})
+    return _sse({
+        "type": "step",
+        "step_type": "observation",
+        "stepNum": step_num,
+        "content": content,
+        "stat": stat,
+    })
 
 
 async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
-    """
-    Async generator that yields SSE strings.
-
-    Uses astream_events(version="v2") to capture three distinct LLM streams:
-
-      intent_router   → on_chat_model_stream → "thinking_token" events
-                        (user sees the reasoning: WHY this intent)
-
-      reply_generator → on_chat_model_stream → "reply_token" events
-                        (user sees the response streaming: greeting or clarify questions)
-
-      pipeline nodes  → on_chat_model_stream → "step_token" events
-                        (narrator text per pipeline step)
-
-    After the event loop ends, checks for pending interrupts.
-
-    Heartbeats run on a *separate* background task that drains
-    astream_events() into a queue; the main loop only ever times out on
-    `queue.get()`, which is always safe to cancel. Previously the timeout
-    wrapped `event_iter.__anext__()` directly — cancelling that future on
-    timeout reached into astream_events()'s internals (mid node execution,
-    e.g. a long-running embed() call) and could abort/retry the current
-    node, causing its narrate_step() sentence to repeat over and over.
-    """
     export_reached = False
     queue: asyncio.Queue = asyncio.Queue()
-    _DONE = object()
+    done_marker = object()
 
     async def _produce() -> None:
         try:
             async for event in graph.astream_events(input_or_command, config, version="v2"):
                 await queue.put(event)
-        except Exception as exc:  # noqa: BLE001 — forwarded to the consumer below
+        except Exception as exc:
             await queue.put(exc)
         finally:
-            await queue.put(_DONE)
+            await queue.put(done_marker)
 
     producer_task = asyncio.create_task(_produce())
 
@@ -190,14 +219,10 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_SECONDS)
             except asyncio.TimeoutError:
-                # No event for a while (real network calls in parallel_search /
-                # snowball / embed) — keep the SSE connection alive and let the
-                # frontend show a "still working" pulse instead of going silent.
-                # Only the queue wait times out — the producer keeps running.
                 yield _sse({"type": "heartbeat"})
                 continue
 
-            if item is _DONE:
+            if item is done_marker:
                 break
             if isinstance(item, Exception):
                 raise item
@@ -208,7 +233,6 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
             name = event.get("name", "")
             node = event.get("metadata", {}).get("langgraph_node", "")
 
-            # ── LLM token streams ────────────────────────────────────────────
             if kind == "on_chat_model_stream":
                 chunk = event["data"].get("chunk")
                 token = getattr(chunk, "content", "") or ""
@@ -216,97 +240,83 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
                     continue
 
                 if node == "intent_router":
-                    # Reasoning tokens — user sees WHY the LLM chose this intent
                     yield _sse({"type": "thinking_token", "content": token})
-
                 elif node == "reply_generator":
-                    # Response tokens — user sees the reply streaming in real-time
                     yield _sse({"type": "reply_token", "content": token})
-
                 elif node in _SEARCH_NODES:
-                    # Narrator tokens — per-step description during pipeline
                     yield _sse({
                         "type": "step_token",
                         "stepNum": _NODE_STEP_NUM.get(node, ""),
                         "content": token,
                     })
+                continue
 
-            # ── Node completions ─────────────────────────────────────────────
-            elif kind == "on_chain_end":
-                raw_output = event["data"].get("output")
-                if not isinstance(raw_output, dict):
-                    continue
-                output = raw_output
+            if kind != "on_chain_end":
+                continue
 
-                if name == "intent_router":
-                    intent = output.get("intent", "search")
-                    if intent == "search":
-                        # Emit step-0 event so frontend knows the research plan.
-                        # `content` is the LLM's own "User wants to search about
-                        # X, I will start from sources Y" sentence (plan_description)
-                        # so the displayed text matches what it just reasoned about.
-                        plan_description = output.get("plan_description", "")
-                        yield _sse({
-                            "type": "step",
-                            "step_type": "observation",
-                            "stepNum": "0",
-                            "content": plan_description or "Research plan ready.",
-                            "stat": f"{len(output.get('sub_queries', []))} sub-queries",
-                            "refined_query": output.get("refined_query", ""),
-                            "plan_description": plan_description,
-                        })
-                    # For greeting/clarify: graph continues to reply_generator
+            raw_output = event["data"].get("output")
+            if not isinstance(raw_output, dict):
+                continue
+            output = raw_output
 
-                elif name == "reply_generator":
-                    # Reply generation complete — emit final greeting or clarify event
-                    clarify_qs = output.get("clarify_questions") or []
-                    if clarify_qs:
-                        yield _sse({"type": "clarify", "questions": clarify_qs})
-                    else:
-                        yield _sse({"type": "greeting", "content": output.get("reply", "")})
-                    return  # graph → END after reply_generator
+            if name == "intent_router":
+                intent = output.get("intent", "search")
+                if intent == "search":
+                    plan_description = output.get("plan_description", "")
+                    yield _sse({
+                        "type": "step",
+                        "step_type": "observation",
+                        "stepNum": "0",
+                        "content": plan_description or "Research plan ready.",
+                        "stat": f"{len(output.get('sub_queries', []))} sub-queries",
+                        "refined_query": output.get("refined_query", ""),
+                        "plan_description": plan_description,
+                    })
+                continue
 
-                elif name in _SEARCH_NODES:
-                    yield _node_to_step_event(name, output)
-                    if name == "export":
-                        export_reached = True
-                        yield _sse({
-                            "type": "done",
-                            "content": output.get("latex_doc", ""),
-                            "bib": output.get("bib_content", ""),
-                        })
+            if name == "reply_generator":
+                clarify_questions = output.get("clarify_questions") or []
+                if clarify_questions:
+                    yield _sse({"type": "clarify", "questions": clarify_questions})
+                else:
+                    yield _sse({"type": "greeting", "content": output.get("reply", "")})
+                return
 
+            if name in _SEARCH_NODES:
+                yield await _node_to_step_event(name, output)
+                if name == "export":
+                    export_reached = True
+                    yield _sse({
+                        "type": "done",
+                        "content": output.get("latex_doc", ""),
+                        "bib": output.get("bib_content", ""),
+                    })
     except Exception as exc:
         log.exception("astream_events error: %s", exc)
         yield _sse({"type": "error", "message": str(exc)})
         return
-
     finally:
         if not producer_task.done():
             producer_task.cancel()
 
-    # ── 3. Check for interrupt (stream ends silently when interrupt() fires) ──
-    if not export_reached:
-        try:
-            state = await graph.aget_state(config)
-            if state.next:  # graph is paused at a node
-                interrupt_data: dict = {}
-                for task in (state.tasks or []):
-                    for ipt in getattr(task, "interrupts", []):
-                        interrupt_data = getattr(ipt, "value", ipt) or {}
-                        break
-                    if interrupt_data:
-                        break
-                yield _sse({
-                    "type": "interrupt",
-                    "thread_id": thread_id,
-                    "data": interrupt_data,
-                })
-        except Exception as exc:
-            log.warning("Could not read interrupt state: %s", exc)
+    if export_reached:
+        return
 
+    try:
+        state = await graph.aget_state(config)
+        if not state.next:
+            return
+        interrupt_data: dict[str, Any] = {}
+        for task in state.tasks or []:
+            for interrupt in getattr(task, "interrupts", []):
+                interrupt_data = getattr(interrupt, "value", interrupt) or {}
+                break
+            if interrupt_data:
+                break
+        yield _sse({"type": "interrupt", "thread_id": thread_id, "data": interrupt_data})
+    except Exception as exc:
+        log.warning("Could not read interrupt state: %s", exc)
 
-# Request / response models
 
 class MessageDict(BaseModel):
     role: str
@@ -316,105 +326,414 @@ class MessageDict(BaseModel):
 class ResearchRequest(BaseModel):
     query: str
     thread_id: str | None = None
-    # Optional prior-turn messages for multi-turn clarification flow
+    chat_id: str | None = None
+    client_message_id: str | None = None
     messages: list[MessageDict] | None = None
 
 
 class ResumeRequest(BaseModel):
     thread_id: str
+    chat_id: str | None = None
     resume_value: object = True
 
 
-# Endpoints
-
 @router.post("/research/stream")
-async def research_stream(body: ResearchRequest, user: Any = Depends(get_current_user)):
-    """
-    SSE: Start (or continue) the pipeline.
-
-    First call: body.query = user's initial message.
-    Clarify follow-up: body.query = user's answer, body.messages = prior turns.
-    The intent router uses the conversation history to determine whether to
-    proceed to search or ask another question.
-    """
+async def research_stream(
+    body: ResearchRequest,
+    credentials: HTTPAuthorizationCredentials = Security(_bearer),
+    user: Any = Depends(get_current_user),
+):
     is_new_session = body.thread_id is None
+    request_kind = "initial" if is_new_session else "followup"
     thread_id = body.thread_id or str(uuid.uuid4())
+    token = credentials.credentials
+    quota_started = False
 
-    # Deduct 1 Literature Review unit only on true session creation — a
-    # clarify follow-up reuses the existing thread_id and is free (payment_SPEC_2.0.md
-    # §Logic deduction: "chỉ session/document MỚI mới trừ unit").
     if is_new_session:
         try:
             await billing_db.start_session(str(user.id), "lr", thread_id)
+            quota_started = True
         except QuotaExceededError as exc:
-            raise HTTPException(402, "Hết quota Literature Review — vui lòng nâng cấp gói hoặc mua thêm.") from exc
+            raise HTTPException(402, "Het quota Literature Review - vui long nang cap goi hoac mua them.") from exc
+
+    try:
+        turn = await chat_persistence.start_stream_turn(
+            token=token,
+            user_id=str(user.id),
+            query=body.query,
+            thread_id=thread_id,
+            chat_id=body.chat_id,
+            client_message_id=body.client_message_id,
+            request_kind=request_kind,
+        )
+    except HTTPException:
+        if quota_started:
+            await billing_db.refund_session(str(user.id), "lr", thread_id)
+        raise
+    except Exception as exc:
+        if quota_started:
+            await billing_db.refund_session(str(user.id), "lr", thread_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     graph = await get_research_graph()
     config = {"configurable": {"thread_id": thread_id}}
-
-    # Build initial state, injecting conversation history if provided
-    initial_state: dict = {"query": body.query, "thread_id": thread_id}
+    initial_state: dict[str, Any] = {"query": body.query, "thread_id": thread_id}
     if body.messages:
         initial_state["messages"] = [
-            HumanMessage(content=m.content) if m.role == "user"
-            else AIMessage(content=m.content)
-            for m in body.messages
+            HumanMessage(content=message.content) if message.role == "user" else AIMessage(content=message.content)
+            for message in body.messages
         ]
 
-    async def generator():
-        yield _sse({"type": "thread_id", "thread_id": thread_id})
-        try:
-            async for event in _stream_graph(graph, initial_state, config, thread_id):
-                yield event
-        except Exception as exc:
-            log.exception("Pipeline error: %s", exc)
-            # System error, not user abandonment — refund per spec's refund table.
-            await billing_db.refund_session(str(user.id), "lr", thread_id)
-            yield _sse({"type": "error", "message": str(exc)})
+    chat_id = turn["chat"]["id"]
+    assistant_message_id = turn["assistant_message"]["id"]
 
-    return StreamingResponse(generator(), media_type="text/event-stream",
-                             headers=_SSE_HEADERS)
+    try:
+        await topic_monitoring.score_topic_signal(
+            str(user.id),
+            signal="new_session" if is_new_session else "followup",
+            query=body.query,
+            chat_id=chat_id,
+            token=token,
+        )
+    except HTTPException as exc:
+        if exc.status_code >= 500:
+            log.warning("topic scoring failed for research stream chat_id=%s user_id=%s: %s", chat_id, user.id, exc.detail)
+    except Exception as exc:
+        log.warning("topic scoring failed for research stream chat_id=%s user_id=%s: %s", chat_id, user.id, exc)
+
+    async def generator():
+        steps: list[dict[str, Any]] = []
+        pending_plan: dict[str, Any] | None = None
+        final_content = ""
+        final_bib: str | None = None
+        event_counts: dict[str, int] = {}
+
+        yield _sse({"type": "thread_id", "thread_id": thread_id, "chat_id": chat_id})
+
+        async for raw_event in _stream_graph(graph, initial_state, config, thread_id):
+            payload = _parse_sse(raw_event) or {}
+            event_type = payload.get("type")
+            if event_type:
+                event_counts[event_type] = event_counts.get(event_type, 0) + 1
+
+            if event_type == "thread_id":
+                await chat_persistence.update_chat(token, str(user.id), chat_id, thread_id=thread_id, status="running")
+            elif event_type == "step":
+                steps.append({
+                    "stepNum": payload.get("stepNum"),
+                    "type": payload.get("step_type"),
+                    "content": payload.get("content"),
+                    "stat": payload.get("stat"),
+                })
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "streaming",
+                    thread_id,
+                    request_kind,
+                    steps,
+                    pending_plan=pending_plan,
+                    events=event_counts,
+                )
+            elif event_type == "interrupt":
+                pending_plan = payload.get("data") or {}
+                final_content = final_content or _compact_interrupt_content(pending_plan)
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "awaiting_plan",
+                    thread_id,
+                    request_kind,
+                    steps,
+                    pending_plan=pending_plan,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=thread_id,
+                    status="awaiting_plan",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "done":
+                final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                final_bib = payload.get("bib")
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "done",
+                    thread_id,
+                    request_kind,
+                    steps,
+                    pending_plan=pending_plan,
+                    bib=final_bib,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=thread_id,
+                    status="complete",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "greeting":
+                final_content = payload.get("content") or "Hello!"
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "done",
+                    thread_id,
+                    request_kind,
+                    steps,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=thread_id,
+                    status="idle",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "clarify":
+                final_content = _format_clarify_content(payload.get("questions") or [])
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "done",
+                    thread_id,
+                    request_kind,
+                    steps,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=thread_id,
+                    status="idle",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "error":
+                final_content = final_content or payload.get("message") or "Research pipeline failed."
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "error",
+                    thread_id,
+                    request_kind,
+                    steps,
+                    pending_plan=pending_plan,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=thread_id,
+                    status="error",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+
+            yield raw_event
+
+    return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
 @router.post("/research/resume")
-async def research_resume(body: ResumeRequest, user: Any = Depends(get_current_user)):
-    """SSE: resume after interrupt (outline ④ or routing ⑨)."""
+async def research_resume(
+    body: ResumeRequest,
+    credentials: HTTPAuthorizationCredentials = Security(_bearer),
+    user: Any = Depends(get_current_user),
+):
     from langgraph.types import Command
+
+    token = credentials.credentials
+    turn = await chat_persistence.start_resume_turn(
+        token=token,
+        user_id=str(user.id),
+        thread_id=body.thread_id,
+        chat_id=body.chat_id,
+    )
+
+    try:
+        await topic_monitoring.score_topic_signal(
+            str(user.id),
+            signal="plan_approval",
+            chat_id=turn["chat"]["id"],
+            token=token,
+        )
+    except HTTPException as exc:
+        if exc.status_code >= 500:
+            log.warning("topic scoring failed for research resume chat_id=%s user_id=%s: %s", turn["chat"]["id"], user.id, exc.detail)
+    except Exception as exc:
+        log.warning("topic scoring failed for research resume chat_id=%s user_id=%s: %s", turn["chat"]["id"], user.id, exc)
 
     graph = await get_research_graph()
     config = {"configurable": {"thread_id": body.thread_id}}
+    chat_id = turn["chat"]["id"]
+    assistant_message_id = turn["assistant_message"]["id"]
 
     async def generator():
-        try:
-            async for event in _stream_graph(
-                graph, Command(resume=body.resume_value), config, body.thread_id
-            ):
-                yield event
-        except Exception as exc:
-            log.exception("Resume error: %s", exc)
-            # Same session as the original /research/stream deduction —
-            # billing_refund_session is idempotent on session_id, so this is
-            # safe even if /research/stream's own error handler already refunded.
-            await billing_db.refund_session(str(user.id), "lr", body.thread_id)
-            yield _sse({"type": "error", "message": str(exc)})
+        steps = ((turn["assistant_message"].get("metadata") or {}).get("steps")) or []
+        pending_plan = ((turn["assistant_message"].get("metadata") or {}).get("pending_plan"))
+        final_content = turn["assistant_message"].get("content") or ""
+        final_bib = ((turn["assistant_message"].get("metadata") or {}).get("bib"))
+        event_counts: dict[str, int] = {}
 
-    return StreamingResponse(generator(), media_type="text/event-stream",
-                             headers=_SSE_HEADERS)
+        async for raw_event in _stream_graph(graph, Command(resume=body.resume_value), config, body.thread_id):
+            payload = _parse_sse(raw_event) or {}
+            event_type = payload.get("type")
+            if event_type:
+                event_counts[event_type] = event_counts.get(event_type, 0) + 1
+
+            if event_type == "step":
+                steps.append({
+                    "stepNum": payload.get("stepNum"),
+                    "type": payload.get("step_type"),
+                    "content": payload.get("content"),
+                    "stat": payload.get("stat"),
+                })
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "streaming",
+                    body.thread_id,
+                    "resume",
+                    steps,
+                    pending_plan=pending_plan,
+                    bib=final_bib,
+                    events=event_counts,
+                )
+            elif event_type == "interrupt":
+                pending_plan = payload.get("data") or {}
+                final_content = final_content or _compact_interrupt_content(pending_plan)
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "awaiting_plan",
+                    body.thread_id,
+                    "resume",
+                    steps,
+                    pending_plan=pending_plan,
+                    bib=final_bib,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=body.thread_id,
+                    status="awaiting_plan",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "done":
+                final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                final_bib = payload.get("bib")
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "done",
+                    body.thread_id,
+                    "resume",
+                    steps,
+                    pending_plan=pending_plan,
+                    bib=final_bib,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=body.thread_id,
+                    status="complete",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "greeting":
+                final_content = payload.get("content") or "Hello!"
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "done",
+                    body.thread_id,
+                    "resume",
+                    steps,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=body.thread_id,
+                    status="idle",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "clarify":
+                final_content = _format_clarify_content(payload.get("questions") or [])
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "done",
+                    body.thread_id,
+                    "resume",
+                    steps,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=body.thread_id,
+                    status="idle",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+            elif event_type == "error":
+                final_content = final_content or payload.get("message") or "Research pipeline failed."
+                await _record_assistant_state(
+                    token,
+                    assistant_message_id,
+                    final_content,
+                    "error",
+                    body.thread_id,
+                    "resume",
+                    steps,
+                    pending_plan=pending_plan,
+                    bib=final_bib,
+                    events=event_counts,
+                )
+                await chat_persistence.update_chat(
+                    token,
+                    str(user.id),
+                    chat_id,
+                    thread_id=body.thread_id,
+                    status="error",
+                    last_message_at=chat_persistence._now_iso(),
+                )
+
+            yield raw_event
+
+    return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
 @router.get("/research/graph", response_model=GraphResponse)
 async def research_graph(thread_id: str):
-    """Knowledge Graph (Step ⑨bis) — reads the already-built graph from the
-    LangGraph checkpoint, same pattern as reading the .tex export: no
-    rebuilding here, `build_graph_node` already assembled it during the run.
-    """
     graph = await get_research_graph()
     config = {"configurable": {"thread_id": thread_id}}
     state = await graph.aget_state(config)
     knowledge_graph = (state.values or {}).get("knowledge_graph")
     if not knowledge_graph:
-        raise HTTPException(
-            status_code=404,
-            detail="Graph not built yet — session hasn't reached Step ⑨bis (build_graph).",
-        )
+        raise HTTPException(status_code=404, detail="Graph not built yet - session has not reached build_graph.")
     return knowledge_graph

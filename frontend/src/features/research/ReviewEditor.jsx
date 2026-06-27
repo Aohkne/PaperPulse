@@ -137,7 +137,7 @@ const ReviewEditor = ({ latex, bibContent, query, onExportLatex, onExportBib }) 
         background: tab === 'preview' ? '#fff' : 'transparent',
         border: '1px solid var(--color-paper-surface)',
         borderRadius: '8px',
-        fontFamily: tab === 'preview' ? 'Georgia, serif' : 'monospace',
+        fontFamily: tab === 'preview' ? "'Noto Serif', serif" : 'monospace',
       }}>
         {tab === 'preview' && <LatexPreview content={latex} />}
 

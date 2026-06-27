@@ -2,6 +2,7 @@ import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MathJaxContext } from 'better-react-mathjax';
+import { Toaster } from 'sonner';
 import ChatLayout from '@/shared/components/layout/ChatLayout';
 import ChatPage from '@/pages/ChatPage';
 import LandingPage from '@/pages/LandingPage';
@@ -11,6 +12,7 @@ import SignupPage from '@/pages/SignupPage';
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import AdminRoute from '@/shared/components/AdminRoute';
 import PageSkeleton from '@/shared/components/ui/PageSkeleton';
+import ScrollToTop from '@/shared/components/ScrollToTop';
 import { ThemeProvider } from '@/shared/providers/ThemeProvider';
 import { ROUTES } from '@/shared/constant/routes';
 import './index.css';
@@ -40,7 +42,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider>
       <MathJaxContext>
+        <Toaster position="top-center" closeButton />
         <BrowserRouter>
+          <ScrollToTop />
           <Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public */}

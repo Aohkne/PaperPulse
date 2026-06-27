@@ -5,22 +5,22 @@ import ContentFooter from './_shared/ContentFooter';
 
 const NOTES = [
   {
-    rot: '-2.2deg', pin: '#BB6A57', bg: '#f8ded5ff',
+    rot: '-2.2deg', pin: '#BB6A57', bg: '#f8ded5ff', bgDark: '#2A1615',
     title: 'Verified citations, always',
     body: 'Every claim traces back to a real paper — multi-tier pipeline from snippet matching to arXiv full-text. Low-confidence claims are flagged, never silently included.',
   },
   {
-    rot: '1.8deg', pin: '#457a5bff', bg: '#ffe8d2ff',
+    rot: '1.8deg', pin: '#457a5bff', bg: '#ffe8d2ff', bgDark: '#281E10',
     title: 'You stay in control',
     body: 'Step in at any point. Adjust scope, refine themes, exclude papers, redirect the synthesis. PaperPulse is a collaborator, not a black box.',
   },
   {
-    rot: '2.4deg', pin: '#5775bbff', bg: '#e0eff0ff',
+    rot: '2.4deg', pin: '#5775bbff', bg: '#e0eff0ff', bgDark: '#141E22',
     title: 'Surfaces the gap',
     body: "Contradictions between studies, underexplored angles, open questions — PaperPulse names what existing work hasn't addressed so you can define your contribution.",
   },
   {
-    rot: '-1.6deg', pin: '#B5A23F', bg: '#f5fef3ff',
+    rot: '-1.6deg', pin: '#B5A23F', bg: '#f5fef3ff', bgDark: '#161E18',
     title: 'Works with your files',
     body: 'Upload PDFs, ZIP archives, or .tex files. A live knowledge graph maps how concepts, authors, and findings connect across your entire literature set.',
   },
@@ -45,8 +45,10 @@ const TEAM = [
   { name: 'Trần Nguyễn Anh Thư', id: '2A202600915' },
 ];
 
-const NoteCard = ({ rot, pin, bg, title, body, delay }) => {
+const NoteCard = ({ rot, pin, bg, bgDark, title, body, delay }) => {
   const [hovered, setHovered] = useState(false);
+  const isDark = document.documentElement.classList.contains('dark');
+  const noteBg = isDark ? bgDark : bg;
 
   return (
     <motion.div
@@ -62,7 +64,7 @@ const NoteCard = ({ rot, pin, bg, title, body, delay }) => {
       onHoverEnd={() => setHovered(false)}
       style={{
         position: 'relative',
-        background: bg,
+        background: noteBg,
         padding: '36px 24px 28px',
         boxShadow: hovered
           ? '6px 14px 36px rgba(41,17,0,0.18)'
@@ -92,7 +94,7 @@ const NoteCard = ({ rot, pin, bg, title, body, delay }) => {
         {title}
       </p>
       <p style={{
-        fontFamily: 'Georgia, serif', fontSize: 14, lineHeight: 1.8,
+        fontFamily: "'Noto Serif', serif", fontSize: 14, lineHeight: 1.8,
         color: 'var(--color-paper-mid)', margin: 0,
       }}>
         {body}
@@ -106,7 +108,7 @@ const Divider = () => (
 );
 
 const AboutPage = () => (
-  <div style={{ fontFamily: 'Georgia, serif', background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+  <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
     <SiteHeader />
 
     <div style={{ paddingTop: 57 }}>
@@ -116,7 +118,7 @@ const AboutPage = () => (
           fontSize: 13, color: 'var(--color-paper-light)',
           letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 16px',
         }}>
-          About
+          About Us
         </motion.p>
 
         <motion.h1 {...fadeUp(0.2)} style={{
@@ -155,10 +157,10 @@ const AboutPage = () => (
         </motion.h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px 32px' }}>
-          {NOTES.map(({ rot, pin, bg, title, body }, i) => (
+          {NOTES.map(({ rot, pin, bg, bgDark, title, body }, i) => (
             <NoteCard
               key={title}
-              rot={rot} pin={pin} bg={bg}
+              rot={rot} pin={pin} bg={bg} bgDark={bgDark}
               title={title} body={body}
               delay={i * 0.1}
             />
@@ -192,7 +194,7 @@ const AboutPage = () => (
               <span style={{ fontSize: 16, color: 'var(--color-paper-dark)', fontWeight: 500 }}>
                 {name}
               </span>
-              <span style={{ fontSize: 13, color: 'var(--color-paper-light)', fontFamily: 'Georgia, serif' }}>
+              <span style={{ fontSize: 13, color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif" }}>
                 {id}
               </span>
             </motion.div>

@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import { authApi } from '@/features/auth/api/authApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { useGoogleIdentity } from '@/features/auth/hooks/useGoogleIdentity';
+import { friendlyError } from '@/shared/utils/errorMessage';
+import { showError, showSuccess } from '@/shared/utils/toast';
+
+const RESEND_COOLDOWN_S = 60;
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -20,6 +24,8 @@ const SignupPage = () => {
   const [loading, setLoading] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
 
   const isDark =
     theme === 'dark' ||
@@ -30,7 +36,7 @@ const SignupPage = () => {
     borderRadius: '2px',
     padding: '10px 12px',
     background: 'var(--color-paper-bg)',
-    fontFamily: 'Georgia, serif',
+    fontFamily: "'Noto Serif', serif",
     fontSize: '16px',
     color: 'var(--color-paper-dark)',
     width: '100%',
@@ -53,6 +59,14 @@ const SignupPage = () => {
 
   const handleGoogleLogin = () => promptGoogle();
 
+  // Cooldown ticks down once a verification email has been (re)sent, so the
+  // user can't hammer Supabase's auth-email rate limit by clicking repeatedly.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
@@ -73,16 +87,32 @@ const SignupPage = () => {
       const redirectTo = `${window.location.origin}/login`;
       await authApi.register(email, password, redirectTo);
       setShowVerification(true);
+      setResendCooldown(RESEND_COOLDOWN_S);
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(friendlyError(err, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resending) return;
+    setResending(true);
+    try {
+      const redirectTo = `${window.location.origin}/login`;
+      await authApi.register(email, password, redirectTo);
+      showSuccess('Verification email sent again — check your inbox (and spam folder).');
+      setResendCooldown(RESEND_COOLDOWN_S);
+    } catch (err) {
+      showError(err, "Couldn't resend the verification email right now.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   if (showVerification) {
     return (
-      <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: 'Georgia, serif', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: "'Noto Serif', serif", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ maxWidth: '420px', width: '100%', padding: '48px 24px', textAlign: 'center' }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
@@ -115,7 +145,7 @@ const SignupPage = () => {
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                 background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
                 border: 'none', borderRadius: '2px',
-                padding: '10px 28px', fontFamily: 'Georgia, serif', fontSize: '16px',
+                padding: '10px 28px', fontFamily: "'Noto Serif', serif", fontSize: '16px',
                 cursor: 'pointer', textDecoration: 'none',
               }}
             >
@@ -123,11 +153,30 @@ const SignupPage = () => {
               Open email app →
             </a>
             <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendCooldown > 0 || resending}
+              style={{
+                background: 'none', border: 'none',
+                color: resendCooldown > 0 || resending ? 'var(--color-paper-light)' : 'var(--color-paper-mid)',
+                textDecoration: resendCooldown > 0 || resending ? 'none' : 'underline',
+                fontFamily: "'Noto Serif', serif", fontSize: '14px',
+                cursor: resendCooldown > 0 || resending ? 'not-allowed' : 'pointer',
+                padding: '4px',
+              }}
+            >
+              {resending
+                ? 'Resending…'
+                : resendCooldown > 0
+                  ? `Resend email (${resendCooldown}s)`
+                  : "Didn't get it? Resend email"}
+            </button>
+            <button
               onClick={() => navigate('/login')}
               style={{
                 background: 'transparent', color: 'var(--color-paper-mid)',
                 border: '1px solid var(--color-paper-surface)', borderRadius: '2px',
-                padding: '10px 28px', fontFamily: 'Georgia, serif', fontSize: '16px', cursor: 'pointer',
+                padding: '10px 28px', fontFamily: "'Noto Serif', serif", fontSize: '16px', cursor: 'pointer',
               }}
             >
               Go to sign in
@@ -146,12 +195,12 @@ const SignupPage = () => {
   }
 
   return (
-    <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
+    <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: "'Noto Serif', serif" }}>
       <button
         onClick={() => navigate('/')}
         style={{
           position: 'absolute', top: 0, left: 0, padding: '20px 28px',
-          background: 'none', border: 'none', fontFamily: 'Georgia, serif',
+          background: 'none', border: 'none', fontFamily: "'Noto Serif', serif",
           fontSize: '15px', color: 'var(--color-paper-mid)', cursor: 'pointer',
         }}
       >
@@ -173,13 +222,13 @@ const SignupPage = () => {
         }}>
           Start your research
         </h1>
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', margin: '0 0 32px' }}>
+        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', margin: '0 0 32px' }}>
           Create your PaperPulse account
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
               Full name
             </label>
             <input
@@ -193,7 +242,7 @@ const SignupPage = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
               Email
             </label>
             <input
@@ -207,7 +256,7 @@ const SignupPage = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
               Password
             </label>
             <div style={{ position: 'relative' }}>
@@ -235,7 +284,7 @@ const SignupPage = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
               Confirm password
             </label>
             <div style={{ position: 'relative' }}>
@@ -267,7 +316,7 @@ const SignupPage = () => {
             disabled={loading}
             style={{
               width: '100%', background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)', border: 'none',
-              borderRadius: '2px', padding: '11px', fontFamily: 'Georgia, serif',
+              borderRadius: '2px', padding: '11px', fontFamily: "'Noto Serif', serif",
               fontSize: '17px', cursor: loading ? 'not-allowed' : 'pointer',
               marginTop: '4px', opacity: loading ? 0.7 : 1,
             }}
@@ -283,7 +332,7 @@ const SignupPage = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
-            <span style={{ fontSize: '13px', color: 'var(--color-paper-mid)', fontFamily: 'Georgia, serif' }}>
+            <span style={{ fontSize: '13px', color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif" }}>
               or continue with
             </span>
             <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
@@ -298,7 +347,7 @@ const SignupPage = () => {
               gap: '10px', padding: '10px', background: 'var(--color-paper-bg)',
               border: '1px solid var(--color-paper-surface)', borderRadius: '2px',
               cursor: googleLoading ? 'not-allowed' : 'pointer', opacity: googleLoading ? 0.7 : 1,
-              fontFamily: 'Georgia, serif', fontSize: '15px',
+              fontFamily: "'Noto Serif', serif", fontSize: '15px',
               color: 'var(--color-paper-dark)',
             }}
           >
@@ -312,7 +361,7 @@ const SignupPage = () => {
           </button>
         </form>
 
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '20px' }}>
+        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '20px' }}>
           Already have an account?{' '}
           <span
             onClick={() => navigate('/login')}

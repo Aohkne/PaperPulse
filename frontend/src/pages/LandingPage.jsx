@@ -136,7 +136,7 @@ const Eyebrow = ({ icon, children }) => (
     padding: '6px 14px', borderRadius: 999,
     border: '1px solid var(--color-paper-surface)',
     background: 'var(--color-paper-surface)',
-    fontFamily: 'Georgia, serif', fontSize: 13,
+    fontFamily: "'Noto Serif', serif", fontSize: 13,
     color: 'var(--color-paper-mid)', letterSpacing: '0.08em',
     textTransform: 'uppercase',
   }}>
@@ -150,7 +150,7 @@ const PillButton = ({ children, onClick, variant = 'primary', arrow = false, sty
   const base = {
     display: 'inline-flex', alignItems: 'center', gap: 8,
     padding: '12px 26px', borderRadius: 999,
-    fontFamily: 'Georgia, serif', fontSize: 16,
+    fontFamily: "'Noto Serif', serif", fontSize: 16,
     cursor: 'pointer', border: 'none', transition: 'opacity 0.15s, background 0.15s',
   };
   const variants = {
@@ -197,7 +197,7 @@ const LandingPage = () => {
   const howItWorksRef = useRef(null);
 
   return (
-    <div style={{ fontFamily: 'Georgia, serif', background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
       <SiteHeader />
 
       <div style={{ paddingTop: 57 }}>
@@ -242,7 +242,7 @@ const LandingPage = () => {
             </h1>
 
             <motion.p {...fadeUp(0.52)} style={{
-              fontFamily: 'Georgia, serif', fontSize: 18,
+              fontFamily: "'Noto Serif', serif", fontSize: 18,
               color: 'var(--color-paper-mid)', maxWidth: 560,
               margin: '24px auto', lineHeight: 1.7,
             }}>
@@ -311,7 +311,7 @@ const LandingPage = () => {
                   {title}
                 </p>
                 <p style={{
-                  fontFamily: 'Georgia, serif', fontSize: 15, lineHeight: 1.7,
+                  fontFamily: "'Noto Serif', serif", fontSize: 15, lineHeight: 1.7,
                   color: 'var(--color-paper-mid)', margin: 0,
                 }}>
                   {body}
@@ -361,7 +361,7 @@ const LandingPage = () => {
                   {title}
                 </p>
                 <p style={{
-                  fontFamily: 'Georgia, serif', fontSize: 15, lineHeight: 1.7,
+                  fontFamily: "'Noto Serif', serif", fontSize: 15, lineHeight: 1.7,
                   color: 'var(--color-paper-mid)', margin: 0,
                 }}>
                   {body}
@@ -387,7 +387,7 @@ const LandingPage = () => {
               Simple, transparent pricing
             </motion.h2>
             <motion.p {...inView(0.16)} style={{
-              fontFamily: 'Georgia, serif', fontSize: 16,
+              fontFamily: "'Noto Serif', serif", fontSize: 16,
               color: 'var(--color-paper-mid)', margin: 0,
             }}>
               Start free. Pay only when you need more.
@@ -441,7 +441,7 @@ const LandingPage = () => {
                   {plan.price}
                 </p>
                 <p style={{
-                  fontFamily: 'Georgia, serif', fontSize: 13,
+                  fontFamily: "'Noto Serif', serif", fontSize: 13,
                   color: 'var(--color-paper-mid)', margin: '0 0 20px',
                 }}>
                   {plan.sub}
@@ -453,7 +453,7 @@ const LandingPage = () => {
                   style={{
                     width: '100%', padding: '11px 0', marginBottom: 20,
                     borderRadius: 999, cursor: 'pointer',
-                    fontFamily: 'Georgia, serif', fontSize: 15,
+                    fontFamily: "'Noto Serif', serif", fontSize: 15,
                     background: plan.ctaOutline ? 'transparent' : PAYG_BORDER,
                     color: plan.ctaOutline ? 'var(--color-paper-mid)' : '#fff',
                     border: plan.ctaOutline ? '1px solid var(--color-paper-mid)' : 'none',
@@ -472,7 +472,7 @@ const LandingPage = () => {
                         style={{ fontSize: 18, flexShrink: 0, color: ok ? 'var(--color-paper-mid)' : '#CDBFAD' }}
                       />
                       <span style={{
-                        fontFamily: 'Georgia, serif', fontSize: 14,
+                        fontFamily: "'Noto Serif', serif", fontSize: 14,
                         color: 'var(--color-paper-mid)',
                       }}>
                         {label}
@@ -486,7 +486,7 @@ const LandingPage = () => {
 
           <p style={{
             textAlign: 'center', marginTop: 28,
-            fontFamily: 'Georgia, serif', fontSize: 13,
+            fontFamily: "'Noto Serif', serif", fontSize: 13,
             color: 'var(--color-paper-mid)',
           }}>
             Need more mid-cycle? Top up Literature Review / PDF Agent right inside the app.

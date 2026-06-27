@@ -42,7 +42,7 @@ const ColdStartInput = ({ onSubmit }) => {
         <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-paper-light)', marginBottom: '6px' }}>
           Topic
         </div>
-        <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '14px', color: 'var(--color-paper-dark)', marginBottom: '10px' }}>
+        <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-dark)', marginBottom: '10px' }}>
           Describe the research area you want to analyze.
         </div>
 
@@ -63,7 +63,7 @@ const ColdStartInput = ({ onSubmit }) => {
             border: '1px solid var(--color-paper-surface)',
             borderRadius: '10px',
             resize: 'vertical',
-            fontFamily: 'var(--font-inknut)',
+            fontFamily: "'Noto Serif', serif",
             color: 'var(--color-paper-dark)',
             background: gapLoading || quotaExhausted ? 'var(--color-paper-surface)' : 'var(--color-paper-bg)',
             outline: 'none',
@@ -76,7 +76,7 @@ const ColdStartInput = ({ onSubmit }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, fontFamily: 'var(--font-inknut)', fontSize: '12px', color: 'var(--color-paper-light)' }}>
+            <p style={{ margin: 0, fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)' }}>
             Ctrl+Enter to submit
             </p>
           </div>
@@ -92,7 +92,7 @@ const ColdStartInput = ({ onSubmit }) => {
               justifyContent: 'center',
               gap: '6px',
               padding: '9px 16px',
-              fontFamily: 'var(--font-inknut)',
+              fontFamily: "'Noto Serif', serif",
               fontSize: '13px',
               fontWeight: 600,
               background: disabled ? 'var(--color-paper-surface)' : 'var(--color-paper-mid)',

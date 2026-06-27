@@ -32,7 +32,7 @@ async def load_owned_state(doc_id: str, user) -> PDFAgentState:
     graph = await get_pdf_agent_graph()
     state = await graph.aget_state(pdf_agent_config(doc_id))
     if not state.values or state.values.get("user_id") != str(user.id):
-        raise HTTPException(status_code=404, detail="Document không tồn tại")
+        raise HTTPException(status_code=404, detail="Document not found")
     if "main_tex_path" not in state.values:
-        raise HTTPException(status_code=409, detail="Document đang xử lý hoặc đã gặp lỗi khi parse — vui lòng upload lại")
+        raise HTTPException(status_code=409, detail="Document is still processing or failed to parse — please re-upload")
     return state.values

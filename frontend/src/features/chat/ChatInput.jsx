@@ -76,7 +76,7 @@ const ChatInput = () => {
               border: 'none',
               outline: 'none',
               resize: 'none',
-              fontFamily: 'Georgia, serif',
+              fontFamily: "'Noto Serif', serif",
               fontSize: '15px',
               color: 'var(--color-paper-dark)',
               lineHeight: '1.6',
@@ -95,7 +95,7 @@ const ChatInput = () => {
               borderRadius: '2px',
               padding: '8px 14px',
               minHeight: 36,
-              fontFamily: 'Georgia, serif',
+              fontFamily: "'Noto Serif', serif",
               fontSize: '15px',
               cursor: inputDisabled || !value.trim() ? 'not-allowed' : 'pointer',
               flexShrink: 0,
@@ -141,7 +141,7 @@ const ChatInput = () => {
             fontSize: '12px',
             color: 'var(--color-paper-light)',
             marginTop: '6px',
-            fontFamily: 'Georgia, serif',
+            fontFamily: "'Noto Serif', serif",
           }}
         >
           PaperPulse only cites real papers — never fabricated sources.

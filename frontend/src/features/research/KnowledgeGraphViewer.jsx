@@ -8,6 +8,8 @@ import '@react-sigma/core/lib/style.css';
 import { useKnowledgeGraph } from '@/shared/hooks/useKnowledgeGraph';
 import { computeRadialLayout } from '@/shared/utils/radialLayout';
 import { springBackToBase } from '@/shared/utils/springBack';
+import { friendlyError } from '@/shared/utils/errorMessage';
+import { showError } from '@/shared/utils/toast';
 import NodeDetailCard from './NodeDetailCard';
 
 // ── Loads the graph + applies the static radial "solar system" layout ──────
@@ -187,6 +189,10 @@ const KnowledgeGraphViewer = ({ threadId }) => {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [motionEnabled, setMotionEnabled] = useState(false);
 
+  useEffect(() => {
+    if (error) showError(error, "We couldn't load the knowledge graph.");
+  }, [error]);
+
   const toggleLayer = (type) =>
     setVisibleLayers((prev) => {
       const next = new Set(prev);
@@ -211,7 +217,7 @@ const KnowledgeGraphViewer = ({ threadId }) => {
     return (
       <div style={{ padding: 20, fontSize: 13, color: '#dc2626' }}>
         <Icon icon="mdi:alert-circle-outline" style={{ marginRight: 6 }} />
-        {error}
+        {friendlyError(error, "We couldn't load the knowledge graph.")}
       </div>
     );
   }

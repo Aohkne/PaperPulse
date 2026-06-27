@@ -89,7 +89,7 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search applications..."
                 style={{
-                  fontFamily: 'Georgia, serif', fontSize: '14px',
+                  fontFamily: "'Noto Serif', serif", fontSize: '14px',
                   color: 'var(--color-paper-dark)', border: 'none', outline: 'none',
                   background: 'none', width: '100%',
                 }}
@@ -112,17 +112,17 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
                 >
                   <Icon icon={app.icon} style={{ width: 20, height: 20, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '14px', fontFamily: 'Georgia, serif', color: 'var(--color-paper-dark)' }}>
+                    <div style={{ fontSize: '14px', fontFamily: "'Noto Serif', serif", color: 'var(--color-paper-dark)' }}>
                       {app.label}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--color-paper-light)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif" }}>
                       {app.description}
                     </div>
                   </div>
                 </button>
               ))}
               {results.length === 0 && (
-                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--color-paper-light)', fontFamily: 'Georgia, serif', padding: '12px 0' }}>
+                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif", padding: '12px 0' }}>
                   No applications found.
                 </p>
               )}

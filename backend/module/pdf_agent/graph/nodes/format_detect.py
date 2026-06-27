@@ -19,7 +19,7 @@ def detect_format(raw_bytes: bytes) -> Literal["pdf", "tex", "tex_bundle"]:
     text_head = raw_bytes[:2000].decode("utf-8", errors="ignore")
     if r"\documentclass" in text_head or r"\begin{document}" in text_head:
         return "tex"
-    raise UnsupportedFormatError("Không nhận diện được format — chỉ hỗ trợ .pdf, .tex, .zip (tex_bundle)")
+    raise UnsupportedFormatError("Unrecognized file format — only .pdf, .tex, and .zip (tex_bundle) are supported")
 
 
 async def format_detect_node(state: PDFAgentState) -> dict:

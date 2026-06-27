@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _HYDE = "backend.agent.gap_detection.hyde"
@@ -112,48 +113,73 @@ async def test_generate_hyde_vector_empty_abstract_returns_none() -> None:
     assert result is None
 
 
-# ── Part 2: gap_specter_store (backed by tests/conftest.py's fake Supabase RPC) ──
+# ── Part 2: gap_specter_store ─────────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_specter_store_upsert_and_query(fake_gap_specter_store) -> None:
+def _fresh_store():
+    """Reset the module-level ChromaDB singleton before each test."""
+    from backend.agent.gap_detection import gap_specter_store
+    gap_specter_store._client = None
+    gap_specter_store._collection = None
+
+
+def test_specter_store_upsert_and_query() -> None:
     """AC: upsert 5 papers → query_by_vector returns ≤3 IDs, no crash."""
-    from backend.agent.gap_detection.gap_specter_store import query_by_vector, upsert_papers
+    from backend.agent.gap_detection.gap_specter_store import (
+        clear_collection,
+        query_by_vector,
+        upsert_papers,
+    )
+    _fresh_store()
+    clear_collection()
+    _fresh_store()
 
     papers = [
         {"paper_id": f"p{i}", "vector": _rand_vec(seed=i), "title": f"Paper {i}", "year": 2020 + i}
         for i in range(5)
     ]
-    n = await upsert_papers(papers)
+    n = upsert_papers(papers)
     assert n == 5
 
     query_vec = _rand_vec(seed=99)
-    results = await query_by_vector(query_vec, top_k=3)
+    results = query_by_vector(query_vec, top_k=3)
     assert isinstance(results, list)
     assert len(results) <= 3
     assert all(isinstance(pid, str) for pid in results)
 
 
-@pytest.mark.asyncio
-async def test_specter_store_empty_query_returns_empty(fake_gap_specter_store) -> None:
-    """AC: store empty → query_by_vector returns [], no crash."""
-    from backend.agent.gap_detection.gap_specter_store import query_by_vector
+def test_specter_store_empty_query_returns_empty() -> None:
+    """AC: collection empty → query_by_vector returns [], no crash.
 
-    result = await query_by_vector(_rand_vec(), top_k=5)
+    Isolation: clear_collection() deletes the existing collection from the
+    current EphemeralClient; the next _get_collection() call re-creates it
+    fresh (0 items) on the same client instance.
+    """
+    from backend.agent.gap_detection.gap_specter_store import clear_collection, query_by_vector
+
+    clear_collection()  # delete → next query recreates empty collection
+
+    result = query_by_vector(_rand_vec(), top_k=5)
     assert result == [], f"Expected empty list, got {result}"
 
 
-@pytest.mark.asyncio
-async def test_specter_store_upsert_skips_missing_vector(fake_gap_specter_store) -> None:
+def test_specter_store_upsert_skips_missing_vector() -> None:
     """Papers without 'vector' key are skipped."""
-    from backend.agent.gap_detection.gap_specter_store import upsert_papers
+    from backend.agent.gap_detection.gap_specter_store import (
+        clear_collection,
+        query_by_vector,
+        upsert_papers,
+    )
+    _fresh_store()
+    clear_collection()
+    _fresh_store()
 
     papers = [
         {"paper_id": "p0", "vector": _rand_vec(seed=0)},
         {"paper_id": "p1"},           # no vector → skip
         {"paper_id": "p2", "vector": None},  # None vector → skip
     ]
-    n = await upsert_papers(papers)
+    n = upsert_papers(papers)
     assert n == 1
 
 
@@ -161,9 +187,12 @@ async def test_specter_store_upsert_skips_missing_vector(fake_gap_specter_store)
 
 
 @pytest.mark.asyncio
-async def test_rank_hyde_none_fallback_bm25(fake_gap_specter_store, fake_gap_nim_store) -> None:
+async def test_rank_hyde_none_fallback_bm25() -> None:
     """AC: hyde_vec = None → rank() still returns results (BM25 fallback), no crash."""
     from backend.agent.gap_detection.retrieval import rank
+    from backend.agent.gap_detection import gap_specter_store
+    gap_specter_store._client = None
+    gap_specter_store._collection = None
 
     papers = [_make_paper(f"p{i}", f"transformer attention paper {i}") for i in range(5)]
 
@@ -179,9 +208,12 @@ async def test_rank_hyde_none_fallback_bm25(fake_gap_specter_store, fake_gap_nim
 
 
 @pytest.mark.asyncio
-async def test_rank_deterministic(fake_gap_specter_store, fake_gap_nim_store) -> None:
+async def test_rank_deterministic() -> None:
     """AC: same input → same output order (called twice)."""
     from backend.agent.gap_detection.retrieval import rank
+    from backend.agent.gap_detection import gap_specter_store
+    gap_specter_store._client = None
+    gap_specter_store._collection = None
 
     papers = [_make_paper(f"p{i}", f"paper {i}", citations=i * 10) for i in range(6)]
 
@@ -191,15 +223,20 @@ async def test_rank_deterministic(fake_gap_specter_store, fake_gap_nim_store) ->
         patch(f"{_RETRIEVAL}.query_by_vector_nim", return_value=[]),
     ):
         r1 = await rank("some topic", papers, top_k=4)
+        gap_specter_store._client = None
+        gap_specter_store._collection = None
         r2 = await rank("some topic", papers, top_k=4)
 
     assert [p.paper_id for p in r1] == [p.paper_id for p in r2]
 
 
 @pytest.mark.asyncio
-async def test_rank_empty_papers_returns_empty(fake_gap_specter_store, fake_gap_nim_store) -> None:
+async def test_rank_empty_papers_returns_empty() -> None:
     """rank() with no papers → empty list."""
     from backend.agent.gap_detection.retrieval import rank
+    from backend.agent.gap_detection import gap_specter_store
+    gap_specter_store._client = None
+    gap_specter_store._collection = None
 
     with (
         patch(f"{_RETRIEVAL}.get_embeddings_batch", new=AsyncMock(return_value={})),
@@ -212,9 +249,15 @@ async def test_rank_empty_papers_returns_empty(fake_gap_specter_store, fake_gap_
 
 
 @pytest.mark.asyncio
-async def test_rank_semantic_arm_changes_order(fake_gap_specter_store, fake_gap_nim_store) -> None:
+async def test_rank_semantic_arm_changes_order() -> None:
     """AC: when hyde_vec exists and papers are in store, order differs from pure BM25."""
     from backend.agent.gap_detection.retrieval import rank
+    from backend.agent.gap_detection import gap_specter_store
+    from backend.agent.gap_detection.gap_specter_store import clear_collection, upsert_papers
+
+    # Reset store
+    gap_specter_store._client = None
+    gap_specter_store._collection = None
 
     # 4 papers: p0 has most citations (BM25 winner), p3 has least
     papers = [

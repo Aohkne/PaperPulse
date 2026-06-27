@@ -36,9 +36,9 @@ logger = logging.getLogger(__name__)
 
 # Narrative returned when the corpus is too thin to produce useful gaps.
 _INSUFFICIENT_NARRATIVE = (
-    "Không đủ tài liệu cho chủ đề này. "
-    "Hệ thống tìm được quá ít bài báo liên quan sau bước tìm kiếm và snowball. "
-    "Vui lòng thử lại với chủ đề rộng hơn hoặc cụm từ tiếng Anh trực tiếp."
+    "Not enough literature was found for this topic. "
+    "The system found too few related papers after the search and snowball steps. "
+    "Please try again with a broader topic or a direct English search phrase."
 )
 
 

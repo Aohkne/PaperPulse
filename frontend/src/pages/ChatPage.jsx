@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@iconify/react';
@@ -20,11 +20,89 @@ const PILLARS = [
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h >= 5  && h < 12) return 'Good morning';
+  if (h >= 5 && h < 12) return 'Good morning';
   if (h >= 12 && h < 18) return 'Good afternoon';
   if (h >= 18 && h < 22) return 'Good evening';
   return 'Good night';
 }
+
+const SessionLoadingPanel = () => {
+  const placeholderWidths = ['72%', '56%', '68%'];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '32px 24px 20px',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '760px',
+          margin: '0 auto',
+          border: '1px solid var(--color-paper-light)',
+          borderRadius: '8px',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(244, 238, 228, 0.88) 100%)',
+          boxShadow: '0 18px 40px rgba(46, 39, 31, 0.08)',
+          padding: '20px 20px 18px',
+        }}
+      >
+        <div style={{ marginBottom: '18px' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-inknut)',
+              fontSize: '24px',
+              fontWeight: 600,
+              color: 'var(--color-paper-dark)',
+              marginBottom: '6px',
+            }}
+          >
+            Opening session...
+          </div>
+          <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
+            Loading previous messages and session details.
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--color-paper-light)' }}>
+            This should only take a moment.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {placeholderWidths.map((width, index) => {
+            const alignSelf = index === 1 ? 'flex-end' : 'flex-start';
+            const bubbleTint = index === 1 ? 'rgba(196, 166, 122, 0.16)' : 'rgba(92, 76, 54, 0.08)';
+            return (
+              <motion.div
+                key={width}
+                animate={{ opacity: [0.45, 0.8, 0.45] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: index * 0.12 }}
+                style={{ alignSelf, width, maxWidth: '100%' }}
+              >
+                <div
+                  style={{
+                    height: index === 1 ? '78px' : index === 2 ? '64px' : '52px',
+                    borderRadius: '18px',
+                    border: '1px solid rgba(92, 76, 54, 0.08)',
+                    background: `linear-gradient(90deg, ${bubbleTint} 0%, rgba(255,255,255,0.76) 48%, ${bubbleTint} 100%)`,
+                    backgroundSize: '200% 100%',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
+                  }}
+                />
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const WelcomeInput = () => {
   const [text, setText] = useState('');
@@ -81,7 +159,7 @@ const WelcomeInput = () => {
             border: 'none',
             outline: 'none',
             background: 'transparent',
-            fontFamily: 'Georgia, serif',
+            fontFamily: "'Noto Serif', serif",
             fontSize: '14px',
             color: 'var(--color-paper-dark)',
             resize: 'none',
@@ -101,12 +179,12 @@ const WelcomeInput = () => {
               padding: '8px 16px',
               minHeight: 36,
               color: 'var(--color-paper-bg)',
-              fontFamily: 'Georgia, serif',
+              fontFamily: "'Noto Serif', serif",
               fontSize: '13px',
               cursor: text.trim() && !quotaExhausted ? 'pointer' : 'not-allowed',
             }}
           >
-            →
+            {'->'}
           </button>
         </div>
       </div>
@@ -130,7 +208,7 @@ const WelcomeInput = () => {
               }}
             >
               <Icon icon={icon} style={{ fontSize: 18, color: 'var(--color-paper-mid)' }} />
-              <span style={{ fontFamily: 'Georgia, serif', fontSize: '13px', fontWeight: 600, color: 'var(--color-paper-dark)' }}>
+              <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', fontWeight: 600, color: 'var(--color-paper-dark)' }}>
                 {title}
               </span>
               <span style={{ fontSize: '11px', lineHeight: 1.4, color: 'var(--color-paper-light)' }}>
@@ -147,12 +225,27 @@ const WelcomeInput = () => {
 const ChatPage = () => {
   const sessions = useChatStore((s) => s.sessions);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
+  const loadChats = useChatStore((s) => s.loadChats);
+  const chatsLoaded = useChatStore((s) => s.chatsLoaded);
+  const chatsLoading = useChatStore((s) => s.chatsLoading);
+  const chatsError = useChatStore((s) => s.chatsError);
   const user = useAuthStore((s) => s.user);
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeMessages = activeSession?.messages ?? [];
   const isLoading = activeSession?.status === 'loading';
+  const isHydratingPersistedSession =
+    activeSession?.persisted &&
+    activeSession?.status === 'loading' &&
+    activeMessages.length === 0;
+  const showWelcome = activeMessages.length === 0 && !isHydratingPersistedSession;
 
-  if (activeMessages.length === 0) {
+  useEffect(() => {
+    if (!chatsLoaded && !chatsLoading) {
+      loadChats();
+    }
+  }, [chatsLoaded, chatsLoading, loadChats]);
+
+  if (showWelcome) {
     const displayName = user?.name || user?.email?.split('@')[0] || '';
 
     return (
@@ -160,8 +253,14 @@ const ChatPage = () => {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', gap: '32px' }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', gap: '20px' }}
       >
+        {chatsError && (
+          <div style={{ width: '100%', maxWidth: '640px', padding: '10px 12px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '13px', lineHeight: 1.4 }}>
+            {chatsError}
+          </div>
+        )}
+
         <div style={{ textAlign: 'center' }}>
           <motion.h1
             initial={{ opacity: 0, y: 10 }}
@@ -175,7 +274,7 @@ const ChatPage = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: 'var(--color-paper-mid)', margin: 0 }}
+            style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', margin: 0 }}
           >
             What would you like to research today?
           </motion.p>
@@ -195,10 +294,15 @@ const ChatPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <MessageList messages={activeMessages} isLoading={isLoading} />
+      {isHydratingPersistedSession ? (
+        <SessionLoadingPanel />
+      ) : (
+        <MessageList messages={activeMessages} isLoading={isLoading} />
+      )}
       <ChatInput />
     </div>
   );
 };
 
 export default ChatPage;
+

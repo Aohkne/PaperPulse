@@ -13,8 +13,8 @@ from backend.module.pdf_agent.services.text_quote_selector import build_anchor
 
 _VERDICT_ASPECT = {"Metadata Mismatch": "metadata_mismatch", "Not Found": "citation_not_found"}
 _VERDICT_COMMENT = {
-    "Metadata Mismatch": "Tìm thấy bài gần giống nhưng thông tin (năm/tác giả) không khớp hoàn toàn với citation gốc.",
-    "Not Found": "Không tìm thấy nguồn này trên Semantic Scholar/OpenAlex/arXiv — có thể bị bịa, hoặc là nguồn hiếm/sách/chưa được index. Không kết luận tuyệt đối.",
+    "Metadata Mismatch": "Found a closely matching paper, but its metadata (year/authors) doesn't fully match the original citation.",
+    "Not Found": "Could not find this source on Semantic Scholar/OpenAlex/arXiv — it may be fabricated, or it may be a rare/unindexed source such as a book. Not a definitive conclusion.",
 }
 
 
@@ -97,8 +97,8 @@ def _link_warning_annotations(state: PDFAgentState) -> list[Annotation]:
             "anchor": anchor,
             "aspect": "broken_link",
             "comment": (
-                f"Link này trả lỗi HTTP {status}" if status else "Link này không phản hồi"
-            ) + " — kiểm tra lại URL.",
+                f"This link returned HTTP {status}" if status else "This link did not respond"
+            ) + " — please check the URL.",
             "suggested_fix": None,
             "evidence": {"url": url, "status_code": status},
             "status": "pending",
@@ -116,7 +116,7 @@ def _missing_asset_annotations(state: PDFAgentState) -> list[Annotation]:
             "type": "warning",
             "anchor": fig["anchor"],
             "aspect": "missing_asset",
-            "comment": "Ảnh được tham chiếu nhưng không có file đi kèm. Vui lòng upload dạng .zip kèm thư mục ảnh.",
+            "comment": "This figure is referenced but its file is missing. Please re-upload as a .zip including the image folder.",
             "suggested_fix": None,
             "evidence": None,
             "status": "pending",

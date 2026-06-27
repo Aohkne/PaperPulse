@@ -990,3 +990,274 @@ REVOKE EXECUTE ON FUNCTION public.match_gap_specter_papers(FLOAT8[], INT) FROM P
 REVOKE EXECUTE ON FUNCTION public.get_gap_specter_embeddings_by_ids(TEXT[]) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.clear_gap_nim_embeddings() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.clear_gap_specter_embeddings() FROM PUBLIC;
+
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS thread_id text;
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS feature text NOT NULL DEFAULT 'research';
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'idle';
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS summary text;
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS last_message_at timestamptz;
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE public.chats ADD COLUMN IF NOT EXISTS topic_id uuid;
+
+CREATE INDEX IF NOT EXISTS idx_chats_user_deleted_last_message
+  ON public.chats(user_id, deleted_at, last_message_at DESC, created_at DESC);
+
+-- ============================================================
+-- 2. messages extensions
+-- ============================================================
+
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS seq integer;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS client_message_id text;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'done';
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}';
+
+CREATE INDEX IF NOT EXISTS idx_messages_chat_seq_created
+  ON public.messages(chat_id, seq, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_messages_chat_client_message_id
+  ON public.messages(chat_id, client_message_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_messages_chat_client_message_id_nonnull
+  ON public.messages(chat_id, client_message_id)
+  WHERE client_message_id IS NOT NULL;
+
+-- ============================================================
+-- 3. notification settings
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.notification_settings (
+  user_id            uuid        PRIMARY KEY REFERENCES public.profiles(id)
+                                 ON DELETE CASCADE,
+  pause_all_in_app   boolean     NOT NULL DEFAULT false,
+  created_at         timestamptz NOT NULL DEFAULT NOW(),
+  updated_at         timestamptz NOT NULL DEFAULT NOW()
+);
+
+DROP TRIGGER IF EXISTS notification_settings_set_updated_at ON public.notification_settings;
+CREATE TRIGGER notification_settings_set_updated_at
+  BEFORE UPDATE ON public.notification_settings
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON public.notification_settings TO authenticated;
+
+ALTER TABLE public.notification_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "notification_settings_select_own" ON public.notification_settings;
+CREATE POLICY "notification_settings_select_own" ON public.notification_settings
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "notification_settings_insert_own" ON public.notification_settings;
+CREATE POLICY "notification_settings_insert_own" ON public.notification_settings
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "notification_settings_update_own" ON public.notification_settings;
+CREATE POLICY "notification_settings_update_own" ON public.notification_settings
+  FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "notification_settings_delete_own" ON public.notification_settings;
+CREATE POLICY "notification_settings_delete_own" ON public.notification_settings
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================================
+-- 4. topic monitoring foundation
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.research_topics (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  label            text        NOT NULL,
+  normalized_query text        NOT NULL,
+  keywords         jsonb       NOT NULL DEFAULT '[]',
+  embedding        jsonb,
+  created_at       timestamptz NOT NULL DEFAULT NOW(),
+  updated_at       timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_research_topics_normalized_query
+  ON public.research_topics(normalized_query);
+
+CREATE INDEX IF NOT EXISTS idx_research_topics_label
+  ON public.research_topics(label);
+
+CREATE INDEX IF NOT EXISTS idx_research_topics_normalized_query
+  ON public.research_topics(normalized_query);
+
+DROP TRIGGER IF EXISTS research_topics_set_updated_at ON public.research_topics;
+CREATE TRIGGER research_topics_set_updated_at
+  BEFORE UPDATE ON public.research_topics
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.user_topic_interests (
+  id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           uuid        NOT NULL REFERENCES public.profiles(id)
+                               ON DELETE CASCADE,
+  topic_id          uuid        NOT NULL REFERENCES public.research_topics(id)
+                               ON DELETE CASCADE,
+  interest_score    numeric     NOT NULL DEFAULT 0,
+  state             text        NOT NULL DEFAULT 'candidate'
+                               CHECK (state IN ('candidate', 'auto_watching', 'muted', 'deleted')),
+  auto_watch_reason text,
+  last_checked_at   timestamptz,
+  last_notified_at  timestamptz,
+  created_at        timestamptz NOT NULL DEFAULT NOW(),
+  updated_at        timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_topic_interests_user_topic
+  ON public.user_topic_interests(user_id, topic_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_topic_interests_user_state_score
+  ON public.user_topic_interests(user_id, state, interest_score DESC, updated_at DESC);
+
+DROP TRIGGER IF EXISTS user_topic_interests_set_updated_at ON public.user_topic_interests;
+CREATE TRIGGER user_topic_interests_set_updated_at
+  BEFORE UPDATE ON public.user_topic_interests
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON public.user_topic_interests TO authenticated;
+
+ALTER TABLE public.user_topic_interests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "user_topic_interests_select_own" ON public.user_topic_interests;
+CREATE POLICY "user_topic_interests_select_own" ON public.user_topic_interests
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "user_topic_interests_insert_own" ON public.user_topic_interests;
+CREATE POLICY "user_topic_interests_insert_own" ON public.user_topic_interests
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "user_topic_interests_update_own" ON public.user_topic_interests;
+CREATE POLICY "user_topic_interests_update_own" ON public.user_topic_interests
+  FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "user_topic_interests_delete_own" ON public.user_topic_interests;
+CREATE POLICY "user_topic_interests_delete_own" ON public.user_topic_interests
+  FOR DELETE USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS public.papers (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  doi              text,
+  arxiv_id         text,
+  s2_paper_id      text,
+  openalex_id      text,
+  pubmed_id        text,
+  title            text        NOT NULL,
+  abstract         text,
+  authors          jsonb       NOT NULL DEFAULT '[]',
+  year             integer,
+  published_at     timestamptz,
+  url              text,
+  open_access_pdf  jsonb       NOT NULL DEFAULT '{}',
+  source_metadata  jsonb       NOT NULL DEFAULT '{}',
+  created_at       timestamptz NOT NULL DEFAULT NOW(),
+  updated_at       timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_papers_doi_nonnull
+  ON public.papers(doi)
+  WHERE doi IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_papers_arxiv_id_nonnull
+  ON public.papers(arxiv_id)
+  WHERE arxiv_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_papers_s2_paper_id_nonnull
+  ON public.papers(s2_paper_id)
+  WHERE s2_paper_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_papers_openalex_id_nonnull
+  ON public.papers(openalex_id)
+  WHERE openalex_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_papers_pubmed_id_nonnull
+  ON public.papers(pubmed_id)
+  WHERE pubmed_id IS NOT NULL;
+
+DROP TRIGGER IF EXISTS papers_set_updated_at ON public.papers;
+CREATE TRIGGER papers_set_updated_at
+  BEFORE UPDATE ON public.papers
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.topic_paper_matches (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  topic_id        uuid        NOT NULL REFERENCES public.research_topics(id)
+                              ON DELETE CASCADE,
+  paper_id        uuid        NOT NULL REFERENCES public.papers(id)
+                              ON DELETE CASCADE,
+  vector_score    numeric     NOT NULL DEFAULT 0,
+  lexical_score   numeric     NOT NULL DEFAULT 0,
+  recency_score   numeric     NOT NULL DEFAULT 0,
+  authority_score numeric     NOT NULL DEFAULT 0,
+  hybrid_score    numeric     NOT NULL DEFAULT 0,
+  reason          text,
+  first_seen_at   timestamptz NOT NULL DEFAULT NOW(),
+  created_at      timestamptz NOT NULL DEFAULT NOW(),
+  updated_at      timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_topic_paper_matches_topic_paper
+  ON public.topic_paper_matches(topic_id, paper_id);
+
+CREATE INDEX IF NOT EXISTS idx_topic_paper_matches_topic_score
+  ON public.topic_paper_matches(topic_id, hybrid_score DESC, first_seen_at DESC);
+
+DROP TRIGGER IF EXISTS topic_paper_matches_set_updated_at ON public.topic_paper_matches;
+CREATE TRIGGER topic_paper_matches_set_updated_at
+  BEFORE UPDATE ON public.topic_paper_matches
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.notification_events (
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid        NOT NULL REFERENCES public.profiles(id)
+                         ON DELETE CASCADE,
+  topic_id   uuid        NOT NULL REFERENCES public.research_topics(id)
+                         ON DELETE CASCADE,
+  paper_id   uuid        NOT NULL REFERENCES public.papers(id)
+                         ON DELETE CASCADE,
+  channel    text        NOT NULL CHECK (channel IN ('in_app', 'email_digest', 'push')),
+  status     text        NOT NULL DEFAULT 'created'
+                         CHECK (status IN ('created', 'sent', 'skipped', 'failed')),
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notification_events_delivery
+  ON public.notification_events(user_id, topic_id, paper_id, channel);
+
+DROP TRIGGER IF EXISTS notification_events_set_updated_at ON public.notification_events;
+CREATE TRIGGER notification_events_set_updated_at
+  BEFORE UPDATE ON public.notification_events
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+ALTER TABLE public.research_topics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.papers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.topic_paper_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_events ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- 5. notifications extensions
+-- ============================================================
+
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS topic_id uuid REFERENCES public.research_topics(id) ON DELETE SET NULL;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS paper_id uuid REFERENCES public.papers(id) ON DELETE SET NULL;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS reason text;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS score numeric;
+
+-- ============================================================
+-- 6. chats.topic_id foreign key
+-- ============================================================
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'chats_topic_id_fkey'
+    ) THEN
+        ALTER TABLE public.chats
+            ADD CONSTRAINT chats_topic_id_fkey
+            FOREIGN KEY (topic_id) REFERENCES public.research_topics(id) ON DELETE SET NULL;
+    END IF;
+END;
+$$;

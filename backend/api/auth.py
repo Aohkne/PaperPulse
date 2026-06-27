@@ -8,6 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
+from supabase_auth.errors import AuthApiError
 
 from backend.auth.dependencies import get_current_user
 from backend.config import get_settings
@@ -99,8 +100,15 @@ async def register(
         if body.redirect_to:
             sign_up_data["options"] = {"email_redirect_to": body.redirect_to}
         res = supabase.auth.sign_up(sign_up_data)
+    except AuthApiError as e:
+        if e.code == "over_email_send_rate_limit":
+            raise HTTPException(
+                status_code=429,
+                detail="Too many verification emails requested for this address — please wait a few minutes before trying again.",
+            ) from e
+        raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if res.user is None:
         raise HTTPException(status_code=400, detail="Registration failed")

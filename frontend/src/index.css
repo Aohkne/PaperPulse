@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inknut+Antiqua:wght@400;500;600&family=Calistoga&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inknut+Antiqua:wght@400;500;600&family=Calistoga&family=Lora:ital,wght@0,400;0,600;1,400&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap');
 @import "tailwindcss";
 
 /* Enable class-based dark mode: dark: utilities apply inside .dark */
@@ -14,47 +14,48 @@
   --color-paper-bg: #FFFCF0;
   --color-paper-dark: #291100;
   --color-paper-mid: #5A6B33;
-  --color-paper-light: #B5A23F;
+  --color-paper-light: #968F27;
+  /*#B5A23F;*/
   --color-paper-surface: #EDE8D4;
 
   --color-quality-medium: #7A6530;
   --color-quality-low: #8B4A2F;
 
   --font-sans: "Inter", "Segoe UI", "Noto Sans", system-ui, -apple-system, Roboto, sans-serif;
-  --font-inknut: 'Inknut Antiqua', Georgia, serif;
+  --font-inknut: 'Inknut Antiqua', 'Noto Serif', serif;
 }
 
-/* Dark mode — same paper palette shifted for night reading */
+/* Dark mode — warm amber gold palette */
 html.dark {
   --color-paper-bg: #1F1F1E;
   --color-paper-dark: #EDE8D4;
-  --color-paper-mid: #9BAD5A;
-  --color-paper-light: #CDBFAD;
-  --color-paper-surface: #403728;
+  --color-paper-mid: #b7c48d;
+  --color-paper-light: #cab38c;
+  --color-paper-surface: #2D2218;
 
-  --color-quality-medium: #D9B968;
-  --color-quality-low: #E0936B;
+  --color-quality-medium: #cab38c;
+  --color-quality-low: #cab38c;
 
-  /* Brand purple — lighter/softer for dark backgrounds */
-  --color-brand-50: #1e1033;
-  --color-brand-100: #2d1a5c;
-  --color-brand-500: #a370f5;
-  --color-brand-600: #9b6df5;
-  --color-brand-700: #8b5cf6;
+  /* Brand amber gold */
+  --color-brand-50: #241A08;
+  --color-brand-100: #3A2810;
+  --color-brand-500: #ebca91;
+  --color-brand-600: #cab38c;
+  --color-brand-700: #f6ca84;
 
-  /* Admin UI — dark mode, aligned with paper palette */
+  /* Admin UI — dark mode, aligned with amber palette */
   --color-admin-bg: #1F1F1E;
-  --color-admin-surface: #2e2618;
+  --color-admin-surface: #2D2218;
   --color-admin-border: #5a4a37;
   --color-admin-text: #EDE8D4;
-  --color-admin-mid: #9BAD5A;
-  --color-admin-muted: #CDBFAD;
+  --color-admin-mid: #8C9E52;
+  --color-admin-muted: #C09858;
   --color-admin-input-bg: #1F1F1E;
-  --color-admin-accent: #a370f5;
-  --color-admin-accent-bg: #1e1033;
-  --color-admin-accent-text: #c4a0f8;
-  --color-admin-role-bg: #403728;
-  --color-admin-role-border: #2d1a5c;
+  --color-admin-accent: #ebca91;
+  --color-admin-accent-bg: #241A08;
+  --color-admin-accent-text: #E8B870;
+  --color-admin-role-bg: #2D2218;
+  --color-admin-role-border: #3A2810;
 }
 
 /* Admin UI — light mode, aligned with paper palette */
@@ -74,13 +75,25 @@ html.dark {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 
 html,
@@ -92,7 +105,7 @@ body,
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: 'Noto Serif', serif;
   background-color: var(--color-paper-bg);
   color: var(--color-paper-dark);
   -webkit-font-smoothing: antialiased;
@@ -119,7 +132,7 @@ body {
 
 .markdown-body p {
   color: var(--color-paper-mid);
-  font-family: Georgia, serif;
+  font-family: 'Noto Serif', serif;
   font-size: 16px;
   line-height: 1.7;
   margin: 4px 0;
@@ -152,7 +165,7 @@ body {
 
 .markdown-body li {
   color: var(--color-paper-mid);
-  font-family: Georgia, serif;
+  font-family: 'Noto Serif', serif;
   font-size: 15px;
   line-height: 1.7;
   margin: 2px 0;

@@ -73,7 +73,7 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
         style={{ fontSize: 16, color: danger ? 'var(--color-brand-600)' : 'var(--color-paper-mid)', flexShrink: 0 }}
       />
       <span style={{
-        fontFamily: 'Georgia, serif', fontSize: 14,
+        fontFamily: "'Noto Serif', serif", fontSize: 14,
         color: danger ? 'var(--color-brand-600)' : 'var(--color-paper-dark)',
         fontWeight: 500,
       }}>
@@ -119,14 +119,14 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{
-            fontFamily: 'Georgia, serif', fontSize: 14, fontWeight: 600,
+            fontFamily: "'Noto Serif', serif", fontSize: 14, fontWeight: 600,
             color: 'var(--color-paper-dark)', whiteSpace: 'nowrap',
             overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {user?.name || 'Account'}
           </div>
           <div style={{
-            fontFamily: 'Georgia, serif', fontSize: 12,
+            fontFamily: "'Noto Serif', serif", fontSize: 12,
             color: 'var(--color-paper-mid)', whiteSpace: 'nowrap',
             overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2,
           }}>
@@ -137,7 +137,7 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
               display: 'inline-block', marginTop: 5,
               padding: '1px 7px', borderRadius: 2,
               border: '1px solid var(--color-paper-light)',
-              fontFamily: 'Georgia, serif',
+              fontFamily: "'Noto Serif', serif",
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               color: 'var(--color-paper-mid)', textTransform: 'uppercase',
             }}>
@@ -158,7 +158,7 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
       <div style={{ padding: '6px', borderTop: '1px solid var(--color-paper-surface)' }}>
         <div style={{
           padding: '4px 10px 8px',
-          fontFamily: 'Georgia, serif', fontSize: 10, fontWeight: 700,
+          fontFamily: "'Noto Serif', serif", fontSize: 10, fontWeight: 700,
           color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.08em',
         }}>
           Appearance
@@ -182,7 +182,7 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
             >
               <Icon icon={THEME_ICONS[t]} style={{ fontSize: 15, color: theme === t ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)' }} />
               <span style={{
-                fontFamily: 'Georgia, serif', fontSize: 10,
+                fontFamily: "'Noto Serif', serif", fontSize: 10,
                 color: theme === t ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
                 textTransform: 'capitalize', fontWeight: theme === t ? 600 : 400,
               }}>
@@ -275,7 +275,7 @@ const SiteHeader = () => {
           />
           {!isMobile && (
             <span style={{
-              fontFamily: 'Georgia, serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+              fontFamily: "'Noto Serif', serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
               color: 'var(--color-brand-600)', background: 'var(--color-brand-50)',
               border: '1px solid var(--color-brand-100)', borderRadius: 4, padding: '2px 6px',
             }}>
@@ -295,7 +295,7 @@ const SiteHeader = () => {
                 style={{
                   position: 'relative',
                   background: 'none', border: 'none', cursor: 'pointer', padding: isMobile ? '6px 0' : '4px 0',
-                  fontFamily: 'Georgia, serif', fontSize: isMobile ? 13 : 15,
+                  fontFamily: "'Noto Serif', serif", fontSize: isMobile ? 13 : 15,
                   color: isActive ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
                   fontWeight: isActive ? 600 : 400,
                   transition: 'color 0.15s',
@@ -365,7 +365,7 @@ const SiteHeader = () => {
                   background: 'transparent',
                   border: '1px solid var(--color-paper-mid)',
                   color: 'var(--color-paper-mid)', padding: isMobile ? '8px 12px' : '7px 20px',
-                  borderRadius: 999, fontFamily: 'Georgia, serif', fontSize: isMobile ? 13 : 15, cursor: 'pointer',
+                  borderRadius: 999, fontFamily: "'Noto Serif', serif", fontSize: isMobile ? 13 : 15, cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -376,7 +376,7 @@ const SiteHeader = () => {
                 style={{
                   background: 'var(--color-paper-dark)', border: 'none',
                   color: 'var(--color-paper-bg)', padding: isMobile ? '8px 12px' : '7px 20px',
-                  borderRadius: 999, fontFamily: 'Georgia, serif', fontSize: isMobile ? 13 : 15, cursor: 'pointer',
+                  borderRadius: 999, fontFamily: "'Noto Serif', serif", fontSize: isMobile ? 13 : 15, cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >

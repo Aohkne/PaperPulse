@@ -91,7 +91,7 @@ async def _parse_pdf(state: PDFAgentState) -> dict:
     page_count = pdf_parser.get_pdf_page_count(state["raw_file_path"])
     if page_count > settings.pdf_agent_max_pages:
         raise PageLimitExceededError(
-            f"PDF có {page_count} trang, vượt giới hạn {settings.pdf_agent_max_pages} trang"
+            f"PDF has {page_count} pages, exceeding the {settings.pdf_agent_max_pages}-page limit"
         )
 
     doc_dir = _doc_dir(state["doc_id"])

@@ -44,10 +44,10 @@ const PDFUploadZone = ({ onFile, disabled = false }) => {
         onChange={(e) => handleFiles(e.target.files)}
       />
       <Icon icon="mdi:file-upload-outline" style={{ width: 48, height: 48, color: 'var(--color-paper-light)' }} />
-      <div style={{ fontFamily: 'Georgia, serif', fontSize: '16px', color: 'var(--color-paper-dark)', fontWeight: 600 }}>
+      <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '16px', color: 'var(--color-paper-dark)', fontWeight: 600 }}>
         {disabled ? 'Quota used up for this period' : 'Drag and drop a file here, or click to select'}
       </div>
-      <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-mid)' }}>
+      <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-mid)' }}>
         Supports .pdf, .tex, .zip (Overleaf project export) — up to 20MB
       </div>
     </div>

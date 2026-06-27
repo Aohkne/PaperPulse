@@ -83,7 +83,7 @@ const FaqItem = ({ q, a }) => {
         }}
       >
         <span style={{
-          fontFamily: 'Georgia, serif', fontSize: 16,
+          fontFamily: "'Noto Serif', serif", fontSize: 16,
           color: 'var(--color-paper-dark)', fontWeight: 500, lineHeight: 1.5,
         }}>
           {q}
@@ -104,7 +104,7 @@ const FaqItem = ({ q, a }) => {
             style={{ overflow: 'hidden' }}
           >
             <p style={{
-              fontFamily: 'Georgia, serif', fontSize: 15, lineHeight: 1.8,
+              fontFamily: "'Noto Serif', serif", fontSize: 15, lineHeight: 1.8,
               color: 'var(--color-paper-mid)', margin: '0 0 20px', paddingRight: 32,
             }}>
               {a}
@@ -117,7 +117,7 @@ const FaqItem = ({ q, a }) => {
 };
 
 const FaqPage = () => (
-  <div style={{ fontFamily: 'Georgia, serif', background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+  <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
     <SiteHeader />
 
     <div style={{ paddingTop: 57 }}>

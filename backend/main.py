@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from pathlib import Path
 
@@ -11,6 +12,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api import api_router
 from backend.config import get_settings
+
+
+def _uvicorn_loop_factory() -> asyncio.AbstractEventLoop:
+    if sys.platform == "win32":
+        return asyncio.SelectorEventLoop()
+    return asyncio.new_event_loop()
 
 _settings_for_sentry = get_settings()
 if _settings_for_sentry.sentry_dsn:
@@ -67,4 +74,5 @@ if __name__ == "__main__":
         port=settings.app_port,
         reload=True,
         reload_excludes=["data/*"],
+        loop="backend.main:_uvicorn_loop_factory",
     )

@@ -16,7 +16,7 @@ const TEAM_EMAIL = 'paperpulse.c2app069@gmail.com';
 const inputStyle = {
   width: '100%',
   padding: '10px 14px',
-  fontFamily: 'Georgia, serif', fontSize: 15,
+  fontFamily: "'Noto Serif', serif", fontSize: 15,
   color: 'var(--color-paper-dark)',
   background: 'var(--color-paper-bg)',
   border: '1px solid var(--color-paper-surface)',
@@ -28,7 +28,7 @@ const inputStyle = {
 
 const labelStyle = {
   display: 'block',
-  fontFamily: 'Georgia, serif', fontSize: 13, fontWeight: 600,
+  fontFamily: "'Noto Serif', serif", fontSize: 13, fontWeight: 600,
   color: 'var(--color-paper-mid)',
   letterSpacing: '0.05em', textTransform: 'uppercase',
   marginBottom: 6,
@@ -49,7 +49,7 @@ const ContactPage = () => {
   };
 
   return (
-    <div style={{ fontFamily: 'Georgia, serif', background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
       <ContentNavbar />
 
       <div style={{ paddingTop: 57 }}>
@@ -138,7 +138,7 @@ const ContactPage = () => {
                 style={{
                   background: 'var(--color-paper-dark)', border: 'none',
                   color: 'var(--color-paper-bg)', padding: '11px 28px',
-                  borderRadius: 2, fontFamily: 'Georgia, serif', fontSize: 16,
+                  borderRadius: 2, fontFamily: "'Noto Serif', serif", fontSize: 16,
                   cursor: 'pointer', width: '100%',
                 }}
               >
@@ -155,7 +155,7 @@ const ContactPage = () => {
             <a
               href={`mailto:${TEAM_EMAIL}`}
               style={{
-                fontFamily: 'Georgia, serif', fontSize: 15,
+                fontFamily: "'Noto Serif', serif", fontSize: 15,
                 color: 'var(--color-paper-mid)', textDecoration: 'none',
                 borderBottom: '1px solid var(--color-paper-surface)',
                 paddingBottom: 1,

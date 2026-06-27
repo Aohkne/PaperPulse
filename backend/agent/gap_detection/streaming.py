@@ -25,15 +25,15 @@ from backend.agent.gap_detection.schemas import GapReport, PaperRef
 
 logger = logging.getLogger(__name__)
 
-# Human-readable labels for each pipeline node (Vietnamese UI).
+# Human-readable labels for each pipeline node (user-facing, English).
 _NODE_LABELS: dict[str, str] = {
-    "extractor":              "Đang trích xuất nội dung bài báo",
-    "topical_detector":       "Đang phát hiện gap chủ đề",
-    "method_detector":        "Đang phát hiện gap phương pháp",
-    "contradiction_detector": "Đang kiểm tra mâu thuẫn",
-    "verifier":               "Đang xác minh gap",
-    "counter_search":         "Đang tìm kiếm bằng chứng phản bác",
-    "synthesizer":            "Đang tổng hợp kết quả",
+    "extractor":              "Extracting paper content...",
+    "topical_detector":       "Detecting topical gaps...",
+    "method_detector":        "Detecting methodological gaps...",
+    "contradiction_detector": "Checking for contradictions...",
+    "verifier":               "Verifying gaps...",
+    "counter_search":         "Searching for counter-evidence...",
+    "synthesizer":            "Synthesizing results...",
 }
 
 
@@ -52,7 +52,7 @@ async def stream_gap_detection(
     Yields:
         ``data: {JSON}\\n\\n`` strings (SSE format):
 
-        * ``{"type": "node_start", "node": "<name>", "label": "<VN label>"}``
+        * ``{"type": "node_start", "node": "<name>", "label": "<EN label>"}``
         * ``{"type": "done", "report": {<GapReport as dict>}}``
 
     The generator never raises: any uncaught exception is converted to a
@@ -86,7 +86,7 @@ async def stream_gap_detection(
                         "report": GapReport(
                             papers_analyzed=len(session_papers),
                             gaps=[],
-                            narrative="Không thể tổng hợp kết quả. Vui lòng thử lại.",
+                            narrative="Could not synthesize results. Please try again.",
                         ).model_dump(),
                     })
                 else:
@@ -99,7 +99,7 @@ async def stream_gap_detection(
         )
         yield _sse({
             "type": "error",
-            "message": "Lỗi nội bộ trong quá trình streaming. Vui lòng thử lại.",
+            "message": "Internal error during streaming. Please try again.",
         })
 
 

@@ -46,12 +46,12 @@ async def update_annotation(
     annotations = state.get("annotations") or []
     target = next((a for a in annotations if a["id"] == annotation_id), None)
     if target is None:
-        raise HTTPException(404, "Annotation không tồn tại")
+        raise HTTPException(404, "Annotation not found")
 
     if target["type"] == "warning" and body.action == "accept":
         # Hard invariant (Non-goals): warning never has an Accept affordance — there's
         # no "correct fix" for a fake/broken citation to silently apply.
-        raise HTTPException(400, "Warning không có hành động Accept — chỉ Dismiss")
+        raise HTTPException(400, "Warnings have no Accept action — Dismiss only")
 
     main_tex_path = Path(state["main_tex_path"])
     tex_content = main_tex_path.read_text(encoding="utf-8")
@@ -59,7 +59,7 @@ async def update_annotation(
     if body.action == "accept":
         offset = refind_anchor(tex_content, target["anchor"])
         if offset is None:
-            raise HTTPException(409, "Đoạn này đã bị sửa, không tìm lại được vị trí — vui lòng dismiss và sửa tay")
+            raise HTTPException(409, "This passage was edited and its position couldn't be found — please dismiss and edit it manually")
         exact = target["anchor"]["exact"]
         tex_content = tex_content[:offset] + (target["suggested_fix"] or "") + tex_content[offset + len(exact):]
         main_tex_path.write_text(tex_content, encoding="utf-8")

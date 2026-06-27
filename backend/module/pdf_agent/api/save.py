@@ -87,10 +87,10 @@ async def resume_from_review(
         .execute()
     )
     if not res.data:
-        raise HTTPException(404, "Review không tồn tại")
+        raise HTTPException(404, "Review not found")
     row = res.data
     if row["source_type"] != "uploaded" or row["content_format"] != "tex":
-        raise HTTPException(400, "Review này không phải document upload từ PDF Agent")
+        raise HTTPException(400, "This review is not a document uploaded via PDF Agent")
 
     settings = get_settings()
     doc_id = str(uuid4())

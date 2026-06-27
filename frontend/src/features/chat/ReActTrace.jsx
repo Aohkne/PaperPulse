@@ -110,7 +110,7 @@ const ReActStep = ({ step, index }) => {
           </code>
         ) : (
           <p style={{
-            fontFamily: 'Georgia, serif',
+            fontFamily: "'Noto Serif', serif",
             fontSize: '13px',
             color: 'var(--color-paper-dark)',
             lineHeight: '1.55',
@@ -151,7 +151,7 @@ const TraceStats = ({ steps }) => {
       {obs.map((s) => (
         <span key={s.id} style={{
           fontSize: '11px',
-          fontFamily: 'Georgia, serif',
+          fontFamily: "'Noto Serif', serif",
           color: 'var(--color-paper-mid)',
           background: 'var(--color-paper-surface)',
           borderRadius: '3px',
@@ -228,7 +228,7 @@ const ReActTrace = ({ steps }) => {
         )}
 
         <span style={{
-          fontFamily: 'Georgia, serif',
+          fontFamily: "'Noto Serif', serif",
           fontSize: '12px',
           color: 'var(--color-paper-dark)',
           fontStyle: 'italic',

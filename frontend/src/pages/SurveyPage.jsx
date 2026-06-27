@@ -4,6 +4,7 @@ import { useSurveyStore } from '@/shared/store/useSurveyStore';
 import SearchBar from '@/features/survey/SearchBar';
 import ResultsList from '@/features/survey/ResultsList';
 import SearchHistory from '@/features/survey/SearchHistory';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const BotAvatar = () => (
   <div className="w-8 h-8 rounded-full bg-[#6c27da] flex items-center justify-center shrink-0">
@@ -87,7 +88,7 @@ const ErrorBubble = ({ error }) => (
   <div className="flex items-end gap-3">
     <BotAvatar />
     <div className="bg-white/90 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-      <p className="text-sm text-red-600">{error ?? 'Something went wrong.'}</p>
+      <p className="text-sm text-red-600">{friendlyError(error, 'Something went wrong.')}</p>
     </div>
   </div>
 );

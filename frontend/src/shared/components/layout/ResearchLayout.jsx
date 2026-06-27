@@ -1,14 +1,27 @@
 import { useState, useRef, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import GraphPanel from '@/features/graph/GraphPanel';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
+
+const MOBILE_TABS = [
+  { key: 'left', label: 'Search' },
+  { key: 'center', label: 'Outline' },
+  { key: 'right', label: 'Graph' },
+];
 
 /**
  * 3-panel resizable layout for the Research Assistant:
  *   Left: search/progress/papers
  *   Center: outline / review editor
  *   Right: knowledge graph + claim verifier
+ *
+ * Below the mobile breakpoint, the 3 side-by-side panels (24%/flex/28% width)
+ * become unusably narrow — swap to one full-width panel at a time with a tab
+ * switcher instead, same pattern as PDFAgentPage's editor/annotations tabs.
  */
 const ResearchLayout = ({ left, center, right, papers }) => {
+  const isMobile = useIsMobile(860);
+  const [mobileTab, setMobileTab] = useState('center');
   const [leftW, setLeftW] = useState(24);
   const [rightW, setRightW] = useState(28);
   const [rightOpen, setRightOpen] = useState(false);
@@ -58,6 +71,41 @@ const ResearchLayout = ({ left, center, right, papers }) => {
     overflow: 'hidden',
     height: '100%',
   };
+
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--color-paper-bg)' }}>
+        <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--color-paper-light)' }}>
+          {MOBILE_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setMobileTab(tab.key)}
+              style={{
+                flex: 1, padding: '12px 8px', minHeight: 44,
+                border: 'none', borderBottom: mobileTab === tab.key ? '2px solid var(--color-paper-dark)' : '2px solid transparent',
+                background: 'none', cursor: 'pointer',
+                fontFamily: "'Noto Serif', serif", fontSize: '13px', fontWeight: mobileTab === tab.key ? 600 : 400,
+                color: mobileTab === tab.key ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: mobileTab === 'left' ? 'flex' : 'none', flexDirection: 'column', padding: '16px' }}>
+          {left}
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: mobileTab === 'center' ? 'flex' : 'none', flexDirection: 'column', padding: '16px' }}>
+          {center}
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: mobileTab === 'right' ? 'flex' : 'none', flexDirection: 'column' }}>
+          <GraphPanel papers={papers} onClose={() => setMobileTab('center')} />
+          <div style={{ padding: '0 12px 12px' }}>{right}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

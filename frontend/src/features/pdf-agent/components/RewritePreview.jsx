@@ -1,5 +1,6 @@
 import { Icon } from '@iconify/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 /**
  * Banner shown under SelectionToolbar for the result of /explain (plain text, no
@@ -26,34 +27,36 @@ const RewritePreview = ({ result, onApply, onClose }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             {result.loading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-mid)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-mid)' }}>
                 <Icon icon="mdi:loading" style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
                 {result.kind === 'rewrite' ? 'Rewriting...' : 'Explaining...'}
               </div>
             )}
 
             {result.kind === 'error' && (
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: '#c0392b' }}>{result.message}</div>
+              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: '#c0392b' }}>
+                {friendlyError(result.message, 'Something went wrong.')}
+              </div>
             )}
 
             {result.kind === 'explain' && !result.loading && (
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-dark)', lineHeight: 1.6 }}>
+              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-dark)', lineHeight: 1.6 }}>
                 {result.explanation}
               </div>
             )}
 
             {result.kind === 'rewrite' && !result.loading && (
               <div>
-                <div style={{ fontFamily: 'Georgia, serif', fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
+                <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
                   Current
                 </div>
-                <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: '#c0392b', background: '#fdf0ee', borderRadius: '4px', padding: '6px 8px', marginBottom: '8px', textDecoration: 'line-through' }}>
+                <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: '#c0392b', background: '#fdf0ee', borderRadius: '4px', padding: '6px 8px', marginBottom: '8px', textDecoration: 'line-through' }}>
                   {result.oldText}
                 </div>
-                <div style={{ fontFamily: 'Georgia, serif', fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
+                <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
                   Suggested
                 </div>
-                <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: '#1f7a3d', background: '#eef8f0', borderRadius: '4px', padding: '6px 8px' }}>
+                <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: '#1f7a3d', background: '#eef8f0', borderRadius: '4px', padding: '6px 8px' }}>
                   {result.newText}
                 </div>
               </div>
@@ -69,13 +72,13 @@ const RewritePreview = ({ result, onApply, onClose }) => {
           <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
             <button
               onClick={onApply}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: '#fff', background: '#1f7a3d', border: 'none', borderRadius: '4px', padding: '5px 12px', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: '#fff', background: '#1f7a3d', border: 'none', borderRadius: '4px', padding: '5px 12px', cursor: 'pointer' }}
             >
               <Icon icon="mdi:check" style={{ width: 13, height: 13 }} /> Apply
             </button>
             <button
               onClick={onClose}
-              style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '5px 12px', background: 'none', cursor: 'pointer' }}
+              style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '5px 12px', background: 'none', cursor: 'pointer' }}
             >
               Cancel
             </button>

@@ -5,8 +5,19 @@ LaTeX parsing (not a full TeX engine — good enough for our generated/edited co
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from backend.shared.services.latex_utils import unescape_latex
+
+# DejaVu Sans is a Unicode TTF (bundled under backend/shared/assets/fonts, see
+# LICENSE_DEJAVU.txt there) so the PDF export can render any Unicode text —
+# curly quotes, em-dashes, math symbols, Vietnamese diacritics, etc. — instead
+# of being limited to fpdf2's built-in Latin-1-only core fonts (Helvetica/Courier).
+_FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+_SANS_REGULAR = _FONTS_DIR / "DejaVuSans.ttf"
+_SANS_BOLD = _FONTS_DIR / "DejaVuSans-Bold.ttf"
+_SANS_ITALIC = _FONTS_DIR / "DejaVuSans-Oblique.ttf"
+_MONO_REGULAR = _FONTS_DIR / "DejaVuSansMono.ttf"
 
 # fpdf2's multi_cell raises FPDFException ("Not enough horizontal space to render
 # a single character") when one unbroken run of non-space characters is wider than
@@ -22,19 +33,13 @@ def _break_long_token(match: re.Match) -> str:
 
 
 def _sanitize(text: str) -> str:
-    """Replace common Unicode chars that Latin-1 fonts can't render, and break up
-    unbroken long tokens (e.g. DOI/arXiv URLs) so fpdf2 can wrap them."""
-    _MAP = {
-        "–": "-", "—": "--", "‘": "'", "’": "'",
-        "“": '"', "”": '"', "…": "...", "•": "-",
-        "·": "*", "→": "->", "←": "<-", "≤": "<=",
-        "≥": ">=", "×": "x", "÷": "/", "α": "alpha",
-        "β": "beta", "γ": "gamma", "δ": "delta",
-    }
-    for src, dst in _MAP.items():
-        text = text.replace(src, dst)
-    text = _LONG_TOKEN_RE.sub(_break_long_token, text)
-    return text.encode("latin-1", errors="replace").decode("latin-1")
+    """Break up unbroken long tokens (e.g. DOI/arXiv URLs) so fpdf2 can wrap them.
+
+    No longer transliterates/drops Unicode characters — the PDF renders with a
+    Unicode TTF font (DejaVu Sans), so curly quotes, em-dashes, math symbols,
+    and non-Latin scripts render natively instead of being replaced with '?'.
+    """
+    return _LONG_TOKEN_RE.sub(_break_long_token, text)
 
 
 # ── LaTeX parsing (best-effort — not a full TeX engine) ──────────────────────
@@ -216,9 +221,14 @@ def latex_to_pdf(title: str, content: str) -> bytes:
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
 
+    pdf.add_font("DejaVu", "", str(_SANS_REGULAR))
+    pdf.add_font("DejaVu", "B", str(_SANS_BOLD))
+    pdf.add_font("DejaVu", "I", str(_SANS_ITALIC))
+    pdf.add_font("DejaVuMono", "", str(_MONO_REGULAR))
+
     NL = {"new_x": "LMARGIN", "new_y": "NEXT"}  # reset cursor to left margin after each cell
 
-    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_font("DejaVu", "B", 18)
     pdf.multi_cell(0, 10, _sanitize(title), align="L", **NL)
     pdf.ln(4)
     pdf.set_draw_color(180, 180, 180)
@@ -228,17 +238,17 @@ def latex_to_pdf(title: str, content: str) -> bytes:
     for kind, data in _parse_latex_body(content):
         if kind == "h1":
             pdf.ln(3)
-            pdf.set_font("Helvetica", "B", 16)
+            pdf.set_font("DejaVu", "B", 16)
             pdf.multi_cell(0, 9, _sanitize(_inline_to_plain(data)), align="L", **NL)
             pdf.ln(1)
         elif kind == "h2":
             pdf.ln(2)
-            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_font("DejaVu", "B", 14)
             pdf.multi_cell(0, 8, _sanitize(_inline_to_plain(data)), align="L", **NL)
             pdf.ln(1)
         elif kind == "h3":
             pdf.ln(1)
-            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_font("DejaVu", "B", 12)
             pdf.multi_cell(0, 7, _sanitize(_inline_to_plain(data)), align="L", **NL)
         elif kind == "hr":
             pdf.ln(2)
@@ -247,26 +257,26 @@ def latex_to_pdf(title: str, content: str) -> bytes:
         elif kind in ("quote_start", "quote_end"):
             continue
         elif kind == "mdquote":
-            pdf.set_font("Helvetica", "I", 10)
+            pdf.set_font("DejaVu", "I", 10)
             pdf.set_text_color(100, 100, 100)
             pdf.multi_cell(0, 6, "  " + _sanitize(_inline_to_plain(data)), align="L", **NL)
             pdf.set_text_color(0, 0, 0)
         elif kind == "item":
-            pdf.set_font("Helvetica", "", 11)
+            pdf.set_font("DejaVu", "", 11)
             pdf.multi_cell(0, 6, _sanitize("  * " + _inline_to_plain(data)), align="L", **NL)
         elif kind == "item_num":
             num, text = data
-            pdf.set_font("Helvetica", "", 11)
+            pdf.set_font("DejaVu", "", 11)
             pdf.multi_cell(0, 6, _sanitize(f"  {num}. " + _inline_to_plain(text)), align="L", **NL)
         elif kind == "verbatim":
-            pdf.set_font("Courier", "", 9)
+            pdf.set_font("DejaVuMono", "", 9)
             pdf.set_text_color(60, 60, 60)
             pdf.multi_cell(0, 5, _sanitize(data) or " ", align="L", **NL)
             pdf.set_text_color(0, 0, 0)
         elif kind == "blank":
             pdf.ln(3)
         else:  # para
-            pdf.set_font("Helvetica", "", 11)
+            pdf.set_font("DejaVu", "", 11)
             pdf.multi_cell(0, 6, _sanitize(_inline_to_plain(data)), align="L", **NL)
 
     return bytes(pdf.output())

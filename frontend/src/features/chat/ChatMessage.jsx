@@ -61,7 +61,7 @@ const ChatMessage = ({ message, animate = true }) => {
     return (
       <motion.div variants={msgVariants} initial="initial" animate="animate"
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginBottom: '16px' }}>
-        <div style={{ backgroundColor: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '10px 14px', maxWidth: '480px', color: 'var(--color-paper-dark)', fontFamily: 'Georgia, serif', fontSize: '15px', lineHeight: '1.6' }}>
+        <div style={{ backgroundColor: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '10px 14px', maxWidth: '480px', color: 'var(--color-paper-dark)', fontFamily: "'Noto Serif', serif", fontSize: '15px', lineHeight: '1.6' }}>
           {message.content}
         </div>
         <span style={{ fontSize: '12px', color: 'var(--color-paper-light)', marginTop: '4px' }}>
@@ -128,7 +128,7 @@ const ChatMessage = ({ message, animate = true }) => {
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '4px',
               color: 'var(--color-paper-mid)',
-              fontFamily: 'Georgia, serif', fontSize: '12px',
+              fontFamily: "'Noto Serif', serif", fontSize: '12px',
               pointerEvents: hovered ? 'auto' : 'none',
             }}
           >

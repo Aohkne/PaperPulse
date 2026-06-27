@@ -22,7 +22,7 @@ const TypingPill = () => (
       <Icon icon="mdi:loading" style={{ fontSize: '13px', color: 'var(--color-brand-500)' }} />
     </motion.div>
     <span style={{
-      fontFamily: 'Georgia, serif',
+      fontFamily: "'Noto Serif', serif",
       fontSize: '13px',
       fontStyle: 'italic',
       color: 'var(--color-paper-dark)',

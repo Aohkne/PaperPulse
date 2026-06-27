@@ -35,11 +35,11 @@ _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 _HEARTBEAT_SECONDS = 15
 
 PDF_AGENT_NODE_LABELS = {
-    "format_detect": "Nhận diện định dạng file...",
-    "parse_document": "Phân tích cấu trúc văn bản...",
-    "render_bundle": "Dựng file .tex editable...",
-    "batch_analysis": "Kiểm tra văn phong + citation song song...",
-    "build_annotations": "Tổng hợp gợi ý + cảnh báo...",
+    "format_detect": "Detecting file format...",
+    "parse_document": "Parsing document structure...",
+    "render_bundle": "Rendering editable .tex bundle...",
+    "batch_analysis": "Checking style and citations in parallel...",
+    "build_annotations": "Compiling suggestions and warnings...",
 }
 
 
@@ -135,14 +135,14 @@ async def upload_document(
     settings = get_settings()
 
     if _inflight_uploads >= settings.pdf_agent_upload_concurrency:
-        raise HTTPException(429, "Server đang xử lý quá nhiều PDF cùng lúc — vui lòng thử lại sau vài giây.")
+        raise HTTPException(429, "Server is processing too many PDFs at once — please try again in a few seconds.")
     _inflight_uploads += 1
 
     try:
         raw_bytes = await file.read()
         max_bytes = settings.pdf_agent_max_file_size_mb * 1024 * 1024
         if len(raw_bytes) > max_bytes:
-            raise HTTPException(413, f"File quá lớn — tối đa {settings.pdf_agent_max_file_size_mb}MB")
+            raise HTTPException(413, f"File too large — {settings.pdf_agent_max_file_size_mb}MB max")
 
         doc_id = str(uuid4())
 
@@ -151,7 +151,7 @@ async def upload_document(
         try:
             await billing_db.start_session(str(user.id), "pdf", doc_id)
         except QuotaExceededError as exc:
-            raise HTTPException(402, "Hết quota PDF Agent — vui lòng nâng cấp gói hoặc mua thêm.") from exc
+            raise HTTPException(402, "PDF Agent quota exhausted — please upgrade your plan or top up.") from exc
 
         doc_dir = Path(settings.pdf_agent_output_dir) / doc_id
         doc_dir.mkdir(parents=True, exist_ok=True)

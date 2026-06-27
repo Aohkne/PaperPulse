@@ -34,7 +34,7 @@ const GraphPanel = ({ onClose, papers = [] }) => {
           color: 'var(--color-paper-light)',
           fontSize: '12px',
           margin: '3px 0 0',
-          fontFamily: 'Georgia, serif',
+          fontFamily: "'Noto Serif', serif",
         }}>
           {statsLabel}
         </p>

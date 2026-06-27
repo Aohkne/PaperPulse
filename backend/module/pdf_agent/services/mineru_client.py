@@ -95,14 +95,14 @@ async def run_mineru(pdf_path: str, output_dir: str) -> str:
     except asyncio.TimeoutError:
         proc.kill()
         await proc.wait()
-        raise MinerUTimeoutError(f"MinerU vượt {settings.mineru_timeout_s}s — PDF có thể quá phức tạp/dài")
+        raise MinerUTimeoutError(f"MinerU exceeded {settings.mineru_timeout_s}s — the PDF may be too long/complex")
 
     if proc.returncode != 0:
         raise MinerUExecutionError(f"mineru exited {proc.returncode}: {stderr.decode(errors='ignore')[-2000:]}")
 
     matches = glob(f"{output_dir}/**/*_content_list.json", recursive=True)
     if not matches:
-        raise MinerUExecutionError("MinerU không sinh ra content_list.json — kiểm tra log subprocess")
+        raise MinerUExecutionError("MinerU did not produce content_list.json — check the subprocess log")
     return matches[0]
 
 
@@ -137,20 +137,20 @@ async def run_mineru_http(pdf_path: str) -> tuple[list[dict], str]:
                     },
                 )
     except httpx.TimeoutException as exc:
-        raise MinerUTimeoutError(f"mineru-api vượt {settings.mineru_timeout_s}s") from exc
+        raise MinerUTimeoutError(f"mineru-api exceeded {settings.mineru_timeout_s}s") from exc
     except httpx.ConnectError as exc:
-        raise MinerUExecutionError(f"Không kết nối được mineru-api tại {settings.mineru_api_url}") from exc
+        raise MinerUExecutionError(f"Could not connect to mineru-api at {settings.mineru_api_url}") from exc
 
     if resp.status_code != 200:
-        raise MinerUExecutionError(f"mineru-api trả {resp.status_code}: {resp.text[:2000]}")
+        raise MinerUExecutionError(f"mineru-api returned {resp.status_code}: {resp.text[:2000]}")
 
     results = resp.json().get("results") or {}
     if not results:
-        raise MinerUExecutionError("mineru-api trả results rỗng")
+        raise MinerUExecutionError("mineru-api returned empty results")
     pdf_name, result = next(iter(results.items()))
     content_list_raw = result.get("content_list")
     if not content_list_raw:
-        raise MinerUExecutionError("mineru-api không trả content_list")
+        raise MinerUExecutionError("mineru-api did not return a content_list")
     content_list = json.loads(content_list_raw)
 
     content_dir = tempfile.mkdtemp(prefix=f"mineru_http_{pdf_name}_")

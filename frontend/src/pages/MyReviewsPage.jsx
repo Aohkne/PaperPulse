@@ -6,6 +6,7 @@ import { useReviewsStore } from '@/shared/store/useReviewsStore';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { reviewsApi } from '@/features/reviews/reviewsApi';
 import { ROUTES } from '@/shared/constant/routes';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
 const token = () => useAuthStore.getState().token;
 
@@ -52,10 +53,10 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
       <Icon icon="mdi:file-document-outline" style={{ width: 20, height: 20, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '15px', fontWeight: 600, color: 'var(--color-paper-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', fontWeight: 600, color: 'var(--color-paper-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {review.title}
         </div>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-light)', marginTop: '2px' }}>
+        <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)', marginTop: '2px' }}>
           {relativeDate(review.updated_at)} · {review.query}
         </div>
       </div>
@@ -101,7 +102,7 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
                     width: '100%', textAlign: 'left', padding: '8px 12px',
                     background: 'none', border: 'none', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    fontFamily: 'Georgia, serif', fontSize: '13px',
+                    fontFamily: "'Noto Serif', serif", fontSize: '13px',
                     color: danger ? '#c0392b' : 'var(--color-paper-dark)',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
@@ -121,6 +122,7 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
 
 const MyReviewsPage = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile(480);
   const { items, pagination, search, listLoading, listError, fetchList, loadMore, setSearch, deleteReview, duplicateReview } = useReviewsStore();
   const [searchInput, setSearchInput] = useState(search);
   const debounceRef = useRef(null);
@@ -146,7 +148,7 @@ const MyReviewsPage = () => {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 14px' : '32px 24px' }}>
       <div style={{ maxWidth: '640px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
@@ -156,10 +158,10 @@ const MyReviewsPage = () => {
           >
             <Icon icon="mdi:arrow-left" style={{ width: 18, height: 18 }} />
           </button>
-          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '20px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: 0 }}>
+          <h1 style={{ fontFamily: "'Noto Serif', serif", fontSize: '20px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: 0 }}>
             My Reviews
           </h1>
-          <span style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-light)', marginLeft: 'auto' }}>
+          <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)', marginLeft: 'auto' }}>
             {pagination.total} review{pagination.total !== 1 ? 's' : ''}
           </span>
         </div>
@@ -178,7 +180,7 @@ const MyReviewsPage = () => {
               border: '1px solid var(--color-paper-light)',
               borderRadius: '4px',
               background: 'var(--color-paper-surface)',
-              fontFamily: 'Georgia, serif', fontSize: '14px',
+              fontFamily: "'Noto Serif', serif", fontSize: '14px',
               color: 'var(--color-paper-dark)',
               outline: 'none',
             }}
@@ -187,7 +189,7 @@ const MyReviewsPage = () => {
 
         {/* List */}
         {listError && (
-          <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: '#c0392b', padding: '12px', marginBottom: '12px' }}>
+          <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', color: '#c0392b', padding: '12px', marginBottom: '12px' }}>
             {listError}
           </div>
         )}
@@ -202,7 +204,7 @@ const MyReviewsPage = () => {
 
         {/* Empty state */}
         {!listLoading && items.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--color-paper-light)', fontFamily: 'Georgia, serif', fontSize: '15px' }}>
+          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif", fontSize: '15px' }}>
             {search ? 'No reviews found.' : 'No reviews yet. Create a Literature Review to get started!'}
           </div>
         )}
@@ -217,7 +219,7 @@ const MyReviewsPage = () => {
               border: '1px solid var(--color-paper-light)',
               borderRadius: '4px',
               background: 'none', cursor: listLoading ? 'wait' : 'pointer',
-              fontFamily: 'Georgia, serif', fontSize: '13px',
+              fontFamily: "'Noto Serif', serif", fontSize: '13px',
               color: 'var(--color-paper-mid)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
             }}

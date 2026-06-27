@@ -14,27 +14,10 @@ import { ROUTES } from '@/shared/constant/routes';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
 import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
 import UsageExhaustedBanner from '@/features/billing/UsageExhaustedBanner';
+import { showSuccess, showError } from '@/shared/utils/toast';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const getToken = () => useAuthStore.getState().token;
-
-const Toast = ({ message, success }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0 }}
-    style={{
-      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-      background: success ? 'var(--color-paper-dark)' : '#c0392b',
-      color: 'var(--color-paper-bg)',
-      fontFamily: 'Georgia, serif', fontSize: '14px',
-      padding: '10px 20px', borderRadius: '4px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-      zIndex: 9999, whiteSpace: 'nowrap',
-    }}
-  >
-    {message}
-  </motion.div>
-);
 
 const STEP_ICONS = { running: 'mdi:loading', done: 'mdi:check-circle' };
 
@@ -51,7 +34,6 @@ const PDFAgentPage = () => {
 
   const [selection, setSelection] = useState(null);
   const [activeAnnotationId, setActiveAnnotationId] = useState(null);
-  const [toast, setToast] = useState(null);
   const [saving, setSaving] = useState(false);
   const [mobileTab, setMobileTab] = useState('editor');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -75,7 +57,7 @@ const PDFAgentPage = () => {
     try {
       await pdfAgentApi.download(getToken(), docId, format);
     } catch (e) {
-      showToast(e.message || 'Export failed', false);
+      showError(e, 'Export failed');
     } finally {
       setExportLoading(false);
     }
@@ -85,11 +67,6 @@ const PDFAgentPage = () => {
     reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const showToast = (message, success = true) => {
-    setToast({ message, success });
-    setTimeout(() => setToast(null), 2500);
-  };
 
   useEffect(() => {
     if (!resumeReviewId || resumeAttempted.current) return;
@@ -101,7 +78,7 @@ const PDFAgentPage = () => {
         const content = await pdfAgentApi.getContent(getToken(), res.doc_id);
         setTexContent(content.tex_content);
       } catch (e) {
-        showToast(e.message || 'Could not reopen this document', false);
+        showError(e, 'Could not reopen this document');
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,9 +87,9 @@ const PDFAgentPage = () => {
   const handleAnnotationAction = async (annotation, action) => {
     try {
       await updateAnnotation(annotation.id, action);
-      showToast(action === 'accept' ? 'Accepted ✓' : action === 'reject' ? 'Rejected' : 'Dismissed');
+      showSuccess(action === 'accept' ? 'Accepted' : action === 'reject' ? 'Rejected' : 'Dismissed');
     } catch (e) {
-      showToast(e.message || 'Action failed', false);
+      showError(e, 'Action failed');
     }
   };
 
@@ -129,9 +106,9 @@ const PDFAgentPage = () => {
   const handleApply = async () => {
     try {
       await applyRewrite();
-      showToast('Applied ✓');
+      showSuccess('Applied');
     } catch (e) {
-      showToast(e.message || 'Apply failed (has the passage changed?)', false);
+      showError(e, 'Apply failed (has the passage changed?)');
     }
   };
 
@@ -139,9 +116,9 @@ const PDFAgentPage = () => {
     setSaving(true);
     try {
       await saveToReview();
-      showToast('Saved to My Reviews ✓');
+      showSuccess('Saved to My Reviews');
     } catch (e) {
-      showToast(e.message || 'Save failed', false);
+      showError(e, 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -181,14 +158,14 @@ const PDFAgentPage = () => {
 
         {(status === 'ready' || status === 'saving') && (
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-light)' }}>
+            <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)' }}>
               {suggestCount} suggest · {warningCount} warning
             </span>
             <div style={{ position: 'relative' }} ref={exportMenuRef}>
               <button
                 onClick={() => setExportMenuOpen((v) => !v)}
                 disabled={exportLoading}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: exportLoading ? 'wait' : 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: exportLoading ? 'wait' : 'pointer' }}
               >
                 {exportLoading
                   ? <Icon icon="mdi:loading" style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} />
@@ -213,7 +190,7 @@ const PDFAgentPage = () => {
                       <button
                         key={format}
                         onClick={() => handleExport(format)}
-                        style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-dark)' }}
+                        style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-dark)' }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                       >
@@ -228,7 +205,7 @@ const PDFAgentPage = () => {
             <button
               onClick={handleSave}
               disabled={saving}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-bg)', background: 'var(--color-paper-dark)', border: 'none', borderRadius: '4px', padding: '4px 11px', cursor: saving ? 'wait' : 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-bg)', background: 'var(--color-paper-dark)', border: 'none', borderRadius: '4px', padding: '4px 11px', cursor: saving ? 'wait' : 'pointer' }}
             >
               {saving && <Icon icon="mdi:loading" style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />}
               Save to My Reviews
@@ -236,7 +213,7 @@ const PDFAgentPage = () => {
             {reviewId && (
               <button
                 onClick={() => navigate(ROUTES.REVIEW_DETAIL(reviewId))}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Georgia, serif', fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
               >
                 <Icon icon="mdi:open-in-new" style={{ width: 13, height: 13 }} />
                 View in My Reviews
@@ -286,7 +263,7 @@ const PDFAgentPage = () => {
                         style={{ width: 14, height: 14, color: s.status === 'done' ? '#1f7a3d' : 'var(--color-paper-mid)', animation: s.status === 'running' ? 'spin 1s linear infinite' : 'none' }}
                       />
                     </div>
-                    <span style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: s.status === 'running' ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)', fontWeight: s.status === 'running' ? 600 : 400 }}>
+                    <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: s.status === 'running' ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)', fontWeight: s.status === 'running' ? 600 : 400 }}>
                       {s.label}
                     </span>
                   </motion.div>
@@ -297,7 +274,7 @@ const PDFAgentPage = () => {
                   <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-paper-surface)' }}>
                     <Icon icon="mdi:loading" style={{ width: 14, height: 14, color: 'var(--color-paper-mid)', animation: 'spin 1s linear infinite' }} />
                   </div>
-                  <span style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-mid)' }}>Uploading...</span>
+                  <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-mid)' }}>Uploading...</span>
                 </div>
               )}
             </div>
@@ -308,8 +285,8 @@ const PDFAgentPage = () => {
       {status === 'error' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
           <Icon icon="mdi:alert-circle-outline" style={{ width: 32, height: 32, color: '#c0392b' }} />
-          <span style={{ fontFamily: 'Georgia, serif', color: '#c0392b', maxWidth: '480px', textAlign: 'center' }}>{error}</span>
-          <button onClick={reset} style={{ fontFamily: 'Georgia, serif', fontSize: '14px', cursor: 'pointer', color: 'var(--color-paper-mid)', background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '6px 14px' }}>
+          <span style={{ fontFamily: "'Noto Serif', serif", color: '#c0392b', maxWidth: '480px', textAlign: 'center' }}>{friendlyError(error, 'Something went wrong while processing this document.')}</span>
+          <button onClick={reset} style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', cursor: 'pointer', color: 'var(--color-paper-mid)', background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '6px 14px' }}>
             Try again
           </button>
         </div>
@@ -330,7 +307,7 @@ const PDFAgentPage = () => {
                     flex: 1, padding: '12px 8px', minHeight: 44,
                     border: 'none', borderBottom: mobileTab === tab.key ? '2px solid var(--color-paper-dark)' : '2px solid transparent',
                     background: 'none', cursor: 'pointer',
-                    fontFamily: 'Georgia, serif', fontSize: '13px', fontWeight: mobileTab === tab.key ? 600 : 400,
+                    fontFamily: "'Noto Serif', serif", fontSize: '13px', fontWeight: mobileTab === tab.key ? 600 : 400,
                     color: mobileTab === tab.key ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
                   }}
                 >
@@ -368,14 +345,14 @@ const PDFAgentPage = () => {
           }}>
             {!isMobile && (
               <div style={{ flexShrink: 0, padding: '10px 14px', borderBottom: '1px solid var(--color-paper-light)' }}>
-                <span style={{ fontFamily: 'Georgia, serif', fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Annotations ({pendingAnnotations.length})
                 </span>
               </div>
             )}
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
               {pendingAnnotations.length === 0 ? (
-                <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: 'var(--color-paper-light)', textAlign: 'center', marginTop: '24px' }}>
+                <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-light)', textAlign: 'center', marginTop: '24px' }}>
                   No pending annotations left.
                 </div>
               ) : (
@@ -397,8 +374,6 @@ const PDFAgentPage = () => {
           </div>
         </div>
       )}
-
-      <AnimatePresence>{toast && <Toast key="t" message={toast.message} success={toast.success} />}</AnimatePresence>
     </div>
   );
 };

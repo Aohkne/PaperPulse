@@ -29,7 +29,7 @@ const UsagePanel = () => {
 
   return (
     <div style={cardStyle}>
-      <p style={{ fontFamily: 'Georgia, serif', fontWeight: 600 }}>
+      <p style={{ fontFamily: "'Noto Serif', serif", fontWeight: 600 }}>
         Current plan: {TIER_LABELS[account.tier] ?? account.tier}
         {account.pending_downgrade_tier && (
           <span style={{ fontSize: 12, color: 'var(--color-paper-mid)', fontWeight: 400 }}>

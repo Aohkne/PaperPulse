@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { ROUTES } from '@/shared/constant/routes';
 
-const FOOTER_COMPANY = [
+const FOOTER_PRODUCT = [
+  { label: 'Home',  to: ROUTES.HOME  },
   { label: 'About', to: ROUTES.ABOUT },
   { label: 'FAQ',   to: ROUTES.FAQ   },
 ];
@@ -22,7 +23,7 @@ const SiteFooter = () => {
 
   const colTitle = (text) => (
     <p style={{
-      fontFamily: 'Georgia, serif', fontSize: 11, fontWeight: 600,
+      fontFamily: "'Noto Serif', serif", fontSize: 11, fontWeight: 600,
       color: 'var(--color-paper-light)', letterSpacing: '0.1em',
       textTransform: 'uppercase', margin: '0 0 16px',
     }}>
@@ -31,7 +32,7 @@ const SiteFooter = () => {
   );
 
   const linkStyle = {
-    display: 'block', fontFamily: 'Georgia, serif', fontSize: 14,
+    display: 'block', fontFamily: "'Noto Serif', serif", fontSize: 14,
     color: 'var(--color-paper-mid)', textDecoration: 'none',
     marginBottom: 10, background: 'none', border: 'none',
     cursor: 'pointer', padding: 0, textAlign: 'left',
@@ -66,17 +67,17 @@ const SiteFooter = () => {
             onClick={() => navigate(ROUTES.HOME)}
           />
           <p style={{
-            fontFamily: 'Georgia, serif', fontSize: 14, lineHeight: 1.65,
+            fontFamily: "'Noto Serif', serif", fontSize: 14, lineHeight: 1.65,
             color: 'var(--color-paper-mid)', margin: 0, maxWidth: 210,
           }}>
             AI-powered literature review. From research question to finished output.
           </p>
         </div>
 
-        {/* Company */}
+        {/* Product */}
         <div>
-          {colTitle('Company')}
-          {FOOTER_COMPANY.map(({ label, to }) => (
+          {colTitle('Product')}
+          {FOOTER_PRODUCT.map(({ label, to }) => (
             <button key={to} style={linkStyle} {...hover} onClick={() => navigate(to)}>
               {label}
             </button>
@@ -100,7 +101,7 @@ const SiteFooter = () => {
         padding: '16px 24px',
         maxWidth: 960, margin: '0 auto',
       }}>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--color-paper-mid)' }}>
+        <span style={{ fontFamily: "'Noto Serif', serif", fontSize: 13, color: 'var(--color-paper-mid)' }}>
           © 2026 PaperPulse · C2-App-069
         </span>
       </div>

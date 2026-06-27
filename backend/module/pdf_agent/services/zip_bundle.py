@@ -55,7 +55,7 @@ def find_main_tex(extract_dir: str) -> str:
             continue
         if r"\documentclass" in content and r"\begin{document}" in content:
             return path
-    raise NoMainTexFoundError("Không tìm thấy main.tex (cần \\documentclass + \\begin{document}) trong zip")
+    raise NoMainTexFoundError("Could not find main.tex (must contain \\documentclass + \\begin{document}) in the zip")
 
 
 def resolve_relative(extract_dir: str, raw_path: str) -> str:

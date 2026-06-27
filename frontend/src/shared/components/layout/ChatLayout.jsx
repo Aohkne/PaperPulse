@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import Sidebar from '@/features/chat/Sidebar';
+import NotificationsButton from '@/features/chat/NotificationsButton';
 import KnowledgeGraphDrawer from '@/features/graph/KnowledgeGraphDrawer';
 import { useChatStore } from '@/shared/store/useChatStore';
 import { useUIStore } from '@/shared/store/useUIStore';
@@ -69,17 +70,20 @@ const ChatLayout = ({ children }) => {
           >
             <Icon icon="mdi:menu" style={{ fontSize: 22 }} />
           </button>
-          <button
-            onClick={() => setGraphOpen(true)}
-            title="Open Knowledge Graph"
-            style={{
-              background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
-              cursor: 'pointer', color: 'var(--color-paper-mid)',
-              width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Icon icon="mdi:graph-outline" style={{ fontSize: '16px' }} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <NotificationsButton />
+            <button
+              onClick={() => setGraphOpen(true)}
+              title="Open Knowledge Graph"
+              style={{
+                background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
+                cursor: 'pointer', color: 'var(--color-paper-mid)',
+                width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Icon icon="mdi:graph-outline" style={{ fontSize: '16px' }} />
+            </button>
+          </div>
         </div>
 
         <div style={{ flex: 1, minWidth: 0, overflow: 'auto', position: 'relative' }}>
@@ -136,27 +140,26 @@ const ChatLayout = ({ children }) => {
       />
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'visible', position: 'relative' }}>
-        <button
-          onClick={() => setGraphOpen(true)}
-          title="Open Knowledge Graph"
-          style={{
-            position: 'absolute',
-            top: '12px',
-            right: '10px',
-            zIndex: 10,
-            background: 'var(--color-paper-bg)',
-            border: '1px solid var(--color-paper-light)',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            padding: '4px 6px',
-            color: 'var(--color-paper-mid)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon icon="mdi:graph-outline" style={{ fontSize: '15px' }} />
-        </button>
+        <div style={{ position: 'absolute', top: '12px', right: '10px', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <NotificationsButton />
+          <button
+            onClick={() => setGraphOpen(true)}
+            title="Open Knowledge Graph"
+            style={{
+              background: 'var(--color-paper-bg)',
+              border: '1px solid var(--color-paper-light)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              padding: '4px 6px',
+              color: 'var(--color-paper-mid)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon icon="mdi:graph-outline" style={{ fontSize: '15px' }} />
+          </button>
+        </div>
         {children}
       </div>
 

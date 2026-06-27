@@ -75,13 +75,13 @@ async def detect_gaps_cold_start(
     """
     topic = request.topic.strip()
     if not topic:
-        raise HTTPException(status_code=422, detail="Chủ đề không được để trống.")
+        raise HTTPException(status_code=422, detail="Topic must not be empty.")
 
     session_id = str(uuid.uuid4())
     try:
         await billing_db.start_session(str(user.id), "gap", session_id)
     except QuotaExceededError as exc:
-        raise HTTPException(402, "Hết quota Research Gap — vui lòng nâng cấp gói hoặc mua thêm.") from exc
+        raise HTTPException(402, "Research Gap quota exhausted — please upgrade your plan or top up.") from exc
 
     logger.info("detect_gaps_cold_start: topic=%r", topic[:80])
     try:
@@ -91,7 +91,7 @@ async def detect_gaps_cold_start(
         await billing_db.refund_session(str(user.id), "gap", session_id)
         raise HTTPException(
             status_code=500,
-            detail="Gap detection thất bại. Vui lòng thử lại sau.",
+            detail="Gap detection failed. Please try again later.",
         )
     return report
 
@@ -168,8 +168,8 @@ async def gap_stream(
             async def _insufficient():
                 payload = {
                     "type": "insufficient",
-                    "narrative": "Kh\u00f4ng \u0111\u1ee7 t\u00e0i li\u1ec7u cho ch\u1ee7 \u0111\u1ec1 n\u00e0y. "
-                                 "Vui l\u00f2ng th\u1eed l\u1ea1i v\u1edbi ch\u1ee7 \u0111\u1ec1 r\u1ed9ng h\u01a1n.",
+                    "narrative": "Not enough literature was found for this topic. "
+                                 "Please try again with a broader topic.",
                 }
                 yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 

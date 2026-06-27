@@ -78,13 +78,13 @@ const SubmitModal = ({ onClose, modalRef }) => {
       {done ? (
         <div style={{ textAlign: 'center', padding: '24px 8px' }}>
           <Icon icon="mdi:check-circle-outline" style={{ fontSize: 36, color: 'var(--color-paper-mid)' }} />
-          <p style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: 'var(--color-paper-dark)', margin: '12px 0 20px' }}>
+          <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, color: 'var(--color-paper-dark)', margin: '12px 0 20px' }}>
             Your contribution is awaiting admin approval
           </p>
           <button onClick={onClose} style={{
             padding: '8px 20px', borderRadius: 999, border: 'none',
             background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
-            fontFamily: 'Georgia, serif', fontSize: 14, cursor: 'pointer',
+            fontFamily: "'Noto Serif', serif", fontSize: 14, cursor: 'pointer',
           }}>
             Close
           </button>
@@ -106,7 +106,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
             style={{
               width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 10,
               border: '1px solid var(--color-paper-light)', borderRadius: 6,
-              fontFamily: 'Georgia, serif', fontSize: 14, color: 'var(--color-paper-dark)',
+              fontFamily: "'Noto Serif', serif", fontSize: 14, color: 'var(--color-paper-dark)',
               background: 'var(--color-paper-surface)', outline: 'none',
             }}
           />
@@ -120,7 +120,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
             style={{
               width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 10,
               border: '1px solid var(--color-paper-light)', borderRadius: 6,
-              fontFamily: 'Georgia, serif', fontSize: 14, color: 'var(--color-paper-dark)',
+              fontFamily: "'Noto Serif', serif", fontSize: 14, color: 'var(--color-paper-dark)',
               background: 'var(--color-paper-surface)', outline: 'none', resize: 'vertical',
             }}
           />
@@ -132,7 +132,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
               style={{
                 width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 14,
                 border: '1px solid var(--color-paper-light)', borderRadius: 6,
-                fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--color-paper-mid)',
+                fontFamily: "'Noto Serif', serif", fontSize: 13, color: 'var(--color-paper-mid)',
                 background: 'var(--color-paper-surface)',
               }}
             >
@@ -144,7 +144,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
           )}
 
           {submitError && (
-            <p style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: '#c0392b', margin: '0 0 10px' }}>{submitError}</p>
+            <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 13, color: '#c0392b', margin: '0 0 10px' }}>{submitError}</p>
           )}
 
           <button
@@ -153,7 +153,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
             style={{
               width: '100%', padding: '10px 0', borderRadius: 999, border: 'none',
               background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
-              fontFamily: 'Georgia, serif', fontSize: 15, cursor: submitLoading ? 'wait' : 'pointer',
+              fontFamily: "'Noto Serif', serif", fontSize: 15, cursor: submitLoading ? 'wait' : 'pointer',
             }}
           >
             {submitLoading ? 'Submitting...' : 'Submit contribution'}
@@ -226,7 +226,7 @@ const Toast = ({ message, success }) => (
       position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
       background: success ? 'var(--color-paper-dark)' : '#c0392b',
       color: 'var(--color-paper-bg)',
-      fontFamily: 'Georgia, serif', fontSize: '14px',
+      fontFamily: "'Noto Serif', serif", fontSize: '14px',
       padding: '10px 20px', borderRadius: '4px',
       boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
       zIndex: 10001, whiteSpace: 'nowrap',
@@ -317,7 +317,7 @@ const CommunityPage = () => {
   };
 
   return (
-    <div style={{ fontFamily: 'Georgia, serif', background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
       <SiteHeader />
 
       <div style={{ padding: '32px 24px 60px', paddingTop: 89 }}>
@@ -327,7 +327,7 @@ const CommunityPage = () => {
           <h1 style={{ fontFamily: 'var(--font-inknut)', fontSize: 40, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
             Built Together
           </h1>
-          <p style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: 'var(--color-paper-mid)', margin: '8px 0 0' }}>
+          <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, color: 'var(--color-paper-mid)', margin: '8px 0 0' }}>
             Contribute, vote, and help build PaperPulse together.
           </p>
         </div>
@@ -340,7 +340,7 @@ const CommunityPage = () => {
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '10px 20px', borderRadius: 999, border: 'none',
               background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
-              fontFamily: 'Georgia, serif', fontSize: 15, cursor: 'pointer',
+              fontFamily: "'Noto Serif', serif", fontSize: 15, cursor: 'pointer',
             }}
           >
             <Icon icon="mdi:plus" style={{ fontSize: 16 }} />
@@ -359,7 +359,7 @@ const CommunityPage = () => {
                 border: sort === key ? '1px solid var(--color-brand-500)' : '1px solid var(--color-paper-light)',
                 background: sort === key ? 'var(--color-brand-50)' : 'transparent',
                 color: sort === key ? 'var(--color-brand-600)' : 'var(--color-paper-mid)',
-                fontFamily: 'Georgia, serif', fontSize: 14, fontWeight: sort === key ? 600 : 400,
+                fontFamily: "'Noto Serif', serif", fontSize: 14, fontWeight: sort === key ? 600 : 400,
               }}
             >
               {label}
@@ -370,7 +370,7 @@ const CommunityPage = () => {
         {/* Two-column layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 24, alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {listError && <p style={{ fontFamily: 'Georgia, serif', fontSize: 14, color: '#c0392b' }}>{listError}</p>}
+            {listError && <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 14, color: '#c0392b' }}>{listError}</p>}
 
             <AnimatePresence initial={false}>
               {items.map((c) => (
@@ -385,7 +385,7 @@ const CommunityPage = () => {
             </AnimatePresence>
 
             {!listLoading && items.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--color-paper-light)', fontFamily: 'Georgia, serif', fontSize: 15 }}>
+              <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif", fontSize: 15 }}>
                 No contributions have been approved yet.
               </div>
             )}
@@ -397,7 +397,7 @@ const CommunityPage = () => {
                 style={{
                   padding: '10px', border: '1px solid var(--color-paper-light)', borderRadius: 6,
                   background: 'none', cursor: listLoading ? 'wait' : 'pointer',
-                  fontFamily: 'Georgia, serif', fontSize: 13, color: 'var(--color-paper-mid)',
+                  fontFamily: "'Noto Serif', serif", fontSize: 13, color: 'var(--color-paper-mid)',
                 }}
               >
                 {listLoading ? 'Loading...' : 'Load more'}

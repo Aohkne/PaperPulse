@@ -51,7 +51,7 @@ const AvatarTile = ({ user, initials, size = 44, fontSize = 16 }) => (
     {user?.avatar_url
       ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       : <span style={{
-          fontFamily: "'Inknut Antiqua', Georgia, serif",
+          fontFamily: "'Inknut Antiqua', 'Noto Serif', serif",
           fontSize, fontWeight: 600,
           color: 'var(--color-paper-dark)',
           lineHeight: 1,
@@ -103,7 +103,7 @@ const ProfileModal = ({ isOpen, onClose, user, onLogout }) => {
               <AvatarTile user={user} initials={initials} size={44} fontSize={16} />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{
-                  fontSize: 15, fontFamily: "'Inknut Antiqua', Georgia, serif",
+                  fontSize: 15, fontFamily: "'Inknut Antiqua', 'Noto Serif', serif",
                   color: 'var(--color-paper-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}>
@@ -115,7 +115,7 @@ const ProfileModal = ({ isOpen, onClose, user, onLogout }) => {
                       borderRadius: 2,
                       background: 'transparent',
                       color: 'var(--color-paper-light)',
-                      fontSize: 9, fontFamily: 'Georgia, serif',
+                      fontSize: 9, fontFamily: "'Noto Serif', serif",
                       fontWeight: 600, letterSpacing: '0.08em',
                       textTransform: 'uppercase', verticalAlign: 'middle',
                     }}>
@@ -123,7 +123,7 @@ const ProfileModal = ({ isOpen, onClose, user, onLogout }) => {
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--color-paper-mid)', fontFamily: 'Georgia, serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 13, color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {user?.email || ''}
                 </div>
               </div>
@@ -145,7 +145,7 @@ const ProfileModal = ({ isOpen, onClose, user, onLogout }) => {
                   onClick={() => setActiveTab(tab.key)}
                   style={{
                     padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer',
-                    fontFamily: 'Georgia, serif', fontSize: 14,
+                    fontFamily: "'Noto Serif', serif", fontSize: 14,
                     color: activeTab === tab.key ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
                     fontWeight: activeTab === tab.key ? 600 : 400,
                     borderBottom: activeTab === tab.key ? '2px solid var(--color-paper-dark)' : '2px solid transparent',
@@ -163,16 +163,16 @@ const ProfileModal = ({ isOpen, onClose, user, onLogout }) => {
               {activeTab === 'general' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Georgia, serif', marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Noto Serif', serif", marginBottom: 10 }}>
                       Profile
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <AvatarTile user={user} initials={initials} size={36} fontSize={13} />
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 14, color: 'var(--color-paper-dark)', fontFamily: 'Georgia, serif' }}>
+                        <div style={{ fontSize: 14, color: 'var(--color-paper-dark)', fontFamily: "'Noto Serif', serif" }}>
                           {user?.name || 'Account'}
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--color-paper-mid)', fontFamily: 'Georgia, serif' }}>
+                        <div style={{ fontSize: 13, color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif" }}>
                           {user?.email}
                         </div>
                       </div>
@@ -180,7 +180,7 @@ const ProfileModal = ({ isOpen, onClose, user, onLogout }) => {
                   </div>
 
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Georgia, serif', marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Noto Serif', serif", marginBottom: 10 }}>
                       Appearance
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
@@ -223,7 +223,7 @@ const ProfileModal = ({ isOpen, onClose, user, onLogout }) => {
                   padding: '8px 12px', border: 'none', borderRadius: 4,
                   background: 'transparent', cursor: 'pointer',
                   color: 'var(--color-brand-600)',
-                  fontFamily: 'Georgia, serif', fontSize: 14,
+                  fontFamily: "'Noto Serif', serif", fontSize: 14,
                   transition: 'background 0.12s',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-brand-50)')}
