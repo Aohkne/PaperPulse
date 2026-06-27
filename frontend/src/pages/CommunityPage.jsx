@@ -94,7 +94,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
       ) : (
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h3 style={{ fontFamily: 'var(--font-inknut)', fontSize: 17, color: 'var(--color-paper-dark)', margin: 0 }}>Contribute</h3>
+            <h3 style={{ fontFamily: "'Noto Serif', serif", fontSize: 17, color: 'var(--color-paper-dark)', margin: 0 }}>Contribute</h3>
             <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)' }}>
               <Icon icon="mdi:close" style={{ fontSize: 18 }} />
             </button>
@@ -202,7 +202,7 @@ const ContributionCard = ({ contribution, onVote, isAuthenticated, isOwn }) => (
 
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-        <h3 style={{ fontFamily: 'var(--font-inknut)', fontSize: 16, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
+        <h3 style={{ fontFamily: "'Noto Serif', serif", fontSize: 16, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
           {contribution.title}
         </h3>
         <span style={{ fontSize: 12, color: 'var(--color-paper-light)' }}>
@@ -224,14 +224,14 @@ const LeaderboardPanel = ({ rows, loading }) => (
     border: '1px solid var(--color-paper-light)', borderRadius: 8,
     padding: '16px 18px', background: 'var(--color-paper-bg)',
   }}>
-    <h3 style={{ fontFamily: 'var(--font-inknut)', fontSize: 15, fontWeight: 500, color: 'var(--color-paper-dark)', margin: '0 0 14px' }}>
+    <h3 style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, fontWeight: 500, color: 'var(--color-paper-dark)', margin: '0 0 14px' }}>
       🏆 Leaderboard
     </h3>
     {loading && <Icon icon="mdi:loading" style={{ fontSize: 18, color: 'var(--color-paper-light)' }} />}
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {rows.map((row, i) => (
         <div key={row.user_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: 'var(--font-inknut)', fontSize: 13, color: 'var(--color-paper-light)', width: 20, flexShrink: 0 }}>
+          <span style={{ fontFamily: "'Noto Serif', serif", fontSize: 13, color: 'var(--color-paper-light)', width: 20, flexShrink: 0 }}>
             #{i + 1}
           </span>
           <div style={{
@@ -299,7 +299,7 @@ const CommunityPage = () => {
       <div style={{ maxWidth: 920, margin: '0 auto' }}>
         {/* Page title */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <h1 style={{ fontFamily: 'var(--font-inknut)', fontSize: 40, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
+          <h1 style={{ fontFamily: "'Noto Serif', serif", fontSize: 40, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
             Built Together
           </h1>
           <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, color: 'var(--color-paper-mid)', margin: '8px 0 0' }}>
