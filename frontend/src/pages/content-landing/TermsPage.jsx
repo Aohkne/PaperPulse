@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import SiteHeader from '@/shared/components/layout/SiteHeader';
 import ContentFooter from './_shared/ContentFooter';
 
@@ -111,11 +110,6 @@ const TermsPage = () => (
             The "Last updated" date at the top reflects the most recent revision.
           </p>
 
-          <h2 style={h2Style}>8. Contact</h2>
-          <p style={prose}>
-            For questions about these terms, please use our{' '}
-            <Link to="/contact" style={{ color: 'var(--color-paper-dark)' }}>contact page</Link>.
-          </p>
         </motion.div>
       </article>
 

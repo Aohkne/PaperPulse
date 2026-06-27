@@ -12,7 +12,6 @@ export const ROUTES = {
 
   // Content pages
   ABOUT: '/about',
-  CONTACT: '/contact',
   FAQ: '/faq',
   PRIVACY: '/privacy',
   TERMS: '/terms',

@@ -22,7 +22,6 @@ import './index.css';
 // the initial bundle landing-page visitors download. Kept eager: LandingPage,
 // CommunityPage, LoginPage, SignupPage, ChatPage — most-visited entry points.
 const AboutPage = lazy(() => import('@/pages/content-landing/AboutPage'));
-const ContactPage = lazy(() => import('@/pages/content-landing/ContactPage'));
 const FaqPage = lazy(() => import('@/pages/content-landing/FaqPage'));
 const PrivacyPage = lazy(() => import('@/pages/content-landing/PrivacyPage'));
 const TermsPage = lazy(() => import('@/pages/content-landing/TermsPage'));
@@ -51,7 +50,6 @@ createRoot(document.getElementById('root')).render(
               <Route path={ROUTES.HOME} element={<LandingPage />} />
               <Route path={ROUTES.COMMUNITY} element={<CommunityPage />} />
               <Route path={ROUTES.ABOUT}   element={<AboutPage />} />
-              <Route path={ROUTES.CONTACT} element={<ContactPage />} />
               <Route path={ROUTES.FAQ}     element={<FaqPage />} />
               <Route path={ROUTES.PRIVACY} element={<PrivacyPage />} />
               <Route path={ROUTES.TERMS}   element={<TermsPage />} />

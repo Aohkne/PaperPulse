@@ -280,7 +280,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
             </div>
           )}
 
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto' }}>
             {chatsLoading && sessionList.length === 0 && (
               <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-paper-light)' }}>
                 Loading chats...

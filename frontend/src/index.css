@@ -174,3 +174,23 @@ body {
 .markdown-body h2:first-child {
   margin-top: 0;
 }
+
+/* Sidebar session list — themed scrollbar so it doesn't render a stark
+   white track/thumb over the dark-mode panel background. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-paper-light) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--color-paper-light);
+  border-radius: 3px;
+}

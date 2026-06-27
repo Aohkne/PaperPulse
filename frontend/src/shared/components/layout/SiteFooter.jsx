@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { ROUTES } from '@/shared/constant/routes';
+import BackToTopButton from '@/shared/components/ui/BackToTopButton';
 
 const FOOTER_PRODUCT = [
   { label: 'Home',  to: ROUTES.HOME  },
@@ -45,6 +46,7 @@ const SiteFooter = () => {
   };
 
   return (
+    <>
     <footer style={{
       background: 'var(--color-paper-bg)',
       borderTop: '1px solid var(--color-paper-surface)',
@@ -106,6 +108,8 @@ const SiteFooter = () => {
         </span>
       </div>
     </footer>
+    <BackToTopButton />
+    </>
   );
 };
 

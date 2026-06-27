@@ -104,11 +104,12 @@ const PrivacyPage = () => (
             we will delete your personal data within 30 days, except where retention is required by law.
           </p>
 
-          <h2 style={h2Style}>7. Your Rights</h2>
+          <h2 style={h2Style}>7. Your Rights & Questions</h2>
           <p style={prose}>
             You may request access to, correction of, or deletion of your personal data at any time.
-            To exercise these rights, contact us via the{' '}
-            <Link to="/contact" style={{ color: 'var(--color-paper-dark)' }}>contact page</Link>.
+            For any privacy-related requests or questions, share them in our{' '}
+            <Link to="/community" style={{ color: 'var(--color-paper-dark)' }}>community</Link>{' '}
+            — we read and respond there.
           </p>
 
           <h2 style={h2Style}>8. Changes to This Policy</h2>
@@ -116,12 +117,6 @@ const PrivacyPage = () => (
             We may update this Privacy Policy from time to time. When we do, we will update the
             "Last updated" date at the top of this page. Continued use of PaperPulse after any
             change constitutes acceptance of the updated policy.
-          </p>
-
-          <h2 style={h2Style}>9. Contact</h2>
-          <p style={prose}>
-            For privacy-related requests or questions, please use our{' '}
-            <Link to="/contact" style={{ color: 'var(--color-paper-dark)' }}>contact page</Link>.
           </p>
         </motion.div>
       </article>
