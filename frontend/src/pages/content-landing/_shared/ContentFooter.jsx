@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import BackToTopButton from '@/shared/components/ui/BackToTopButton';
+import { useIsMobile } from '@/shared/hooks/useIsMobile';
 
 const PRODUCT_LINKS = [
   { label: 'Home',  to: '/'       },
@@ -15,6 +16,7 @@ const LEGAL_LINKS = [
 
 const ContentFooter = () => {
   const theme = useThemeStore((s) => s.theme);
+  const isMobile = useIsMobile(640);
   const isDark =
     theme === 'dark' ||
     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -43,15 +45,15 @@ const ContentFooter = () => {
     }}>
       {/* Top section */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 1fr 1fr',
-        gap: 40,
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 32 : 40,
         maxWidth: 960,
         margin: '0 auto',
         padding: '56px 24px 48px',
       }}>
         {/* Brand */}
-        <div>
+        <div style={{ flex: isMobile ? 'none' : 2 }}>
           <img
             src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
             alt="PaperPulse"
@@ -66,7 +68,7 @@ const ContentFooter = () => {
         </div>
 
         {/* Product */}
-        <div>
+        <div style={{ flex: isMobile ? 'none' : 1 }}>
           {colTitle('Product')}
           {PRODUCT_LINKS.map(({ label, to }) => (
             <Link
@@ -82,7 +84,7 @@ const ContentFooter = () => {
         </div>
 
         {/* Legal */}
-        <div>
+        <div style={{ flex: isMobile ? 'none' : 1 }}>
           {colTitle('Legal')}
           {LEGAL_LINKS.map(({ label, to }) => (
             <Link
