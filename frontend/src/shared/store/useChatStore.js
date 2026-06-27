@@ -138,7 +138,7 @@ export const useChatStore = create((set, get) => ({
 
     set({ notificationsLoading: true, notificationsError: null });
     try {
-      const res = await fetch('/api/notifications', { headers: authHeader() });
+      const res = await fetch(API_ENDPOINTS.NOTIFICATIONS.BASE, { headers: authHeader() });
       if (!res.ok) throw new Error(`Failed to load notifications: ${res.status}`);
       const payload = await res.json();
       const items = (payload.items || []).map(normalizeNotification);
@@ -176,7 +176,7 @@ export const useChatStore = create((set, get) => ({
 
     set({ topicInterestsLoading: true, topicInterestsError: null });
     try {
-      const res = await fetch('/api/topics/interests', { headers: authHeader() });
+      const res = await fetch(API_ENDPOINTS.TOPICS.INTERESTS, { headers: authHeader() });
       if (!res.ok) throw new Error(`Failed to load topic controls: ${res.status}`);
       const payload = await res.json();
       const items = (payload.items || []).map((item) => ({
@@ -204,7 +204,7 @@ export const useChatStore = create((set, get) => ({
 
   setPauseAllInApp: async (pauseAllInApp) => {
     try {
-      const res = await fetch('/api/notification-settings', {
+      const res = await fetch(API_ENDPOINTS.NOTIFICATIONS.SETTINGS, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ pause_all_in_app: pauseAllInApp }),
@@ -232,7 +232,7 @@ export const useChatStore = create((set, get) => ({
     }));
 
     try {
-      const res = await fetch(`/api/topics/interests/${topicId}`, {
+      const res = await fetch(API_ENDPOINTS.TOPICS.INTEREST_ITEM(topicId), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ state }),
@@ -262,7 +262,7 @@ export const useChatStore = create((set, get) => ({
 
   deleteTopicInterest: async (topicId) => {
     try {
-      const res = await fetch(`/api/topics/interests/${topicId}`, {
+      const res = await fetch(API_ENDPOINTS.TOPICS.INTEREST_ITEM(topicId), {
         method: 'DELETE',
         headers: authHeader(),
       });
@@ -276,7 +276,7 @@ export const useChatStore = create((set, get) => ({
   },
   markNotificationRead: async (notificationId) => {
     try {
-      const res = await fetch(`/api/notifications/${notificationId}`, {
+      const res = await fetch(API_ENDPOINTS.NOTIFICATIONS.ITEM(notificationId), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ is_read: true }),
@@ -299,7 +299,7 @@ export const useChatStore = create((set, get) => ({
 
   markAllNotificationsRead: async () => {
     try {
-      const res = await fetch('/api/notifications/mark-all-read', {
+      const res = await fetch(API_ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ, {
         method: 'POST',
         headers: authHeader(),
       });
@@ -327,7 +327,7 @@ export const useChatStore = create((set, get) => ({
 
     set({ chatsLoading: true, chatsError: null });
     try {
-      const res = await fetch('/api/chats', { headers: authHeader() });
+      const res = await fetch(API_ENDPOINTS.CHATS.BASE, { headers: authHeader() });
       if (!res.ok) throw new Error(`Failed to load chats: ${res.status}`);
       const chats = await res.json();
       const orderedChats = sortChatsByActivity(chats);
@@ -343,7 +343,7 @@ export const useChatStore = create((set, get) => ({
     const { replaceSessionId = null } = options;
     set({ chatMutationError: null });
     try {
-      const res = await fetch('/api/chats', {
+      const res = await fetch(API_ENDPOINTS.CHATS.BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify(payload),
@@ -381,7 +381,7 @@ export const useChatStore = create((set, get) => ({
     });
 
     try {
-      const res = await fetch(`/api/chats/${chatId}`, { headers: authHeader() });
+      const res = await fetch(API_ENDPOINTS.CHATS.ITEM(chatId), { headers: authHeader() });
       if (!res.ok) throw new Error(`Failed to open chat: ${res.status}`);
       const detail = await res.json();
       const session = hydrateServerSession(detail.chat, detail.messages || []);
@@ -407,7 +407,7 @@ export const useChatStore = create((set, get) => ({
   deleteServerChat: async (chatId) => {
     set({ chatMutationError: null });
     try {
-      const res = await fetch(`/api/chats/${chatId}`, {
+      const res = await fetch(API_ENDPOINTS.CHATS.ITEM(chatId), {
         method: 'DELETE',
         headers: authHeader(),
       });

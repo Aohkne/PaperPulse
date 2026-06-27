@@ -13,6 +13,20 @@ export const API_ENDPOINTS = {
     SEND: `${BASE_URL}/api/chat`,
     HISTORY: `${BASE_URL}/api/chat/history`,
   },
+  CHATS: {
+    BASE: `${BASE_URL}/api/chats`,
+    ITEM: (id) => `${BASE_URL}/api/chats/${id}`,
+  },
+  NOTIFICATIONS: {
+    BASE: `${BASE_URL}/api/notifications`,
+    ITEM: (id) => `${BASE_URL}/api/notifications/${id}`,
+    MARK_ALL_READ: `${BASE_URL}/api/notifications/mark-all-read`,
+    SETTINGS: `${BASE_URL}/api/notification-settings`,
+  },
+  TOPICS: {
+    INTERESTS: `${BASE_URL}/api/topics/interests`,
+    INTEREST_ITEM: (id) => `${BASE_URL}/api/topics/interests/${id}`,
+  },
   RESEARCH: {
     STREAM: `${BASE_URL}/api/research/stream`,
     RESUME: `${BASE_URL}/api/research/resume`,
