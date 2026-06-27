@@ -20,6 +20,7 @@ export const ROUTES = {
   ADMIN: '/admin',
   ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_USERS: '/admin/user-management',
+  ADMIN_USAGE: '/admin/usage-management',
   ADMIN_COMMUNITY: '/admin/community',
   ADMIN_REVENUE: '/admin/revenue',
   ADMIN_TESTING_LITERATURE_REVIEW: '/admin/testing/literature-review',

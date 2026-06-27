@@ -121,6 +121,47 @@ class BanRequest(BaseModel):
     reason: str
 
 
+class BillingAccountRow(BaseModel):
+    user_id: str
+    email: str
+    full_name: str | None
+    tier: str
+    tier_period_end: str
+    subscription_lr_quota: int | None
+    subscription_pdf_quota: int | None
+    subscription_gap_quota: int | None
+    topup_lr_balance: int
+    topup_pdf_balance: int
+    topup_gap_balance: int
+    lr_used_this_period: int
+    pdf_used_this_period: int
+    gap_used_this_period: int
+
+
+class BillingAccountListResponse(BaseModel):
+    data: list[BillingAccountRow]
+    total: int
+    page: int
+    limit: int
+    has_more: bool
+
+
+class UsageTopupRequest(BaseModel):
+    lr: int = 0
+    pdf: int = 0
+    gap: int = 0
+
+
+# Mirrors the tier defaults in billing_get_or_create_account() (schema.sql §13d)
+# — kept in sync manually since this is an admin override path, not the lazy
+# period-rollover path the SQL function handles for normal users.
+_TIER_DEFAULTS: dict[str, dict[str, int | None]] = {
+    "free": {"lr": 3, "pdf": 5, "gap": 3},
+    "plus": {"lr": 5, "pdf": 10, "gap": 5},
+    "unlimited": {"lr": None, "pdf": None, "gap": None},
+}
+
+
 class ActivityRow(BaseModel):
     id: int
     user_id: str
@@ -312,6 +353,178 @@ async def unban_user(
         id=p["id"], email=p["email"], full_name=p.get("full_name"), role=p["role"],
         is_banned=p.get("is_banned", False), created_at=p["created_at"], last_login=None, total_logins=0,
     )
+
+
+def _billing_row(user_id: str, profile: dict, acct: dict) -> BillingAccountRow:
+    return BillingAccountRow(
+        user_id=user_id,
+        email=profile.get("email", ""),
+        full_name=profile.get("full_name"),
+        tier=acct.get("tier", "free"),
+        tier_period_end=acct.get("tier_period_end") or datetime.now(timezone.utc).isoformat(),
+        subscription_lr_quota=acct.get("subscription_lr_quota"),
+        subscription_pdf_quota=acct.get("subscription_pdf_quota"),
+        subscription_gap_quota=acct.get("subscription_gap_quota"),
+        topup_lr_balance=acct.get("topup_lr_balance", 0),
+        topup_pdf_balance=acct.get("topup_pdf_balance", 0),
+        topup_gap_balance=acct.get("topup_gap_balance", 0),
+        lr_used_this_period=acct.get("lr_used_this_period", 0),
+        pdf_used_this_period=acct.get("pdf_used_this_period", 0),
+        gap_used_this_period=acct.get("gap_used_this_period", 0),
+    )
+
+
+_BILLING_ACCOUNT_DEFAULTS: dict = {
+    "tier": "free",
+    "subscription_lr_quota": 3, "subscription_pdf_quota": 5, "subscription_gap_quota": 3,
+    "topup_lr_balance": 0, "topup_pdf_balance": 0, "topup_gap_balance": 0,
+    "lr_used_this_period": 0, "pdf_used_this_period": 0, "gap_used_this_period": 0,
+}
+
+
+@router.get("/billing-accounts", response_model=BillingAccountListResponse)
+async def list_billing_accounts(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    search: str | None = Query(default=None),
+    _admin: Any = Depends(require_admin),
+):
+    """List users with their usage/quota state (admin only).
+
+    Accounts are lazily created on first use (billing_get_or_create_account),
+    so a profile with no billing_accounts row yet is shown with the Free
+    tier's defaults rather than a 404/empty row.
+    """
+    offset = (page - 1) * limit
+
+    params: dict = {
+        "select": "id,email,full_name",
+        "order": "created_at.desc",
+        "offset": offset,
+        "limit": limit,
+    }
+    if search:
+        params["email"] = f"ilike.*{search}*"
+
+    profiles, total = await _pg("profiles", params, count=True)
+    user_ids = [p["id"] for p in profiles]
+
+    accounts_by_id: dict[str, dict] = {}
+    if user_ids:
+        id_filter = ",".join(user_ids)
+        accounts, _ = await _pg("billing_accounts", {
+            "select": (
+                "user_id,tier,tier_period_end,subscription_lr_quota,subscription_pdf_quota,"
+                "subscription_gap_quota,topup_lr_balance,topup_pdf_balance,topup_gap_balance,"
+                "lr_used_this_period,pdf_used_this_period,gap_used_this_period"
+            ),
+            "user_id": f"in.({id_filter})",
+        })
+        accounts_by_id = {a["user_id"]: a for a in accounts}
+
+    rows = [
+        _billing_row(p["id"], p, accounts_by_id.get(p["id"], _BILLING_ACCOUNT_DEFAULTS))
+        for p in profiles
+    ]
+
+    return BillingAccountListResponse(
+        data=rows, total=total, page=page, limit=limit, has_more=(offset + limit) < total,
+    )
+
+
+@router.post("/users/{user_id}/usage/reset", response_model=BillingAccountRow)
+async def reset_usage(
+    user_id: str,
+    admin: Any = Depends(require_admin),
+):
+    """Reset a user's subscription quota + usage counters back to their
+    tier's default allowance for a fresh 30-day period — an admin override
+    independent of the normal lazy rollover in billing_get_or_create_account.
+    """
+    existing, _ = await _pg("billing_accounts", {"select": "tier", "user_id": f"eq.{user_id}"})
+    tier = existing[0]["tier"] if existing else "free"
+    defaults = _TIER_DEFAULTS.get(tier, _TIER_DEFAULTS["free"])
+
+    patch = {
+        "subscription_lr_quota": defaults["lr"],
+        "subscription_pdf_quota": defaults["pdf"],
+        "subscription_gap_quota": defaults["gap"],
+        "lr_used_this_period": 0,
+        "pdf_used_this_period": 0,
+        "gap_used_this_period": 0,
+        "tier_period_end": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+    }
+
+    if existing:
+        rows = await _pg_write("billing_accounts", "PATCH", {"user_id": f"eq.{user_id}"}, patch)
+    else:
+        rows = await _pg_write("billing_accounts", "POST", {}, {"user_id": user_id, **patch})
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Billing account not found")
+
+    await _pg_write(
+        "quota_ledger", "POST", {},
+        {
+            "user_id": user_id, "feature": "lr", "delta": 0, "source": "subscription",
+            "session_id": f"admin-reset:{admin.id}:{datetime.now(timezone.utc).isoformat()}",
+            "reason": "subscription_reset",
+        },
+    )
+
+    profile, _ = await _pg("profiles", {"select": "email,full_name", "id": f"eq.{user_id}"})
+    return _billing_row(user_id, profile[0] if profile else {}, rows[0])
+
+
+@router.post("/users/{user_id}/usage/topup", response_model=BillingAccountRow)
+async def topup_usage(
+    user_id: str,
+    body: UsageTopupRequest,
+    admin: Any = Depends(require_admin),
+):
+    """Add prepaid top-up balance to a user's account, customized per feature
+    — lands in the same topup_*_balance columns a real purchase would credit.
+    """
+    if body.lr == 0 and body.pdf == 0 and body.gap == 0:
+        raise HTTPException(status_code=400, detail="Provide at least one non-zero amount")
+
+    existing, _ = await _pg("billing_accounts", {
+        "select": "topup_lr_balance,topup_pdf_balance,topup_gap_balance",
+        "user_id": f"eq.{user_id}",
+    })
+
+    if existing:
+        current = existing[0]
+        patch = {
+            "topup_lr_balance": current["topup_lr_balance"] + body.lr,
+            "topup_pdf_balance": current["topup_pdf_balance"] + body.pdf,
+            "topup_gap_balance": current["topup_gap_balance"] + body.gap,
+        }
+        rows = await _pg_write("billing_accounts", "PATCH", {"user_id": f"eq.{user_id}"}, patch)
+    else:
+        rows = await _pg_write("billing_accounts", "POST", {}, {
+            "user_id": user_id,
+            "topup_lr_balance": max(body.lr, 0),
+            "topup_pdf_balance": max(body.pdf, 0),
+            "topup_gap_balance": max(body.gap, 0),
+        })
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Billing account not found")
+
+    for feature, delta in (("lr", body.lr), ("pdf", body.pdf), ("gap", body.gap)):
+        if delta:
+            await _pg_write(
+                "quota_ledger", "POST", {},
+                {
+                    "user_id": user_id, "feature": feature, "delta": delta, "source": "topup",
+                    "session_id": f"admin-topup:{admin.id}:{datetime.now(timezone.utc).isoformat()}",
+                    "reason": "topup_purchase",
+                },
+            )
+
+    profile, _ = await _pg("profiles", {"select": "email,full_name", "id": f"eq.{user_id}"})
+    return _billing_row(user_id, profile[0] if profile else {}, rows[0])
 
 
 @router.get("/activity", response_model=ActivityResponse)

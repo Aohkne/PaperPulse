@@ -32,6 +32,7 @@ const PDFAgentPage = lazy(() => import('@/pages/PDFAgentPage'));
 const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'));
 const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
 const UserManagementPage = lazy(() => import('@/pages/admin/UserManagementPage'));
+const UsageManagementPage = lazy(() => import('@/pages/admin/UsageManagementPage'));
 const CommunityModerationPage = lazy(() => import('@/pages/admin/CommunityModerationPage'));
 const RevenuePage = lazy(() => import('@/pages/admin/RevenuePage'));
 const LiteratureReviewTestingPage = lazy(() => import('@/pages/admin/LiteratureReviewTestingPage'));
@@ -92,6 +93,7 @@ createRoot(document.getElementById('root')).render(
                 <Route index element={<Navigate to={ROUTES.ADMIN_DASHBOARD} replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="user-management" element={<UserManagementPage />} />
+                <Route path="usage-management" element={<UsageManagementPage />} />
                 <Route path="community" element={<CommunityModerationPage />} />
                 <Route path="revenue" element={<RevenuePage />} />
                 <Route path="testing/literature-review" element={<LiteratureReviewTestingPage />} />

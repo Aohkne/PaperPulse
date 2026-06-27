@@ -41,6 +41,12 @@ export const adminApi = {
   banUser: (token, id, reason) => post(E.USER_BAN(id), token, { reason }),
   unbanUser: (token, id) => post(E.USER_UNBAN(id), token, {}),
 
+  getBillingAccounts: (token, { page = 1, limit = 10, search } = {}) =>
+    get(E.BILLING_ACCOUNTS, token, { page, limit, search }),
+  resetUsage: (token, id) => post(E.USAGE_RESET(id), token, {}),
+  topupUsage: (token, id, { lr = 0, pdf = 0, gap = 0 } = {}) =>
+    post(E.USAGE_TOPUP(id), token, { lr, pdf, gap }),
+
   getContributions: (token, { status, page = 1, limit = 20 } = {}) =>
     get(E.CONTRIBUTIONS, token, { status, page, limit }),
   approveContribution: (token, id) => post(E.CONTRIBUTION_APPROVE(id), token, {}),

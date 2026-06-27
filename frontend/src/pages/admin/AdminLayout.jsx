@@ -10,6 +10,7 @@ import { ROUTES } from '@/shared/constant/routes';
 const NAV = [
   { to: ROUTES.ADMIN_DASHBOARD,  label: 'Dashboard',  icon: 'mdi:view-dashboard-outline' },
   { to: ROUTES.ADMIN_USERS,      label: 'Users',      icon: 'mdi:account-group-outline' },
+  { to: ROUTES.ADMIN_USAGE,      label: 'Usage',      icon: 'mdi:gauge' },
   { to: ROUTES.ADMIN_COMMUNITY,  label: 'Community',  icon: 'mdi:comment-check-outline' },
   { to: ROUTES.ADMIN_REVENUE,    label: 'Revenue',    icon: 'mdi:cash-multiple' },
   {

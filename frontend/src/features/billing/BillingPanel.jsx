@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useBillingStore } from '@/shared/store/useBillingStore';
@@ -56,43 +57,107 @@ const CheckoutModal = ({ checkout, onClose }) => {
   }, [checkout.transaction_id, pollTransaction]);
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(41,17,0,0.35)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001,
-    }} onClick={onClose}>
-      <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(41,17,0,0.45)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001,
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
         style={{
           background: 'var(--color-paper-bg)',
           border: '1px solid var(--color-paper-surface)',
-          borderRadius: '4px',
-          padding: '24px', maxWidth: '360px', textAlign: 'center',
-          boxShadow: '0 8px 32px rgba(41,17,0,0.12)',
+          borderRadius: '10px',
+          padding: '28px', maxWidth: '360px', textAlign: 'center',
+          boxShadow: '0 16px 48px rgba(41,17,0,0.22)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {status === 'paid' ? (
-          <>
-            <Icon icon="mdi:check-circle" style={{ fontSize: 48, color: 'var(--color-paper-mid)' }} />
-            <p style={{ marginTop: 12, fontFamily: PRICE_FONT }}>Payment successful.</p>
-          </>
-        ) : (
-          <>
-            <p style={{ fontFamily: PRICE_FONT, marginBottom: 12 }}>
-              Scan QR to pay {checkout.amount_vnd.toLocaleString('vi-VN')}đ
-            </p>
-            <QRCodeSVG value={checkout.qr_code} size={220} />
-            <p style={{ fontSize: 12, color: 'var(--color-paper-light)', marginTop: 12, fontFamily: PRICE_FONT }}>
-              {status === 'pending' ? 'Waiting for payment...' : `Status: ${status}`}
-            </p>
-            <a href={checkout.checkout_url} target="_blank" rel="noreferrer"
-              style={{ fontSize: 13, color: 'var(--color-brand-600)', fontFamily: PRICE_FONT }}>
-              Open banking app
-            </a>
-          </>
-        )}
-        <button style={{ ...baseButtonStyle, marginTop: 16 }} onClick={onClose}>Close</button>
-      </div>
-    </div>
+        <AnimatePresence mode="wait">
+          {status === 'paid' ? (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 14, delay: 0.05 }}
+              >
+                <Icon icon="mdi:check-circle" style={{ fontSize: 56, color: '#10b981' }} />
+              </motion.div>
+              <p style={{ marginTop: 14, fontFamily: PRICE_FONT, fontSize: 16, fontWeight: 600, color: 'var(--color-paper-dark)' }}>
+                Payment successful
+              </p>
+              <p style={{ marginTop: 4, fontFamily: PRICE_FONT, fontSize: 13, color: 'var(--color-paper-light)' }}>
+                Your account has been updated.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="pending"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <p style={{ fontFamily: PRICE_FONT, fontSize: 14, fontWeight: 600, color: 'var(--color-paper-dark)', margin: '0 0 4px' }}>
+                Scan to pay
+              </p>
+              <p style={{ fontFamily: PRICE_FONT, fontSize: 22, fontWeight: 700, color: 'var(--color-brand-600)', margin: '0 0 18px' }}>
+                {checkout.amount_vnd.toLocaleString('vi-VN')}đ
+              </p>
+
+              <div style={{ position: 'relative', width: 236, height: 236, margin: '0 auto' }}>
+                <motion.div
+                  animate={{ opacity: [0.55, 0.15, 0.55], scale: [1, 1.045, 1] }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{
+                    position: 'absolute', inset: 0, borderRadius: 14,
+                    border: '2px solid var(--color-brand-500)', pointerEvents: 'none',
+                  }}
+                />
+                <div style={{
+                  position: 'relative', width: '100%', height: '100%',
+                  background: '#fff', borderRadius: 12, padding: 8, boxSizing: 'border-box',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 16px rgba(41,17,0,0.10)',
+                }}>
+                  <QRCodeSVG value={checkout.qr_code} size={204} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 }}>
+                <motion.span
+                  animate={{ opacity: [1, 0.3, 1] }}
+                  transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-paper-light)', display: 'inline-block', flexShrink: 0 }}
+                />
+                <p style={{ fontSize: 12, color: 'var(--color-paper-light)', fontFamily: PRICE_FONT, margin: 0 }}>
+                  {status === 'pending' ? 'Waiting for payment...' : `Status: ${status}`}
+                </p>
+              </div>
+
+              <a href={checkout.checkout_url} target="_blank" rel="noreferrer"
+                style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: 'var(--color-brand-600)', fontFamily: PRICE_FONT, textDecoration: 'underline' }}>
+                Open banking app
+              </a>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <button style={{ ...baseButtonStyle, marginTop: 18 }} onClick={onClose}>Close</button>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -281,7 +346,9 @@ const BillingPanel = () => {
         ))}
       </div>
 
-      {pendingCheckout && <CheckoutModal checkout={pendingCheckout} onClose={clearPendingCheckout} />}
+      <AnimatePresence>
+        {pendingCheckout && <CheckoutModal checkout={pendingCheckout} onClose={clearPendingCheckout} />}
+      </AnimatePresence>
     </div>
   );
 };
