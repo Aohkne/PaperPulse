@@ -11,6 +11,8 @@ import { reviewsApi } from '@/features/reviews/reviewsApi';
 import { ROUTES } from '@/shared/constant/routes';
 import SiteHeader from '@/shared/components/layout/SiteHeader';
 import SiteFooter from '@/shared/components/layout/SiteFooter';
+import { showError } from '@/shared/utils/toast';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const relativeDate = (iso) => {
   const diff = Date.now() - new Date(iso).getTime();
@@ -48,7 +50,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    reviewsApi.list(token, { limit: 50 }).then((d) => setMyReviews(d.data)).catch(() => {});
+    reviewsApi.list(token, { limit: 50 }).then((d) => setMyReviews(d.data)).catch((e) => showError(e, "Couldn't load your reviews."));
   }, [token]);
 
   const handleSubmit = async (e) => {
@@ -144,7 +146,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
           )}
 
           {submitError && (
-            <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 13, color: '#c0392b', margin: '0 0 10px' }}>{submitError}</p>
+            <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 13, color: '#c0392b', margin: '0 0 10px' }}>{friendlyError(submitError, "Couldn't submit your contribution — please try again.")}</p>
           )}
 
           <button
@@ -216,26 +218,6 @@ const ContributionCard = ({ contribution, onVote, isAuthenticated, isOwn }) => (
   </motion.div>
 );
 
-// ── Toast (error/success) ─────────────────────────────────────────────────────
-const Toast = ({ message, success }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0 }}
-    style={{
-      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-      background: success ? 'var(--color-paper-dark)' : '#c0392b',
-      color: 'var(--color-paper-bg)',
-      fontFamily: "'Noto Serif', serif", fontSize: '14px',
-      padding: '10px 20px', borderRadius: '4px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-      zIndex: 10001, whiteSpace: 'nowrap',
-    }}
-  >
-    {message}
-  </motion.div>
-);
-
 // ── Leaderboard panel ─────────────────────────────────────────────────────────
 const LeaderboardPanel = ({ rows, loading }) => (
   <div style={{
@@ -289,15 +271,8 @@ const CommunityPage = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
   const modalRef = useRef(null);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => { fetchList(1); fetchLeaderboard(); }, [fetchList, fetchLeaderboard]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -313,7 +288,7 @@ const CommunityPage = () => {
 
   const handleVote = (id) => {
     if (!isAuthenticated) { navigate(ROUTES.LOGIN); return; }
-    toggleVote(id).catch((e) => setToast({ message: e.message || 'Vote failed', success: false }));
+    toggleVote(id).catch((e) => showError(e, "Couldn't register your vote — please try again."));
   };
 
   return (
@@ -370,7 +345,7 @@ const CommunityPage = () => {
         {/* Two-column layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 24, alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {listError && <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 14, color: '#c0392b' }}>{listError}</p>}
+            {listError && <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 14, color: '#c0392b' }}>{friendlyError(listError, "Couldn't load contributions.")}</p>}
 
             <AnimatePresence initial={false}>
               {items.map((c) => (
@@ -427,12 +402,6 @@ const CommunityPage = () => {
         document.body
       )}
 
-      {createPortal(
-        <AnimatePresence>
-          {toast && <Toast key="toast" message={toast.message} success={toast.success} />}
-        </AnimatePresence>,
-        document.body
-      )}
     </div>
   );
 };

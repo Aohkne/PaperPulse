@@ -31,8 +31,14 @@ async def generate_outline(query: str, top_k: int = 20, papers: list[Paper] | No
 
         if embedded:
             query_vec = await embed_text(query)
-            if query_vec:
-                candidates = [(p.paper_id, p.embedding) for p in embedded]
+            # Only MMR-rank papers whose embedding has the same dimension as the
+            # query vector — the embedding model fallback (embed_text) used for
+            # non-S2 papers doesn't always match SPECTER v2's 768-dim, and
+            # comparing mismatched-dim vectors produces meaningless similarity
+            # scores rather than an error (see mmr.cosine_similarity).
+            compatible = [p for p in embedded if query_vec and len(p.embedding) == len(query_vec)]
+            if query_vec and compatible:
+                candidates = [(p.paper_id, p.embedding) for p in compatible]
                 selected_ids = mmr_select(
                     query_vec,
                     candidates,
@@ -40,10 +46,16 @@ async def generate_outline(query: str, top_k: int = 20, papers: list[Paper] | No
                     lambda_mult=settings.mmr_lambda,
                     fetch_k=settings.mmr_prefetch_outline,
                 )
-                by_id = {p.paper_id: p for p in embedded}
+                by_id = {p.paper_id: p for p in compatible}
                 sampled = [by_id[pid] for pid in selected_ids if pid in by_id]
             else:
-                logging.warning("generate_outline: query embedding failed — falling back to first %d papers", top_k)
+                if query_vec:
+                    logging.warning(
+                        "generate_outline: no papers share the query's embedding dimension (%d) — falling back to first %d papers",
+                        len(query_vec), top_k,
+                    )
+                else:
+                    logging.warning("generate_outline: query embedding failed — falling back to first %d papers", top_k)
                 sampled = embedded[:top_k]
         else:
             logging.warning("generate_outline: no papers have embeddings — falling back to first %d papers", top_k)

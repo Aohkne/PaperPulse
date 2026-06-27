@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import { useReviewsStore } from '@/shared/store/useReviewsStore';
+import { showSuccess, showError } from '@/shared/utils/toast';
 
 const overlayStyle = {
   position: 'fixed', inset: 0,
@@ -38,34 +39,13 @@ const stripLatexPreview = (latex) =>
     .replace(/[{}\\]/g, '')
     .trim();
 
-// Inline toast that fades in from bottom
-const Toast = ({ message, success }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0 }}
-    style={{
-      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-      background: success ? 'var(--color-paper-dark)' : '#c0392b',
-      color: 'var(--color-paper-bg)',
-      fontFamily: "'Noto Serif', serif", fontSize: '14px',
-      padding: '10px 20px', borderRadius: '4px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-      zIndex: 10001, whiteSpace: 'nowrap',
-    }}
-  >
-    {message}
-  </motion.div>
-);
-
 const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }) => {
   const [title, setTitle] = useState(defaultTitle);
-  const [toast, setToast] = useState(null);
   const saveReview = useReviewsStore((s) => s.saveReview);
   const saveLoading = useReviewsStore((s) => s.saveLoading);
   const inputRef = useRef(null);
 
-  // Reset title/toast when the modal opens with a new defaultTitle — adjusted
+  // Reset title when the modal opens with a new defaultTitle — adjusted
   // during render (no effect needed for derived state, see React docs
   // "You Might Not Need an Effect").
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
@@ -75,7 +55,6 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
     setPrevDefaultTitle(defaultTitle);
     if (isOpen) {
       setTitle(defaultTitle);
-      setToast(null);
     }
   }
 
@@ -91,14 +70,10 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
     if (!trimmed) return;
     try {
       await saveReview({ title: trimmed, query: defaultTitle, markdown_content: markdownContent });
-      setToast({ message: 'Saved to My Reviews ✓', success: true });
-      setTimeout(() => {
-        setToast(null);
-        onClose();
-      }, 1400);
+      showSuccess('Saved to My Reviews.');
+      onClose();
     } catch (e) {
-      setToast({ message: e.message || 'Save failed', success: false });
-      setTimeout(() => setToast(null), 3000);
+      showError(e, "Couldn't save this review — please try again.");
     }
   };
 
@@ -214,11 +189,6 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {/* Toast outside modal */}
-      <AnimatePresence>
-        {toast && <Toast key="toast" message={toast.message} success={toast.success} />}
       </AnimatePresence>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

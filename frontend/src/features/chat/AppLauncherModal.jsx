@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import { ROUTES } from '@/shared/constant/routes';
+import { useChatStore } from '@/shared/store/useChatStore';
 
 const overlayStyle = {
   position: 'fixed', inset: 0,
@@ -25,13 +26,19 @@ const cardStyle = {
 };
 
 // One entry per AI tool — adding a new app later is a one-line change here.
+// `prefill` (instead of a standalone route) opens a fresh chat session with
+// the textarea pre-seeded, for tools that live inside the chat flow rather
+// than on their own page (see Literature Review pillar in ChatPage.jsx).
 const APPS = [
+  { key: 'literature-review', label: 'Literature Review', description: 'Search, screen, and summarise papers on any topic', icon: 'mdi:text-search', route: ROUTES.APP, prefill: 'Literature Review: ' },
   { key: 'research-gap', label: 'Research Gap', description: 'Find contradictions and understudied angles across papers', icon: 'mdi:lightbulb-on-outline', route: ROUTES.RESEARCH },
   { key: 'pdf-agent', label: 'PDF Agent', description: 'Upload PDF/LaTeX, critique + verify citations', icon: 'mdi:file-search-outline', route: ROUTES.PDF_AGENT },
 ];
 
 const AppLauncherModal = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const newSession = useChatStore((s) => s.newSession);
+  const createServerChat = useChatStore((s) => s.createServerChat);
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
 
@@ -55,8 +62,17 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
     app.label.toLowerCase().includes(query.trim().toLowerCase())
   );
 
-  const handleSelect = (app) => {
+  const handleSelect = async (app) => {
     onClose();
+    if (app.prefill) {
+      try {
+        await createServerChat();
+      } catch {
+        newSession();
+      }
+      navigate(app.route, { state: { prefillText: app.prefill } });
+      return;
+    }
     navigate(app.route);
   };
 

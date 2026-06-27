@@ -46,6 +46,7 @@ def _sanitize(text: str) -> str:
 
 _INLINE_RE = re.compile(
     r"\\href\{(?P<href_url>[^{}]*)\}\{(?P<href_text>[^{}]*)\}"
+    r"|\\url\{(?P<url>[^{}]*)\}"
     r"|\\cite[tp]?\{(?P<cite>[^{}]*)\}"
     r"|\\textbf\{(?P<bf>[^{}]*)\}"
     r"|\\textit\{(?P<it>[^{}]*)\}"
@@ -62,15 +63,29 @@ _INLINE_RE = re.compile(
 )
 
 
-def _inline_to_plain(text: str) -> str:
+def _build_bib_key_map(content: str) -> dict[str, str]:
+    """Map each \\bibitem{key} to its 1-based reference number, in document order,
+    so in-text \\cite{key} and the reference list both show the same [n]."""
+    bib_map: dict[str, str] = {}
+    for key in re.findall(r"\\bibitem\{([^{}]*)\}", content):
+        if key not in bib_map:
+            bib_map[key] = str(len(bib_map) + 1)
+    return bib_map
+
+
+def _inline_to_plain(text: str, bib_map: dict[str, str] | None = None) -> str:
     """Render inline LaTeX markup as plain text (for the fpdf2 PDF renderer)."""
     def repl(m: re.Match) -> str:
         if m.lastgroup == "href_text":
             return f"{m.group('href_text')} ({m.group('href_url')})"
         if m.lastgroup == "mdlinktext":
             return f"{m.group('mdlinktext')} ({m.group('mdlinkurl')})"
+        if m.lastgroup == "url":
+            return m.group("url")
         if m.lastgroup == "cite":
-            return f"({m.group('cite')})"
+            key = m.group("cite")
+            num = (bib_map or {}).get(key)
+            return f"[{num}]" if num else f"({key})"
         if m.lastgroup in ("bf", "it", "emph", "math1", "math2", "mdbf", "mdbf2", "mdit", "mdcode"):
             return m.group(m.lastgroup)
         return " "  # \\ line break
@@ -78,15 +93,19 @@ def _inline_to_plain(text: str) -> str:
     return unescape_latex(_INLINE_RE.sub(repl, text))
 
 
-def _inline_to_markdown(text: str) -> str:
+def _inline_to_markdown(text: str, bib_map: dict[str, str] | None = None) -> str:
     """Render inline LaTeX markup as Markdown."""
     def repl(m: re.Match) -> str:
         if m.lastgroup == "href_text":
             return f"[{m.group('href_text')}]({m.group('href_url')})"
         if m.lastgroup == "mdlinktext":
             return f"[{m.group('mdlinktext')}]({m.group('mdlinkurl')})"
+        if m.lastgroup == "url":
+            return f"<{m.group('url')}>"
         if m.lastgroup == "cite":
-            return f"({m.group('cite')})"
+            key = m.group("cite")
+            num = (bib_map or {}).get(key)
+            return f"[{num}]" if num else f"({key})"
         if m.lastgroup in ("bf", "mdbf", "mdbf2"):
             return f"**{m.group(m.lastgroup)}**"
         if m.lastgroup in ("it", "emph", "mdit"):
@@ -100,10 +119,10 @@ def _inline_to_markdown(text: str) -> str:
     return unescape_latex(_INLINE_RE.sub(repl, text))
 
 
-def _parse_latex_body(content: str) -> list[tuple[str, object]]:
+def _parse_latex_body(content: str, bib_map: dict[str, str] | None = None) -> list[tuple[str, object]]:
     """Split .tex source into a sequence of (kind, data) blocks for rendering.
 
-    kind is one of: h1, h2, h3, item, item_num, quote_start, quote_end,
+    kind is one of: h1, h2, h3, item, item_num, bibitem, quote_start, quote_end,
     verbatim, hr, blank, para.
     """
     body_match = re.search(r"\\begin\{document\}(.*)\\end\{document\}", content, re.S)
@@ -113,6 +132,8 @@ def _parse_latex_body(content: str) -> list[tuple[str, object]]:
     list_stack: list[str] = []
     enum_counters: list[int] = []
     in_verbatim = False
+    in_bibliography = False
+    pending_bib_num: str | None = None
 
     for raw_line in body.split("\n"):
         line = raw_line.strip()
@@ -136,6 +157,24 @@ def _parse_latex_body(content: str) -> list[tuple[str, object]]:
         if line == r"\begin{verbatim}":
             in_verbatim = True
             continue
+
+        if re.match(r"^\\begin\{thebibliography\}", line):
+            in_bibliography = True
+            blocks.append(("h2", "References"))
+            continue
+        if line == r"\end{thebibliography}":
+            in_bibliography = False
+            pending_bib_num = None
+            continue
+        if in_bibliography:
+            m = re.match(r"^\\bibitem\{([^{}]*)\}\s*$", line)
+            if m:
+                pending_bib_num = (bib_map or {}).get(m.group(1), m.group(1))
+                continue
+            if pending_bib_num is not None:
+                blocks.append(("bibitem", (pending_bib_num, line)))
+                pending_bib_num = None
+                continue
 
         m = re.match(r"\\section\*?\{(.*)\}\s*$", line)
         if m:
@@ -235,21 +274,23 @@ def latex_to_pdf(title: str, content: str) -> bytes:
     pdf.line(20, pdf.get_y(), 190, pdf.get_y())
     pdf.ln(6)
 
-    for kind, data in _parse_latex_body(content):
+    bib_map = _build_bib_key_map(content)
+
+    for kind, data in _parse_latex_body(content, bib_map):
         if kind == "h1":
             pdf.ln(3)
             pdf.set_font("DejaVu", "B", 16)
-            pdf.multi_cell(0, 9, _sanitize(_inline_to_plain(data)), align="L", **NL)
+            pdf.multi_cell(0, 9, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
             pdf.ln(1)
         elif kind == "h2":
             pdf.ln(2)
             pdf.set_font("DejaVu", "B", 14)
-            pdf.multi_cell(0, 8, _sanitize(_inline_to_plain(data)), align="L", **NL)
+            pdf.multi_cell(0, 8, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
             pdf.ln(1)
         elif kind == "h3":
             pdf.ln(1)
             pdf.set_font("DejaVu", "B", 12)
-            pdf.multi_cell(0, 7, _sanitize(_inline_to_plain(data)), align="L", **NL)
+            pdf.multi_cell(0, 7, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
         elif kind == "hr":
             pdf.ln(2)
             pdf.line(20, pdf.get_y(), 190, pdf.get_y())
@@ -259,15 +300,19 @@ def latex_to_pdf(title: str, content: str) -> bytes:
         elif kind == "mdquote":
             pdf.set_font("DejaVu", "I", 10)
             pdf.set_text_color(100, 100, 100)
-            pdf.multi_cell(0, 6, "  " + _sanitize(_inline_to_plain(data)), align="L", **NL)
+            pdf.multi_cell(0, 6, "  " + _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
             pdf.set_text_color(0, 0, 0)
         elif kind == "item":
             pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 6, _sanitize("  * " + _inline_to_plain(data)), align="L", **NL)
+            pdf.multi_cell(0, 6, _sanitize("  * " + _inline_to_plain(data, bib_map)), align="L", **NL)
         elif kind == "item_num":
             num, text = data
             pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 6, _sanitize(f"  {num}. " + _inline_to_plain(text)), align="L", **NL)
+            pdf.multi_cell(0, 6, _sanitize(f"  {num}. " + _inline_to_plain(text, bib_map)), align="L", **NL)
+        elif kind == "bibitem":
+            num, text = data
+            pdf.set_font("DejaVu", "", 10)
+            pdf.multi_cell(0, 6, _sanitize(f"[{num}] " + _inline_to_plain(text, bib_map)), align="L", **NL)
         elif kind == "verbatim":
             pdf.set_font("DejaVuMono", "", 9)
             pdf.set_text_color(60, 60, 60)
@@ -277,21 +322,22 @@ def latex_to_pdf(title: str, content: str) -> bytes:
             pdf.ln(3)
         else:  # para
             pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 6, _sanitize(_inline_to_plain(data)), align="L", **NL)
+            pdf.multi_cell(0, 6, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
 
     return bytes(pdf.output())
 
 
 def latex_to_markdown(content: str) -> str:
     """Convert LaTeX content to Markdown (best-effort)."""
+    bib_map = _build_bib_key_map(content)
     lines: list[str] = []
-    for kind, data in _parse_latex_body(content):
+    for kind, data in _parse_latex_body(content, bib_map):
         if kind == "h1":
-            lines.append(f"## {_inline_to_markdown(data)}")
+            lines.append(f"## {_inline_to_markdown(data, bib_map)}")
         elif kind == "h2":
-            lines.append(f"### {_inline_to_markdown(data)}")
+            lines.append(f"### {_inline_to_markdown(data, bib_map)}")
         elif kind == "h3":
-            lines.append(f"#### {_inline_to_markdown(data)}")
+            lines.append(f"#### {_inline_to_markdown(data, bib_map)}")
         elif kind == "hr":
             lines.append("---")
         elif kind == "quote_start":
@@ -299,17 +345,20 @@ def latex_to_markdown(content: str) -> str:
         elif kind == "quote_end":
             continue
         elif kind == "mdquote":
-            lines.append(f"> {_inline_to_markdown(data)}")
+            lines.append(f"> {_inline_to_markdown(data, bib_map)}")
         elif kind == "item":
-            lines.append(f"- {_inline_to_markdown(data)}")
+            lines.append(f"- {_inline_to_markdown(data, bib_map)}")
         elif kind == "item_num":
             num, text = data
-            lines.append(f"{num}. {_inline_to_markdown(text)}")
+            lines.append(f"{num}. {_inline_to_markdown(text, bib_map)}")
+        elif kind == "bibitem":
+            num, text = data
+            lines.append(f"[{num}] {_inline_to_markdown(text, bib_map)}")
         elif kind == "verbatim":
             lines.append(f"    {data}")
         elif kind == "blank":
             lines.append("")
         else:  # para
-            lines.append(_inline_to_markdown(data))
+            lines.append(_inline_to_markdown(data, bib_map))
 
     return "\n".join(lines)

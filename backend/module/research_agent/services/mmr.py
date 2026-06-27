@@ -17,7 +17,12 @@ import math
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    if not a or not b:
+    # Embeddings from different models aren't comparable even at the same
+    # nominal length, but a length mismatch is the cheap, certain case to catch:
+    # zip() would otherwise silently truncate to the shorter vector for the dot
+    # product while norm_a/norm_b still sum over each vector's full (different)
+    # length — producing a number that looks like a cosine score but isn't one.
+    if not a or not b or len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))

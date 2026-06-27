@@ -5,7 +5,6 @@ import { authApi } from '@/features/auth/api/authApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { useGoogleIdentity } from '@/features/auth/hooks/useGoogleIdentity';
-import { friendlyError } from '@/shared/utils/errorMessage';
 import { showError, showSuccess } from '@/shared/utils/toast';
 
 const RESEND_COOLDOWN_S = 60;
@@ -20,7 +19,6 @@ const SignupPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -45,13 +43,12 @@ const SignupPage = () => {
   };
 
   const { prompt: promptGoogle } = useGoogleIdentity(async (idToken, nonce) => {
-    setError('');
     setGoogleLoading(true);
     try {
       await loginWithGoogle(idToken, nonce);
       navigate('/app');
     } catch (err) {
-      setError(err.message || 'Google sign-in failed. Please try again.');
+      showError(err, 'Google sign-in failed. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
@@ -70,18 +67,17 @@ const SignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      setError('Please fill in all fields.');
+      showError('Please fill in all fields.');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      showError('Passwords do not match.');
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      showError('Password must be at least 6 characters.');
       return;
     }
-    setError('');
     setLoading(true);
     try {
       const redirectTo = `${window.location.origin}/login`;
@@ -89,7 +85,7 @@ const SignupPage = () => {
       setShowVerification(true);
       setResendCooldown(RESEND_COOLDOWN_S);
     } catch (err) {
-      setError(friendlyError(err, 'Registration failed. Please try again.'));
+      showError(err, 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -323,12 +319,6 @@ const SignupPage = () => {
           >
             {loading ? 'Creating account…' : 'Create account →'}
           </button>
-
-          {error && (
-            <p style={{ fontSize: '14px', color: '#c0392b', margin: '0', textAlign: 'center' }}>
-              {error}
-            </p>
-          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />

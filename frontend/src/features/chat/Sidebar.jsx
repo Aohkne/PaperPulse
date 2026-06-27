@@ -7,6 +7,7 @@ import { useThemeStore } from '@/shared/store/useThemeStore';
 import { ROUTES } from '@/shared/constant/routes';
 import AppLauncherModal from '@/features/chat/AppLauncherModal';
 import ProfileModal from '@/features/chat/ProfileModal';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const formatTime = (date) => {
   const d = date instanceof Date ? date : new Date(date);
@@ -275,7 +276,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
 
           {(chatsError || chatMutationError) && (
             <div style={{ margin: '0 12px 8px', padding: '8px 10px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '12px', lineHeight: 1.4 }}>
-              {chatsError || chatMutationError}
+              {friendlyError(chatsError || chatMutationError, "Couldn't load your chats.")}
             </div>
           )}
 

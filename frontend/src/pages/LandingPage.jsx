@@ -339,7 +339,7 @@ const LandingPage = () => {
           </div>
 
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: 20, maxWidth: 940, margin: '0 auto',
           }}>
             {FEATURES.map(({ icon, title, body }, i) => (

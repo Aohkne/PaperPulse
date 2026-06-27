@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import Sidebar from '@/features/chat/Sidebar';
 import NotificationsButton from '@/features/chat/NotificationsButton';
@@ -6,6 +7,7 @@ import KnowledgeGraphDrawer from '@/features/graph/KnowledgeGraphDrawer';
 import { useChatStore } from '@/shared/store/useChatStore';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { ROUTES } from '@/shared/constant/routes';
 
 const ChatLayout = ({ children }) => {
   const isMobile = useIsMobile(768);
@@ -17,6 +19,11 @@ const ChatLayout = ({ children }) => {
   const setGraphOpen = useUIStore((s) => s.setGraphOpen);
   const containerRef = useRef(null);
   const dragging = useRef(null); // 'left' | null
+  const location = useLocation();
+  // Knowledge Graph + Notifications are tied to the active chat/research
+  // session — only meaningful on the main chat route, not on Research Gap,
+  // My Reviews, Review Detail, or PDF Agent (which share this same layout).
+  const isChatHome = location.pathname === ROUTES.APP;
 
   const sessions = useChatStore((s) => s.sessions);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
@@ -70,20 +77,22 @@ const ChatLayout = ({ children }) => {
           >
             <Icon icon="mdi:menu" style={{ fontSize: 22 }} />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <NotificationsButton />
-            <button
-              onClick={() => setGraphOpen(true)}
-              title="Open Knowledge Graph"
-              style={{
-                background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
-                cursor: 'pointer', color: 'var(--color-paper-mid)',
-                width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Icon icon="mdi:graph-outline" style={{ fontSize: '16px' }} />
-            </button>
-          </div>
+          {isChatHome && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <NotificationsButton />
+              <button
+                onClick={() => setGraphOpen(true)}
+                title="Open Knowledge Graph"
+                style={{
+                  background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
+                  cursor: 'pointer', color: 'var(--color-paper-mid)',
+                  width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Icon icon="mdi:graph-outline" style={{ fontSize: '16px' }} />
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ flex: 1, minWidth: 0, overflow: 'auto', position: 'relative' }}>
@@ -109,11 +118,13 @@ const ChatLayout = ({ children }) => {
           </>
         )}
 
-        <KnowledgeGraphDrawer
-          open={graphOpen}
-          onClose={() => setGraphOpen(false)}
-          threadId={activeThreadId}
-        />
+        {isChatHome && (
+          <KnowledgeGraphDrawer
+            open={graphOpen}
+            onClose={() => setGraphOpen(false)}
+            threadId={activeThreadId}
+          />
+        )}
       </div>
     );
   }
@@ -140,34 +151,38 @@ const ChatLayout = ({ children }) => {
       />
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'visible', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '12px', right: '10px', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <NotificationsButton />
-          <button
-            onClick={() => setGraphOpen(true)}
-            title="Open Knowledge Graph"
-            style={{
-              background: 'var(--color-paper-bg)',
-              border: '1px solid var(--color-paper-light)',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              padding: '4px 6px',
-              color: 'var(--color-paper-mid)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon icon="mdi:graph-outline" style={{ fontSize: '15px' }} />
-          </button>
-        </div>
+        {isChatHome && (
+          <div style={{ position: 'absolute', top: '12px', right: '10px', zIndex: 10, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <NotificationsButton />
+            <button
+              onClick={() => setGraphOpen(true)}
+              title="Open Knowledge Graph"
+              style={{
+                background: 'var(--color-paper-bg)',
+                border: '1px solid var(--color-paper-light)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                padding: '4px 6px',
+                color: 'var(--color-paper-mid)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon icon="mdi:graph-outline" style={{ fontSize: '15px' }} />
+            </button>
+          </div>
+        )}
         {children}
       </div>
 
-      <KnowledgeGraphDrawer
-        open={graphOpen}
-        onClose={() => setGraphOpen(false)}
-        threadId={activeThreadId}
-      />
+      {isChatHome && (
+        <KnowledgeGraphDrawer
+          open={graphOpen}
+          onClose={() => setGraphOpen(false)}
+          threadId={activeThreadId}
+        />
+      )}
     </div>
   );
 };

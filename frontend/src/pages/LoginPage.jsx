@@ -4,7 +4,7 @@ import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { useGoogleIdentity } from '@/features/auth/hooks/useGoogleIdentity';
-import { friendlyError } from '@/shared/utils/errorMessage';
+import { showError } from '@/shared/utils/toast';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -14,7 +14,6 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -36,13 +35,12 @@ const LoginPage = () => {
   };
 
   const { prompt: promptGoogle } = useGoogleIdentity(async (idToken, nonce) => {
-    setError('');
     setGoogleLoading(true);
     try {
       await loginWithGoogle(idToken, nonce);
       navigate('/app');
     } catch (err) {
-      setError(friendlyError(err, 'Google sign-in failed. Please try again.'));
+      showError(err, 'Google sign-in failed. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
@@ -53,16 +51,15 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setError('Please enter your email and password.');
+      showError('Please enter your email and password.');
       return;
     }
-    setError('');
     setLoading(true);
     try {
       await login(email, password);
       navigate('/app');
     } catch (err) {
-      setError(friendlyError(err, 'Login failed. Please try again.'));
+      showError(err, 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -182,12 +179,6 @@ const LoginPage = () => {
           >
             {loading ? 'Signing in…' : 'Sign in →'}
           </button>
-
-          {error && (
-            <p style={{ fontSize: '14px', color: '#c0392b', margin: '0', textAlign: 'center' }}>
-              {error}
-            </p>
-          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />

@@ -68,20 +68,19 @@ or a single broad buzzword like "AI", "ML", "NLP", "RAG" alone):
         - "pubmed": include only for biomedical/health/clinical topics
 
 ─── <thinking> content for intent = "search" ───
-Early in your reasoning, state plainly — in the same language as the user \
-(default to English unless the query clearly contains words/grammar of \
-another language) — what you understood the user wants and which sources \
-you will start from.
-Use this exact pattern (translated into the user's language):
-  "User muốn tìm kiếm về chủ đề {topic}, tôi sẽ bắt đầu từ các nguồn {sources}."
-  (= "The user wants to search about {topic}, I will start from {sources}.")
-Then continue reasoning about sub-queries and source choice as needed.
+Early in your reasoning, state plainly — ALWAYS IN ENGLISH regardless of the \
+user's language — what you understood the user wants and which sources you \
+will start from.
+Use this exact pattern, always in English:
+  "User wants to search about {topic}, I will start from sources {sources}."
+Then continue reasoning about sub-queries and source choice as needed \
+(the rest of the reasoning may stay in the same language as the user).
 
 ─── Output format ───
 <thinking>
-... your step-by-step reasoning in the same language as the user, starting \
-with the "User wants to search about X, I will start from sources Y" \
-statement above ...
+... your step-by-step reasoning, starting with the "User wants to search \
+about X, I will start from sources Y" statement above (always in English); \
+the rest of the reasoning may continue in the same language as the user ...
 </thinking>
 {
   "intent": "greeting" | "clarify" | "search",
@@ -91,8 +90,8 @@ statement above ...
   "sub_queries": ["<angle 1>", "<angle 2>", "<angle 3>", "<angle 4>"],
   "sources": ["semantic_scholar", "arxiv"],
   "plan_description": "<the same 'User wants to search about X, I will start \
-from sources Y' sentence, in the user's language — this is shown verbatim to \
-the user as the research plan summary>"
+from sources Y' sentence, ALWAYS IN ENGLISH — this is shown verbatim to the \
+user as the research plan summary>"
 }
 
 Output ONLY the <thinking> block followed by the JSON object. No other text."""

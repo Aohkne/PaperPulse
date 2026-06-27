@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useBillingStore } from '@/shared/store/useBillingStore';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 // Lora has full Vietnamese Unicode support — fixes "đ" rendering
 const PRICE_FONT = "'Lora', 'Noto Serif', serif";
@@ -124,7 +125,7 @@ const BillingPanel = () => {
     <div>
       {checkoutError && (
         <p style={{ color: 'var(--color-brand-600)', fontFamily: PRICE_FONT, fontSize: 13, marginBottom: 12 }}>
-          {checkoutError}
+          {friendlyError(checkoutError, "Couldn't start checkout — please try again.")}
         </p>
       )}
 

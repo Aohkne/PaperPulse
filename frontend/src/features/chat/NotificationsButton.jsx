@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { useChatStore } from '@/shared/store/useChatStore';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const formatTime = (date) => {
   const d = date instanceof Date ? date : new Date(date);
@@ -269,7 +270,7 @@ const NotificationPanel = ({
 
                 {topicInterestsError && (
                   <div style={{ marginBottom: '10px', padding: '8px 10px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '12px', lineHeight: 1.4 }}>
-                    {topicInterestsError}
+                    {friendlyError(topicInterestsError, "Couldn't load your tracked topics.")}
                   </div>
                 )}
 
@@ -351,7 +352,7 @@ const NotificationPanel = ({
 
       {notificationsError && (
         <div style={{ margin: '10px 12px 0', padding: '8px 10px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '12px', lineHeight: 1.4 }}>
-          {notificationsError}
+          {friendlyError(notificationsError, "Couldn't load your notifications.")}
         </div>
       )}
 

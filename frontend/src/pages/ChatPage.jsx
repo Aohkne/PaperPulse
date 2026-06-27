@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import { useChatStore } from '@/shared/store/useChatStore';
@@ -10,6 +10,7 @@ import MessageList from '@/features/chat/MessageList';
 import ChatInput from '@/features/chat/ChatInput';
 import UsageExhaustedBanner from '@/features/billing/UsageExhaustedBanner';
 import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const PILLARS = [
   { key: 'literature-review', icon: 'mdi:text-search', title: 'Literature Review', description: 'Search, screen, and summarise papers on any topic.' },
@@ -26,91 +27,61 @@ function getGreeting() {
   return 'Good night';
 }
 
+// Mirrors MessageList's own container (padding/maxWidth) so the skeleton sits
+// exactly where real messages will render — no extra card/heading "frame"
+// around it, just the message-bubble placeholders fading in in place.
 const SessionLoadingPanel = () => {
   const placeholderWidths = ['72%', '56%', '68%'];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        padding: '32px 24px 20px',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '760px',
-          margin: '0 auto',
-          border: '1px solid var(--color-paper-light)',
-          borderRadius: '8px',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(244, 238, 228, 0.88) 100%)',
-          boxShadow: '0 18px 40px rgba(46, 39, 31, 0.08)',
-          padding: '20px 20px 18px',
-        }}
-      >
-        <div style={{ marginBottom: '18px' }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-inknut)',
-              fontSize: '24px',
-              fontWeight: 600,
-              color: 'var(--color-paper-dark)',
-              marginBottom: '6px',
-            }}
-          >
-            Opening session...
-          </div>
-          <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-            Loading previous messages and session details.
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-paper-light)' }}>
-            This should only take a moment.
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {placeholderWidths.map((width, index) => {
-            const alignSelf = index === 1 ? 'flex-end' : 'flex-start';
-            const bubbleTint = index === 1 ? 'rgba(196, 166, 122, 0.16)' : 'rgba(92, 76, 54, 0.08)';
-            return (
-              <motion.div
-                key={width}
-                animate={{ opacity: [0.45, 0.8, 0.45] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: index * 0.12 }}
-                style={{ alignSelf, width, maxWidth: '100%' }}
-              >
-                <div
-                  style={{
-                    height: index === 1 ? '78px' : index === 2 ? '64px' : '52px',
-                    borderRadius: '18px',
-                    border: '1px solid rgba(92, 76, 54, 0.08)',
-                    background: `linear-gradient(90deg, ${bubbleTint} 0%, rgba(255,255,255,0.76) 48%, ${bubbleTint} 100%)`,
-                    backgroundSize: '200% 100%',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
-                  }}
-                />
-              </motion.div>
-            );
-          })}
-        </div>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {placeholderWidths.map((width, index) => {
+          const alignSelf = index === 1 ? 'flex-end' : 'flex-start';
+          const bubbleTint = index === 1 ? 'var(--color-brand-100)' : 'var(--color-paper-surface)';
+          return (
+            <motion.div
+              key={width}
+              animate={{ opacity: [0.45, 0.8, 0.45] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: index * 0.12 }}
+              style={{ alignSelf, width, maxWidth: '100%' }}
+            >
+              <div
+                style={{
+                  height: index === 1 ? '78px' : index === 2 ? '64px' : '52px',
+                  borderRadius: '18px',
+                  border: '1px solid var(--color-paper-light)',
+                  background: `linear-gradient(90deg, ${bubbleTint} 0%, var(--color-paper-bg) 48%, ${bubbleTint} 100%)`,
+                  backgroundSize: '200% 100%',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
+                }}
+              />
+            </motion.div>
+          );
+        })}
       </div>
-    </motion.div>
+    </div>
   );
 };
 
 const WelcomeInput = () => {
-  const [text, setText] = useState('');
+  const location = useLocation();
+  const [text, setText] = useState(location.state?.prefillText ?? '');
   const sendMessage = useChatStore((s) => s.sendMessage);
   const setGraphOpen = useUIStore((s) => s.setGraphOpen);
   const navigate = useNavigate();
   const textareaRef = useRef(null);
   const quotaExhausted = useQuotaExhausted('lr');
+
+  // Consume the one-shot prefill (e.g. from the Applications launcher) so it
+  // doesn't reappear if the user navigates back to this route later.
+  useEffect(() => {
+    if (location.state?.prefillText) {
+      navigate(location.pathname, { replace: true, state: {} });
+      textareaRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSend = () => {
     if (!text.trim() || quotaExhausted) return;
@@ -257,7 +228,7 @@ const ChatPage = () => {
       >
         {chatsError && (
           <div style={{ width: '100%', maxWidth: '640px', padding: '10px 12px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '13px', lineHeight: 1.4 }}>
-            {chatsError}
+            {friendlyError(chatsError, "Couldn't load your chats.")}
           </div>
         )}
 

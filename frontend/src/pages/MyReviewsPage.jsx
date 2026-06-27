@@ -7,6 +7,8 @@ import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { reviewsApi } from '@/features/reviews/reviewsApi';
 import { ROUTES } from '@/shared/constant/routes';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { showError } from '@/shared/utils/toast';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const token = () => useAuthStore.getState().token;
 
@@ -88,10 +90,10 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
             >
               {[
                 { icon: 'mdi:open-in-new', label: 'Open', action: () => navigate(ROUTES.REVIEW_DETAIL(review.id)) },
-                { icon: 'mdi:file-code-outline', label: 'Export LaTeX', action: () => reviewsApi.download(token(), review.id, 'tex').catch(() => {}) },
-                { icon: 'mdi:language-markdown-outline', label: 'Export Markdown', action: () => reviewsApi.download(token(), review.id, 'markdown').catch(() => {}) },
-                { icon: 'mdi:file-pdf-box', label: 'Export PDF', action: () => reviewsApi.download(token(), review.id, 'pdf').catch(() => {}) },
-                { icon: 'mdi:folder-zip-outline', label: 'Export ZIP', action: () => reviewsApi.download(token(), review.id, 'zip').catch(() => {}) },
+                { icon: 'mdi:file-code-outline', label: 'Export LaTeX', action: () => reviewsApi.download(token(), review.id, 'tex').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
+                { icon: 'mdi:language-markdown-outline', label: 'Export Markdown', action: () => reviewsApi.download(token(), review.id, 'markdown').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
+                { icon: 'mdi:file-pdf-box', label: 'Export PDF', action: () => reviewsApi.download(token(), review.id, 'pdf').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
+                { icon: 'mdi:folder-zip-outline', label: 'Export ZIP', action: () => reviewsApi.download(token(), review.id, 'zip').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
                 { icon: 'mdi:content-copy', label: 'Duplicate', action: () => { onDuplicate(review.id); setMenuOpen(false); } },
                 { icon: 'mdi:delete-outline', label: 'Delete', action: () => { onDelete(review.id); setMenuOpen(false); }, danger: true },
               ].map(({ icon, label, action, danger }) => (
@@ -140,11 +142,19 @@ const MyReviewsPage = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this review?')) return;
-    await deleteReview(id);
+    try {
+      await deleteReview(id);
+    } catch (e) {
+      showError(e, "Couldn't delete this review — please try again.");
+    }
   };
 
   const handleDuplicate = async (id) => {
-    await duplicateReview(id);
+    try {
+      await duplicateReview(id);
+    } catch (e) {
+      showError(e, "Couldn't duplicate this review — please try again.");
+    }
   };
 
   return (
@@ -190,7 +200,7 @@ const MyReviewsPage = () => {
         {/* List */}
         {listError && (
           <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', color: '#c0392b', padding: '12px', marginBottom: '12px' }}>
-            {listError}
+            {friendlyError(listError, "Couldn't load your reviews.")}
           </div>
         )}
 

@@ -57,7 +57,10 @@ async def hybrid_search(
     query_vec = await embed_text(query)
 
     if query_vec and papers:
-        embedded = [p for p in papers if p.embedding]
+        # Same dimension guard as outline_generator.generate_outline — skip
+        # papers whose embedding model doesn't match the query vector's
+        # dimension instead of feeding mismatched vectors into MMR.
+        embedded = [p for p in papers if p.embedding and len(p.embedding) == len(query_vec)]
         if embedded:
             candidates = [(p.paper_id, p.embedding) for p in embedded]
             semantic_ids = mmr_select(

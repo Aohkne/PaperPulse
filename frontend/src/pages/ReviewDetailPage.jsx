@@ -9,27 +9,10 @@ import { useReviewsStore } from '@/shared/store/useReviewsStore';
 import { reviewsApi } from '@/features/reviews/reviewsApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ROUTES } from '@/shared/constant/routes';
+import { showSuccess, showError } from '@/shared/utils/toast';
+import { friendlyError } from '@/shared/utils/errorMessage';
 
 const getToken = () => useAuthStore.getState().token;
-
-const Toast = ({ message, success }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0 }}
-    style={{
-      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-      background: success ? 'var(--color-paper-dark)' : '#c0392b',
-      color: 'var(--color-paper-bg)',
-      fontFamily: "'Noto Serif', serif", fontSize: '14px',
-      padding: '10px 20px', borderRadius: '4px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-      zIndex: 9999, whiteSpace: 'nowrap',
-    }}
-  >
-    {message}
-  </motion.div>
-);
 
 const ReviewDetailPage = () => {
   const { id } = useParams();
@@ -42,7 +25,6 @@ const ReviewDetailPage = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef(null);
-  const [toast, setToast] = useState(null);
   const editorRef = useRef(null);
   const previewRef = useRef(null);
   const syncingRef = useRef(false);
@@ -60,19 +42,14 @@ const ReviewDetailPage = () => {
     }
   }
 
-  const showToast = (message, success = true) => {
-    setToast({ message, success });
-    setTimeout(() => setToast(null), 2200);
-  };
-
   const handleSave = async () => {
     setSaving(true);
     try {
       await updateCurrent(id, { title: editTitle.trim(), markdown_content: editContent });
       setEditMode(false);
-      showToast('Changes saved ✓');
+      showSuccess('Changes saved.');
     } catch (e) {
-      showToast(e.message || 'Save failed', false);
+      showError(e, "Couldn't save your changes — please try again.");
     } finally {
       setSaving(false);
     }
@@ -80,8 +57,12 @@ const ReviewDetailPage = () => {
 
   const handleDelete = async () => {
     if (!window.confirm('Delete this review?')) return;
-    await deleteReview(id);
-    navigate(ROUTES.MY_REVIEWS);
+    try {
+      await deleteReview(id);
+      navigate(ROUTES.MY_REVIEWS);
+    } catch (e) {
+      showError(e, "Couldn't delete this review — please try again.");
+    }
   };
 
   useEffect(() => {
@@ -97,7 +78,7 @@ const ReviewDetailPage = () => {
     try {
       await reviewsApi.download(getToken(), id, format);
     } catch (e) {
-      showToast(e.message || 'Export failed', false);
+      showError(e, "Couldn't export this review — please try again.");
     } finally {
       setExportLoading(false);
     }
@@ -151,7 +132,7 @@ const ReviewDetailPage = () => {
   if (detailError) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-        <span style={{ fontFamily: "'Noto Serif', serif", color: '#c0392b' }}>{detailError}</span>
+        <span style={{ fontFamily: "'Noto Serif', serif", color: '#c0392b' }}>{friendlyError(detailError, "Couldn't load this review.")}</span>
         <button onClick={() => navigate(-1)} style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', cursor: 'pointer', color: 'var(--color-paper-mid)', background: 'none', border: 'none' }}>
           ← Back
         </button>
@@ -367,9 +348,6 @@ const ReviewDetailPage = () => {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {toast && <Toast key="t" message={toast.message} success={toast.success} />}
-      </AnimatePresence>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

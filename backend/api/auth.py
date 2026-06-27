@@ -113,6 +113,17 @@ async def register(
     if res.user is None:
         raise HTTPException(status_code=400, detail="Registration failed")
 
+    # Supabase returns a 200 with an obfuscated user object (no error, no new
+    # confirmation email) when sign_up() targets an email that already exists
+    # but hasn't been confirmed yet — `identities` comes back empty in that
+    # case. Without this check we'd tell the user "registration successful,
+    # check your email" even though no account was created and no email was sent.
+    if res.user.identities is not None and len(res.user.identities) == 0:
+        raise HTTPException(
+            status_code=409,
+            detail="This email is already registered. Please log in, or use 'Forgot password' if you don't remember your password.",
+        )
+
     if res.session is None:
         raise HTTPException(
             status_code=202,
