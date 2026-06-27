@@ -317,11 +317,18 @@ async def unban_user(
 @router.get("/activity", response_model=ActivityResponse)
 async def list_activity(
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=30, ge=1, le=100),
+    limit: int = Query(default=30, ge=1, le=500),
     event_type: str | None = Query(default=None),
+    since: str | None = Query(default=None),
     _admin: Any = Depends(require_admin),
 ):
-    """Paginated login/register activity log (admin only)."""
+    """Paginated login/register activity log (admin only).
+
+    `since` (ISO timestamp) lets callers like the dashboard chart pull every
+    event within a date range instead of just the most recent N rows overall
+    — without it, low-frequency event types (e.g. "register") get crowded
+    out of a small top-N window by high-frequency ones (login/logout).
+    """
     offset = (page - 1) * limit
 
     params: dict = {
@@ -332,6 +339,8 @@ async def list_activity(
     }
     if event_type:
         params["event_type"] = f"eq.{event_type}"
+    if since:
+        params["logged_in_at"] = f"gte.{since}"
 
     rows, total = await _pg("login_logs", params, count=True)
 

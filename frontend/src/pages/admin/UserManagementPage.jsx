@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-table';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { adminApi } from '@/features/admin/adminApi';
+import { showError } from '@/shared/utils/toast';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -236,7 +237,7 @@ export default function UserManagementPage() {
         setTotal(res.total ?? 0);
         setHasMore(res.has_more ?? false);
       })
-      .catch(console.error)
+      .catch((e) => showError(e, "Couldn't load users — please try again."))
       .finally(() => setLoading(false));
   }, [token]);
 

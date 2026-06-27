@@ -35,8 +35,8 @@ export const adminApi = {
   getUsers: (token, { page = 1, limit = 10, search, role, is_banned } = {}) =>
     get(E.USERS, token, { page, limit, search, role, is_banned }),
 
-  getActivity: (token, { page = 1, limit = 10, event_type } = {}) =>
-    get(E.ACTIVITY, token, { page, limit, event_type }),
+  getActivity: (token, { page = 1, limit = 10, event_type, since } = {}) =>
+    get(E.ACTIVITY, token, { page, limit, event_type, since }),
 
   banUser: (token, id, reason) => post(E.USER_BAN(id), token, { reason }),
   unbanUser: (token, id) => post(E.USER_UNBAN(id), token, {}),

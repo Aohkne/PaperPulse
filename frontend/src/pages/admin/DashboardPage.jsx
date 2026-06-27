@@ -36,7 +36,7 @@ function buildChartData(activities) {
   activities.forEach(({ event_type, logged_in_at }) => {
     const day = logged_in_at?.slice(0, 10);
     if (map[day]) {
-      if (event_type === 'login')    map[day].logins += 1;
+      if (event_type === 'login' || event_type === 'google_login') map[day].logins += 1;
       if (event_type === 'register') map[day].registers += 1;
     }
   });
@@ -193,9 +193,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!token) return;
+    const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
     Promise.all([
       adminApi.getStats(token),
-      adminApi.getActivity(token, { page: 1, limit: 100 }),
+      adminApi.getActivity(token, { page: 1, limit: 500, since }),
     ])
       .then(([s, a]) => { setStats(s); setActivities(a.data ?? []); })
       .catch(console.error)

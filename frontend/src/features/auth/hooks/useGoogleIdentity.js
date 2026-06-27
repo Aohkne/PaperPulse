@@ -67,12 +67,26 @@ export function useGoogleIdentity(onCredential) {
     return () => { cancelled = true; };
   }, []);
 
-  const prompt = () => {
+  /**
+   * `onBlocked` fires when Google silently declines to show the One Tap UI
+   * (third-party cookies disabled, FedCM restrictions, recently dismissed,
+   * etc.) — without it the button looks like it did nothing on click.
+   */
+  const prompt = (onBlocked) => {
     if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
       console.error('VITE_GOOGLE_CLIENT_ID is not set — Google sign-in is not configured.');
+      onBlocked?.();
       return;
     }
-    window.google?.accounts?.id?.prompt();
+    if (!window.google?.accounts?.id) {
+      onBlocked?.();
+      return;
+    }
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+        onBlocked?.();
+      }
+    });
   };
 
   return { prompt };

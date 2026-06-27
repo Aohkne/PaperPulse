@@ -54,7 +54,13 @@ const SignupPage = () => {
     }
   });
 
-  const handleGoogleLogin = () => promptGoogle();
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    promptGoogle(() => {
+      setGoogleLoading(false);
+      showError('Google sign-in popup was blocked. Please allow third-party cookies/popups and try again.');
+    });
+  };
 
   // Cooldown ticks down once a verification email has been (re)sent, so the
   // user can't hammer Supabase's auth-email rate limit by clicking repeatedly.

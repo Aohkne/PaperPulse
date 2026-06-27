@@ -46,7 +46,13 @@ const LoginPage = () => {
     }
   });
 
-  const handleGoogleLogin = () => promptGoogle();
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    promptGoogle(() => {
+      setGoogleLoading(false);
+      showError('Google sign-in popup was blocked. Please allow third-party cookies/popups and try again.');
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
