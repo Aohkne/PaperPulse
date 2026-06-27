@@ -40,7 +40,13 @@ async def _pg(
             timeout=10.0,
         )
 
-    if res.status_code != 200:
+    # PostgREST returns 206 Partial Content (not 200) for a paginated
+    # offset/limit request whenever the slice doesn't cover the full result
+    # set — i.e. on every "list" call where total rows > the page limit.
+    # Treating only 200 as success made every unfiltered/paginated admin
+    # list look empty while a narrow filter (e.g. searching one exact email)
+    # that fit entirely within the limit still returned 200 and worked.
+    if res.status_code not in (200, 206):
         import logging
         logging.getLogger(__name__).warning("_pg %s status=%s body=%s", table, res.status_code, res.text[:300])
         return [], 0
