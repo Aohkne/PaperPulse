@@ -91,6 +91,17 @@ const ChatLayout = ({ children }) => {
               >
                 <Icon icon="mdi:graph-outline" style={{ fontSize: '16px' }} />
               </button>
+              <button
+                onClick={() => window.Supademo?.open('cmqxx7bw404ymw60j7qcvkb48')}
+                title="How it works"
+                style={{
+                  background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
+                  cursor: 'pointer', color: 'var(--color-paper-mid)',
+                  width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Icon icon="mdi:help-circle-outline" style={{ fontSize: '16px' }} />
+              </button>
             </div>
           )}
         </div>
@@ -170,6 +181,23 @@ const ChatLayout = ({ children }) => {
               }}
             >
               <Icon icon="mdi:graph-outline" style={{ fontSize: '15px' }} />
+            </button>
+            <button
+              onClick={() => window.Supademo?.open('cmqxx7bw404ymw60j7qcvkb48')}
+              title="How it works"
+              style={{
+                background: 'var(--color-paper-bg)',
+                border: '1px solid var(--color-paper-light)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                padding: '4px 6px',
+                color: 'var(--color-paper-mid)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon icon="mdi:help-circle-outline" style={{ fontSize: '15px' }} />
             </button>
           </div>
         )}
