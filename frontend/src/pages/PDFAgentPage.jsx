@@ -156,6 +156,19 @@ const PDFAgentPage = () => {
           </span>
         )}
 
+        <button
+          onClick={() => window.Supademo?.open('cmqyjvr8y06fjw60jr7pw2e9z')}
+          title="How it works"
+          style={{
+            flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 28, height: 28, borderRadius: '50%',
+            border: '1px solid var(--color-paper-light)', background: 'var(--color-paper-bg)',
+            color: 'var(--color-paper-mid)', cursor: 'pointer',
+          }}
+        >
+          <Icon icon="mdi:help-circle-outline" style={{ width: 16, height: 16 }} />
+        </button>
+
         {(status === 'ready' || status === 'saving') && (
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)' }}>
