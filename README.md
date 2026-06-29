@@ -1,261 +1,220 @@
-# Team C2-App-069 — PaperPulse
+<p align="center">
+  <img src="frontend/public/paperpulse-logo_light.png" alt="PaperPulse logo" />
+</p>
 
-> Tổng quan tài liệu (Literature Review) tự động bằng LLM + RAG → giúp nhà nghiên cứu tiết kiệm hàng tuần đọc bài báo, vẫn đảm bảo trích dẫn đúng nguồn (chống hallucination).
+# PaperPulse
 
-## Vấn đề (Problem)
+**Team C2-App-069** · Trợ lý nghiên cứu học thuật bằng AI — tổng quan tài liệu, kiểm tra PDF, và trực quan hoá tri thức.
 
-- Nhà nghiên cứu mất hàng tuần để tổng quan tài liệu cho một chủ đề: tìm bài, đọc hàng trăm abstract/full-text, nhóm theo phương pháp/kết quả, rồi viết lại có trích dẫn.
-- Risk lớn nhất khi dùng LLM để hỗ trợ: **bịa trích dẫn** (citation hallucination) hoặc trích dẫn lệch ý bài gốc (citation drift) — nguy hiểm cho công cụ học thuật.
-- Các chatbot LLM thông thường (không RAG, không verify) không đủ tin cậy cho tác vụ này.
-
-## Giải pháp (Solution)
-
-**Tính năng chính hiện tại: Tổng quan tài liệu (Literature Review)** — pipeline ①→⑩ tự động, end-to-end:
-
-| Step | Việc làm |
-|---|---|
-| ① | Search Semantic Scholar (lên tới 100 bài) |
-| ②/②bis | Lọc + citation snowballing (dual-pool seed, backward/forward expand) |
-| ③ | Embed bài báo (SPECTER v2) → lưu Supabase pgvector |
-| ④ | Generate outline (LLM, MMR-diverse 20 bài) → **user approve outline** |
-| ⑤/⑥ | Hybrid search (semantic + BM25 + RRF) theo theme → LLM viết nội dung kèm `(Source: PAPER_ID)` |
-| ⑦ | Tách claims từ nội dung sinh ra |
-| ⑧/⑨ | Verify từng claim (snippet → arXiv full text → abstract, 3-tier fallback) → flag `low_confidence` cần human review |
-| ⑩ | Export review hoàn chỉnh (Markdown / LaTeX) kèm PDF links |
-
-Toàn bộ flow stream real-time qua SSE (`GET /api/research/stream`) — frontend hiển thị từng step (thought/action/observation) kiểu ReAct trace.
-
-Các module khác (Research Gap Detection, Knowledge Graph, Admin dashboard, Chat) đã có code nhưng **Literature Review là tính năng được wire đầy đủ và là trọng tâm hiện tại**.
-
-## Target User
-
-- **Primary:** Sinh viên / nhà nghiên cứu cần viết tổng quan tài liệu cho luận văn, paper, hoặc literature survey.
-- **Secondary:** Giảng viên / reviewer muốn kiểm tra nhanh corpus tài liệu của một chủ đề.
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | FastAPI (Python 3.11+) |
-| LLM agent layer | Module LLM tự build (`backend/agent/`) — không qua LangChain, trừ `gap_detection` dùng LangGraph `StateGraph` |
-| Vector DB | Supabase pgvector (xem `deploy_Plan.html` — migrated từ ChromaDB để chạy stateless trên Cloud Run) |
-| Search | Semantic Scholar API + BM25 (`rank_bm25`) + RRF merge |
-| Embedding | SPECTER v2 (Semantic Scholar Batch API, document) + SPECTER2 adapter `proximity` (local, query) |
-| Auth & DB | Supabase (Postgres + Auth + RLS) |
-| Frontend | React 19 + Vite + Zustand + Tailwind v4, `react-markdown`, `framer-motion` |
-| Package manager (FE) | Bun |
-| Deployment | Google Cloud Run (backend) + Cloudflare Pages (frontend) — xem `deploy_Plan.html` |
-
-## Thành viên
-
-- Nguyễn Phan Duy Bảo
-- Lê Hữu Khoa - 2A202600863
-- Trần Nguyễn Anh Thư - 2A202600915
-
-## MVP Demo & Others
-[https://drive.google.com/drive/folders/1pyk0bb9EIuCNFU364qKrl0t8S8Mfb7CG?usp=sharing](https://drive.google.com/drive/folders/1pyk0bb9EIuCNFU364qKrl0t8S8Mfb7CG?usp=sharing)
+> Tự động tổng hợp Literature Review từ Semantic Scholar/OpenAlex/arXiv, kiểm tra văn phong + citation của paper người dùng tự viết, và trực quan hoá toàn bộ review thành sơ đồ tri thức tương tác — tất cả với trích dẫn đã được xác minh, không bịa nguồn.
 
 ---
 
-## Quick Start
+## 🧩 Vấn đề (Problem)
 
-### 1. Thiết lập môi trường ảo & cài đặt thư viện Python
+Viết tổng quan tài liệu cho luận văn hay paper là một trong những việc tốn thời gian nhất của sinh viên/nhà nghiên cứu:
+
+- **Tốn hàng tuần** để tìm bài, đọc hàng trăm abstract/full-text, nhóm theo phương pháp/kết quả, rồi viết lại có trích dẫn đúng.
+- **1 góc nhìn, bỏ sót góc khác** — search 1 câu query trên 1 database duy nhất thường chỉ trùng **~20%** với những gì chuyên gia thật sự chọn ([LSE Study, 2026](https://arxiv.org/abs/2603.20235)).
+- **LLM hỗ trợ viết dễ bịa trích dẫn** (citation hallucination) hoặc trích dẫn lệch ý bài gốc (citation drift) — benchmark trên 13 LLM cho thấy tỷ lệ này có thể lên tới **14-95%** tuỳ domain ([arXiv:2604.03173](https://arxiv.org/abs/2604.03173)), rất nguy hiểm cho một công cụ học thuật.
+- **Không có cách nào nhanh** để kiểm tra một bài báo có sẵn (của người khác hoặc bản thảo của chính mình) có vấn đề văn phong hay citation giả không, ngoài việc đọc tay từng dòng.
+
+## 💡 Giải pháp (Solution)
+
+PaperPulse giải quyết 3 bài toán trên bằng 3 tính năng chính — tất cả đều **giữ con người ở vị trí quyết định cuối cùng** (outline, claim, hay bất kỳ sửa văn bản nào đều cần người dùng duyệt trước khi chốt):
+
+|  | Tính năng | Tóm tắt |
+|---|---|---|
+| 🔎 | **Research Agent** | Tự tìm, đọc và viết literature review hoàn chỉnh từ một câu hỏi nghiên cứu — đa nguồn, mọi trích dẫn đều được xác minh trước khi đưa vào bài, xuất file LaTeX sẵn sàng nộp. |
+| 📄 | **PDF Agent** | Upload một bài báo PDF/LaTeX có sẵn — hệ thống tự chỉ ra vấn đề văn phong và citation khả nghi, cho sửa trực tiếp ngay trong trình soạn thảo. |
+| 🕸️ | **Knowledge Graph** | Trực quan hoá review thành sơ đồ "hệ mặt trời" tương tác — nhìn vào là thấy ngay chủ đề nào đang được đồng thuận, chủ đề nào đang mâu thuẫn. |
+
+Đi kèm là các tính năng hỗ trợ: **Research Gap Detection** (gợi ý khoảng trống nghiên cứu), **Community** (chia sẻ review), và **Admin/Billing** (quản trị & thanh toán).
+
+> 📑 Chi tiết kỹ thuật đầy đủ (flow từng bước, thuật toán, so sánh với công cụ khác): [`docs/plan/research-agent`](docs/plan/research-agent/reseach-agent.html) · [`docs/plan/pdf-agent`](docs/plan/pdf-agent/pdf-agent.html) · [`docs/plan/knowledge-graph`](docs/plan/knowledge-graph/knowledge-graph.html)
+
+## 🎯 Đối tượng sử dụng (Target User)
+
+| Đối tượng | Nhu cầu |
+|---|---|
+| **Sinh viên / nhà nghiên cứu** *(chính)* | Viết tổng quan tài liệu cho luận văn, paper, hoặc literature survey nhanh hơn, đáng tin hơn |
+| **Giảng viên / reviewer** *(phụ)* | Kiểm tra nhanh corpus tài liệu của một chủ đề, hoặc soát citation của một bản thảo |
+
+## 🛠️ Tech Stack
+
+**Backend & AI**
+
+| Badge | Mô tả |
+|---|---|
+| ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) | Ngôn ngữ chính cho backend |
+| ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white) | Web framework cho REST API + SSE streaming |
+| ![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge) | Orchestration pipeline đa bước cho Research Agent, PDF Agent, Gap Detection |
+| ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white) | Validate schema dữ liệu (paper, claim, annotation...) |
+
+**Database & Auth**
+
+| Badge | Mô tả |
+|---|---|
+| ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white) | Postgres + Auth + Row Level Security |
+| ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white) | pgvector cho embedding + LangGraph checkpointer |
+
+**Frontend**
+
+| Badge | Mô tả |
+|---|---|
+| ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) | JavaScript library for building UI |
+| ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) | Build tool & dev server tốc độ cao |
+| ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white) | Utility-first CSS framework |
+| ![Zustand](https://img.shields.io/badge/Zustand-433E38?style=for-the-badge) | State management nhẹ, theo selector |
+| ![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white) | Package manager &amp; runtime cho frontend |
+
+**Tính năng chuyên biệt**
+
+| Badge | Mô tả |
+|---|---|
+| ![Monaco Editor](https://img.shields.io/badge/Monaco_Editor-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white) | Code editor cho PDF Agent (inline annotation) |
+| ![Sigma.js](https://img.shields.io/badge/Sigma.js-FF6F61?style=for-the-badge) | Render Knowledge Graph (WebGL) |
+| ![MinerU](https://img.shields.io/badge/MinerU-4A4A4A?style=for-the-badge) | PDF parsing/OCR tự host cho PDF Agent |
+| ![PayOS](https://img.shields.io/badge/PayOS-00C2CB?style=for-the-badge) | Cổng thanh toán cho module Billing |
+
+**DevOps & Deployment**
+
+| Badge | Mô tả |
+|---|---|
+| ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) | Container hoá backend + MinerU |
+| ![Google Cloud](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white) | Hosting backend (Cloud Run) |
+| ![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=cloudflare&logoColor=white) | Hosting frontend (Workers, static assets) |
+
+## 👥 Thành viên (Team)
+
+| Họ tên | MSSV |
+|---|---|
+| Lê Hữu Khoa | 2A202600863 |
+| Nguyễn Phan Duy Bảo | 2A202600688 |
+| Trần Nguyễn Anh Thư | 2A202600915 |
+
+## 🎬 MVP Demo & Others
+
+📁 [Google Drive — Demo &amp; tài liệu khác](https://drive.google.com/drive/folders/1pyk0bb9EIuCNFU364qKrl0t8S8Mfb7CG?usp=sharing)
+
+---
+
+## 🚀 Quick Start
+
+### 1. Backend — Python
 
 ```bash
-# Tạo virtual environment
+# Tạo & kích hoạt virtual environment
 python -m venv .venv
+source .venv/bin/activate        # macOS/Linux
+.venv\Scripts\activate           # Windows PowerShell
 
-# Kích hoạt venv (macOS/Linux)
-source .venv/bin/activate
-
-# Kích hoạt venv (Windows PowerShell)
-.venv\Scripts\activate
-
-# Cài đặt toàn bộ dependencies từ pyproject.toml (bao gồm cả dev tools)
+# Cài dependencies (gồm dev tools)
 pip install -e ".[dev]"
 ```
 
-### 2. Cấu hình biến môi trường
+### 2. Biến môi trường
 
 ```bash
-# macOS / Linux / Git Bash
-cp .env.example .env
-
-# Windows (cmd/PowerShell)
-copy .env.example .env
+cp .env.example .env             # macOS/Linux/Git Bash
+copy .env.example .env           # Windows cmd/PowerShell
 ```
 
-Xem chi tiết từng biến ở mục [Environment Variables](#environment-variables) dưới đây.
+Xem chi tiết ở mục **Environment Variables** dưới đây.
 
-### 3. Khởi động Backend (FastAPI)
+### 3. Chạy Backend
 
 ```bash
 python backend/main.py
+# hoặc: make run   (uvicorn backend.main:app --reload)
 ```
 
-Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs) · Health check: [http://localhost:8000/health](http://localhost:8000/health)
+- Swagger UI → [localhost:8000/docs](http://localhost:8000/docs)
+- Health check → [localhost:8000/health](http://localhost:8000/health)
 
-#### (Optional) MinerU qua Docker, backend vẫn chạy native
+<details>
+<summary><strong>(Tuỳ chọn) Chạy MinerU thật qua Docker</strong> — mặc định fallback PyMuPDF, không bắt buộc</summary>
 
-Mặc định backend chạy native dùng MinerU CLI (`MINERU_MODE=cli`) — không cần Docker,
-và nếu không cài MinerU thì PDF Agent tự fallback sang PyMuPDF. Vector store + LangGraph
-checkpointer luôn trỏ vào Supabase Postgres/pgvector (`SUPABASE_DB_URL`), kể cả ở dev.
+<br>
 
-Nếu muốn test MinerU thật mà không cài torch/paddle/onnxruntime vào env dev, chạy
-service `mineru` riêng trong Docker và set `MINERU_MODE=http` trong `.env`:
+Backend mặc định dùng MinerU CLI native (`MINERU_MODE=cli`) — nếu máy chưa cài MinerU, PDF Agent tự fallback sang PyMuPDF, không cần Docker. Muốn test MinerU chất lượng cao hơn mà không cài torch/paddle vào env dev:
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d   # MinerU :8001
+docker compose -f docker-compose.dev.yml up -d   # MinerU service tại :8001
 ```
 
-`docker-compose.yml` (không có `-f`) là bản full container (production image, không
-có MinerU/torch — xem `optimize_Plan.html` §4) dùng cho self-host trên VM riêng
-(Oracle/Hetzner — xem `deploy_Plan.html` §9). Đường deploy chính là Google Cloud Run
-(`deploy_Plan.html` §4), không qua docker-compose:
+Rồi set `MINERU_MODE=http` trong `.env`. `docker-compose.yml` (không `-f`) là bản full container production cho self-host VM riêng — đường deploy chính vẫn là Google Cloud Run, không qua docker-compose.
+
+</details>
+
+### 4. Frontend — React/Vite
 
 ```bash
-docker compose up -d
-```
+# Cài Bun nếu chưa có
+curl -fsSL https://bun.sh/install | bash           # macOS/Linux
+powershell -c "irm bun.sh/install.ps1 | iex"        # Windows
 
-### 4. Khởi động Frontend — React/Vite
-
-Yêu cầu cài [Bun](https://bun.sh):
-
-```bash
-# macOS / Linux
-curl -fsSL https://bun.sh/install | bash
-
-# Windows (PowerShell)
-powershell -c "irm bun.sh/install.ps1 | iex"
-```
-
-Chạy frontend:
-
-```bash
 cd frontend
 bun install
 bun run dev
 ```
 
-Truy cập: [http://localhost:5173](http://localhost:5173)
+Truy cập → [localhost:5173](http://localhost:5173)
 
 ---
 
-## Environment Variables
+## ⚙️ Environment Variables
 
-Biến **bắt buộc** để chạy được flow Literature Review end-to-end: `LLM_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`. Còn lại có default hợp lý cho local dev.
+Biến **bắt buộc** để chạy được flow end-to-end: `LLM_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_DB_URL`. Còn lại có default hợp lý cho local dev — xem đầy đủ toàn bộ biến (PDF Agent, Knowledge Graph, PayOS...) trong [`.env.example`](.env.example).
 
 | Variable | Default | Mô tả |
 |---|---|---|
 | `PROVIDER` | `openai` | LLM provider: `openai` \| `anthropic` \| `google` \| `custom` |
 | `LLM_API_KEY` | — | **Bắt buộc.** API key cho provider đã chọn |
-| `LLM_MODEL` | `gpt-4o-mini` | Model dùng cho outline/content/claim/verify agents |
-| `LLM_BASE_URL` | — | Base URL nếu dùng custom/self-hosted endpoint |
-| `LLM_TEMPERATURE` | `0.7` | Temperature cho LLM calls |
-| `EMBEDDING_MODEL` | `nv-embed-v1` | Model embedding fallback (khi không dùng SPECTER batch) |
-| `EMBEDDING_BASE_URL` | — | Base URL nếu dùng custom embedding endpoint |
+| `LLM_MODEL` | `gpt-4o-mini` | Model dùng cho các agent (outline/content/claim/verify) |
 | `SEMANTIC_SCHOLAR_API_KEY` | — | Optional nhưng nên có — tăng rate limit (100 req/10s so với 1 req/s) |
-| `SUPABASE_URL` | — | **Bắt buộc.** URL project Supabase (`https://<ref>.supabase.co`) |
+| `SUPABASE_URL` | — | **Bắt buộc.** URL project Supabase |
 | `SUPABASE_KEY` | — | **Bắt buộc.** Anon hoặc service-role key |
-| `SUPABASE_SERVICE_KEY` | — | Service-role key — cần cho `/api/admin/*`, vector store, search cache (bypass RLS) |
-| `SUPABASE_DB_URL` | — | **Bắt buộc.** Pooled connection string (port 6543, transaction mode) cho LangGraph checkpointer — xem `deploy_Plan.html` §3.3 |
+| `SUPABASE_SERVICE_KEY` | — | Service-role key — cần cho `/api/admin/*`, vector store, search cache |
+| `SUPABASE_DB_URL` | — | **Bắt buộc.** Pooled connection string (port 6543) cho LangGraph checkpointer |
+| `MINERU_MODE` | `cli` | `cli` (native, fallback PyMuPDF) \| `http` (gọi container MinerU riêng) |
+| `PAYOS_CLIENT_ID` / `PAYOS_API_KEY` / `PAYOS_CHECKSUM_KEY` | — | Cần cho module Billing (PayOS) |
 | `CORS_ORIGINS` | `http://localhost:5173` | Danh sách origin được phép gọi API, ngăn cách bằng dấu phẩy |
 | `APP_ENV` | `development` | `development` \| `production` \| `test` |
-| `LOG_LEVEL` | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` |
 | `AI_LOG_SERVER`, `AI_LOG_API_KEY`, `AI_LOG_DIR` | — | AI usage logging cho khoá học (giảng viên cấp) |
 
-
 ---
 
-## API Endpoints (flow Literature Review)
-
-| Method | Path | Step | Mô tả |
-|---|---|---|---|
-| GET | `/health` | — | Health check |
-| GET | `/api/research/stream?query=...` | ①→⑩ | **Chạy toàn bộ pipeline**, stream SSE từng step (ReAct trace) |
-| POST | `/api/search` | ① | Search Semantic Scholar, trả về tối đa `limit` bài |
-| POST | `/api/snowball` | ②bis | Citation snowballing từ seed papers |
-| POST | `/api/embed` | ③ | Lấy SPECTER v2 embeddings, lưu Supabase pgvector |
-| POST | `/api/outline` | ④ | Sinh outline (themes) từ top-K bài |
-| POST | `/api/review/theme` | ⑤⑥ | Hybrid search + sinh nội dung theo theme, kèm `(Source: PAPER_ID)` |
-| POST | `/api/claims/extract` | ⑦ | Tách claims từ nội dung đã sinh |
-| POST | `/api/claims/verify` | ⑧ | Verify từng claim (snippet → arXiv → abstract) |
-| GET | `/api/review/export` | ⑩ | Export review hiện tại dưới dạng Markdown |
-| POST/GET/PATCH/DELETE | `/api/reviews` | — | CRUD review đã lưu (theo user), export, duplicate |
-| POST | `/api/chat` | — | Chat tự do với PaperPulse (không qua RAG pipeline) |
-| POST | `/api/auth/{register,login,logout,refresh}` | — | Supabase Auth |
-| GET | `/api/admin/{stats,users,activity}` | — | Admin dashboard (yêu cầu role `admin`) |
-
-Đầy đủ schema request/response: xem Swagger UI tại `/docs` sau khi chạy backend.
-
----
-
-## Sample Queries
-
-**Chạy toàn bộ Literature Review pipeline (khuyến nghị — dùng để demo):**
-
-```bash
-curl -N "http://localhost:8000/api/research/stream?query=Retrieval-Augmented%20Generation%20for%20question%20answering"
-```
-
-Trả về stream SSE, mỗi event có dạng:
+## 📂 Project Structure
 
 ```
-data: {"type": "step", "step_type": "thought", "stepNum": "①", "content": "..."}
-data: {"type": "step", "step_type": "action", "stepNum": "②", "label": "search_papers", "args": "..."}
-data: {"type": "outline_draft", "themes": [...]}
-data: {"type": "done", "content": "## Literature Review ..."}
-```
-
-**Chạy riêng từng step (debug / tích hợp UI):**
-
-```bash
-# Step ① — search papers
-curl -X POST http://localhost:8000/api/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "graph neural networks for drug discovery", "limit": 50}'
-
-# Step ④ — generate outline từ top-20 bài đã embed
-curl -X POST http://localhost:8000/api/outline \
-  -H "Content-Type: application/json" \
-  -d '{"query": "graph neural networks for drug discovery", "top_k": 20}'
-
-# Step ⑦+⑧ — extract & verify claims trong nội dung đã sinh
-curl -X POST http://localhost:8000/api/claims/extract \
-  -H "Content-Type: application/json" \
-  -d '{"content": "GNNs improve binding affinity prediction (Source: 1a2b3c4d).", "theme": "GNN methods"}'
-```
-
-**Chat tự do (không RAG — chỉ để so sánh baseline):**
-
-```bash
-curl -X POST http://localhost:8000/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"messages": [{"role": "user", "content": "What are research gaps in LLM-based literature review tools?"}]}'
-```
-
----
-
-## Project Structure
-
-```
+.
 ├── backend/
-│   ├── agent/            # LLM call layer: outline, content, claim_extractor, verifier, chat, gap_detection (LangGraph)
-│   ├── api/              
-│   ├── auth/              # Supabase JWT dependencies (get_current_user, require_admin)
-│   ├── models/            # Pydantic schemas (paper, claim, review)
-│   ├── services/          # Orchestration: semantic_scholar, snowball, embedding, hybrid_search, citation_verifier, vector_store, llm_client
+│   ├── module/
+│   │   ├── research_agent/   # Literature review pipeline (LangGraph) + Knowledge Graph
+│   │   ├── pdf_agent/        # Upload & QA PDF/.tex (LangGraph, MinerU)
+│   │   └── payment/          # Billing (PayOS)
+│   ├── agent/gap_detection/  # Research Gap Detection (LangGraph)
+│   ├── shared/                # Service & model dùng chung (semantic_scholar, vector_store...)
+│   ├── api/                   # auth, admin, chat, community, notifications, reviews, topics
+│   ├── auth/                  # Supabase JWT dependencies
 │   ├── config.py
-│   └── main.py             # FastAPI entry point
-├── frontend/               # React + Vite + Zustand
-├── supabase/                # schema.sql, insert.sql
-├── docs/research/           
-├── tests/
-├── eval/                    # Evaluation evidence
-├── JOURNAL.md / WORKLOG.md
-└── Dockerfile / docker-compose.yml
+│   └── main.py                 # FastAPI entry point
+├── frontend/
+│   └── src/
+│       ├── features/           # research, pdf-agent, graph, chat, community, billing, admin...
+│       ├── pages/
+│       └── shared/
+├── docs/plan/                  # PLAN/SPEC kỹ thuật cho research-agent, pdf-agent, knowledge-graph
+├── supabase/                    # schema.sql
+├── tests/ · eval/                # Tests & evaluation evidence
+└── JOURNAL.md · WORKLOG.md       # Nhật ký cá nhân & quyết định kỹ thuật của team
 ```
 
-## API Docs
+## 📚 Document
 
-Sau khi chạy backend, truy cập tài liệu Swagger UI tự động tại: [http://localhost:8000/docs](http://localhost:8000/docs)
+- 📊 [Project Manager (Google Sheets)](https://docs.google.com/spreadsheets/d/1VRGtDUW2lgdztBna0mqwbCOzZ4z1-Y6oRLPiSujOh2c/edit?usp=sharing)
+- 🧠 [Research Agent — Plan &amp; Spec](docs/plan/research-agent/reseach-agent.html)
+- 📄 [PDF Agent — Plan &amp; Spec](docs/plan/pdf-agent/pdf-agent.html)
+- 🕸️ [Knowledge Graph — Plan &amp; Spec](docs/plan/knowledge-graph/knowledge-graph.html)
+- 📓 [JOURNAL.md](JOURNAL.md) · [WORKLOG.md](WORKLOG.md)

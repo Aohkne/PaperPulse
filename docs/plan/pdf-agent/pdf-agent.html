@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>PaperPulse — PDF Agent (Painpoint · Flow · Detail · So sánh)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --text:#e6e8eb; --muted:#9aa3af;
+    --accent:#5cc8ff; --accent2:#7ee787; --warn:#ffb454; --danger:#ff7b72;
+    --border:#2a2f3a; --code-bg:#0b0d11;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 100px}
+  h1{font-size:28px;margin-bottom:4px}
+  h2{font-size:21px;margin-top:48px;border-bottom:1px solid var(--border);padding-bottom:10px;color:var(--accent)}
+  h3{font-size:17px;margin-top:28px;color:var(--accent2)}
+  h4{font-size:15px;margin-top:20px;color:var(--text)}
+  p{color:var(--text)}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:28px;font-size:14px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:8px}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+  .badge.tech{background:rgba(92,200,255,.15);color:var(--accent)}
+  .badge.algo{background:rgba(126,231,135,.15);color:var(--accent2)}
+  .badge.problem{background:rgba(255,180,84,.15);color:var(--warn)}
+  .badge.security{background:rgba(255,123,114,.15);color:var(--danger)}
+  .badge.ref{background:rgba(187,134,252,.15);color:#bb86fc}
+  .badge.cost{background:rgba(255,123,114,.12);color:var(--danger)}
+  code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:13px;color:#ffd479}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.55}
+  pre code{background:none;padding:0;color:#d8dee9}
+  .file-ref{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--accent);font-size:13px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel);color:var(--muted);font-weight:600}
+  tr:nth-child(even){background:rgba(255,255,255,.02)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:16px 0}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 24px;margin:24px 0}
+  .toc ol{margin:0;padding-left:20px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  ul.checklist{list-style:none;padding-left:0}
+  ul.checklist li{padding:6px 0 6px 28px;position:relative}
+  ul.checklist li::before{content:"☐";position:absolute;left:0;color:var(--muted)}
+  .note{border-left:3px solid var(--accent);padding:8px 14px;background:rgba(92,200,255,.06);border-radius:0 6px 6px 0;margin:14px 0;font-size:14px}
+  .warn-box{border-left:3px solid var(--warn);padding:8px 14px;background:rgba(255,180,84,.07);border-radius:0 6px 6px 0;margin:14px 0;font-size:14px}
+  .arch{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:18px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre;overflow-x:auto;color:#d8dee9}
+  hr{border:none;border-top:1px solid var(--border);margin:36px 0}
+  footer{color:var(--muted);font-size:12px;margin-top:60px;border-top:1px solid var(--border);padding-top:16px}
+  .ref-list{font-size:13px;color:var(--muted);padding-left:20px}
+  .ref-list li{margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PaperPulse — PDF Agent</h1>
+  <p class="subtitle">Module độc lập (entry point riêng do user upload file, không nối sau Research Agent) · Step P0 → P6 · LangGraph (không interrupt) + on-demand API · Monaco Editor</p>
+  <div class="meta">
+    <span>📅 Nguồn: <code>pdf-agent_PLAN_2.0.md</code> · <code>pdf-agent_SPEC_2.0.md</code></span>
+    <span>🎯 Mục tiêu: nhận PDF/.tex bất kỳ → phát hiện vấn đề văn phong + citation giả → sửa trực tiếp trên văn bản, mọi mutate đều cần user approve</span>
+  </div>
+
+  <div class="toc">
+    <strong>Mục lục</strong>
+    <ol>
+      <li><a href="#painpoint">Painpoint</a></li>
+      <li><a href="#flow">Flow (step by step) — diagram</a></li>
+      <li><a href="#detail">Detail Step — công nghệ, thuật toán, vấn đề giải quyết</a></li>
+      <li><a href="#compare">So sánh với các kỹ thuật hiện có</a></li>
+      <li><a href="#test">Phương pháp test, đánh giá so sánh</a></li>
+      <li><a href="#eval">Bảng đánh giá / đo lường kết quả</a></li>
+      <li><a href="#api">API &amp; Schema chi tiết</a></li>
+      <li><a href="#risk">Rủi ro &amp; Giải pháp</a></li>
+    </ol>
+  </div>
+
+  <hr>
+
+  <h2 id="painpoint">1. Painpoint</h2>
+
+  <div class="card">
+    <strong>Painpoint trung tâm:</strong>
+    <p>Researcher nhận một paper PDF (bài người khác, hoặc bản thảo của chính mình) và muốn biết 2 điều trước khi tin: <strong>(1)</strong> văn phong/lập luận có vấn đề gì không, <strong>(2)</strong> các citation có thật không hay đang trích dẫn nguồn ảo. Ngoài ra cần <strong>sửa trực tiếp trên văn bản</strong>, không chỉ đọc báo cáo riêng rồi tự đi sửa tay từng chỗ.</p>
+  </div>
+
+  <table>
+    <tr><th>#</th><th>Painpoint</th><th>Hệ quả thực tế</th><th>Nguồn/khảo sát chứng minh</th></tr>
+    <tr>
+      <td>1</td>
+      <td>Citation hallucination ở các deep research/LLM-assisted writing tool</td>
+      <td>Reviewer/tác giả không biết citation nào là thật, nào bị bịa — mất uy tín học thuật nếu lọt qua</td>
+      <td><strong>Reference Hallucination in Deep Research Agents</strong> (arXiv:2604.03173): benchmark 13 LLM × 40 domain, tỷ lệ hallucinate citation <strong>14%-95%</strong></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>LLM tự review văn phong dễ tự thiên vị hoặc generic không actionable</td>
+      <td>Mô hình review tự động có thể hạ điểm văn bản con người viết có phê bình gắt, hoặc đưa comment chung chung không giúp gì cho việc sửa</td>
+      <td><strong>LLM-REVal</strong> (arXiv:2510.12367): LLM reviewer tự bias; <strong>MARG</strong> baseline cho thấy comment generic chiếm 60% nếu không tách per-section/aspect</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Tool tự sửa trực tiếp văn bản (không qua approve) gây rủi ro ghi đè sai</td>
+      <td>User mất kiểm soát nội dung gốc, không biết phần nào LLM tự thêm vào, dễ bị "silent overwrite" nội dung quan trọng</td>
+      <td><strong>InkSync</strong> (arXiv:2309.15337) "Warn, Verify, Audit" — đề xuất pattern bắt buộc Warn/Verify/Audit khi LLM edit trực tiếp văn bản</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Annotation neo bằng offset số tuyệt đối trôi vị trí ngay khi văn bản bị sửa ở chỗ khác</td>
+      <td>Comment/highlight chỉ sai 1 ký tự dịch chuyển là trỏ nhầm đoạn văn bản hoàn toàn khác, gây mất tin tưởng vào tool</td>
+      <td><strong>W3C Web Annotation Data Model — TextQuoteSelector</strong>, dùng bởi Hypothesis — chuẩn quote+context thay offset số</td>
+    </tr>
+  </table>
+
+  <div class="warn-box">
+    <strong>Quyết định scope (Non-goal):</strong> PDF Agent <strong>không tự fact-check lại output của chính Research Agent</strong> — tránh nghịch lý trust (tool tự sinh nội dung rồi tự nghi ngờ nội dung của mình). Market precedent: Elicit/Consensus (generate) vs Scite (verify) vs Paperpal (polish) luôn tách 3 sản phẩm riêng. Các Non-goal khác: không tự apply suggest/rewrite mà không có Accept/Apply rõ ràng (kể cả confidence cao), không tự sinh citation mới để "fix" warning Not Found, không kiểm tra đạo văn, không dùng ô chat tự do cho thao tác tô-chọn (chỉ 2 action cố định), không tái dựng ảnh/figure thành vector/TikZ editable, không tích hợp OCR/PDF-parsing trả phí (chỉ MinerU self-host).
+  </div>
+
+  <hr>
+
+  <h2 id="flow">2. Flow (step by step) — diagram</h2>
+
+  <div class="arch">[Step P0] Upload + Format Detection   (byte sniffing: %PDF / PK zip / \documentclass)
+        │
+        ▼
+[Step P1] Parse → ParsedDocument {sections, raw_citations, figures}
+        │   ├─ nhánh pdf:        MinerU subprocess (timeout + guardrail max_pages)
+        │   ├─ nhánh tex_bundle: extract zip AN TOÀN (zip-slip guard) + pylatexenc
+        │   └─ nhánh tex trần:   pylatexenc, figure không resolve → missing=True (không raise lỗi cứng)
+        ▼
+[Step P2] Render Editable Bundle      (Jinja2 → main.tex + figures/ → .zip)
+        ▼
+[Step P3] Batch Analysis — 3 nhánh CHẠY SONG SONG (asyncio.gather):
+        │   ├─ P3a Critic Agent          (1 LLM call/section, temp=0, 4 aspect cố định)
+        │   ├─ P3b Reference Verification (waterfall: DOI/ID → search 3 nguồn → rapidfuzz → LLM judge vùng xám)
+        │   └─ P3c Link Liveness Check    (httpx HEAD song song, không LLM)
+        ▼
+[Step P4] Build Annotations           (TextQuoteSelector anchor: exact+prefix+suffix, KHÔNG offset số)
+        │   type=suggest (Accept/Reject, có suggested_fix) | type=warning (chỉ Dismiss, suggested_fix luôn None)
+        ▼
+   User tương tác tự do với editor (Monaco): Accept/Reject/Dismiss, hoặc tô chọn 1 đoạn
+        │
+        ▼
+[Step P5] Selection-triggered Explain / Rewrite   (on-demand, KHÔNG phải graph node)
+        │   Giải thích → trả text, không patch     |  Viết lại → {old_text,new_text}, cần Apply riêng (exact-match validate)
+        ▼
+[Step P6] Save to My Review            (tái dùng bảng reviews, source_type="uploaded", content_format="tex")</div>
+
+  <p class="note">P0→P4 chạy <strong>1 lần liên tục, không có <code>interrupt_before</code></strong> nào trong graph compile — toàn bộ approve của user (accept/reject/dismiss/apply) xảy ra <strong>sau</strong> khi graph chạy xong, qua endpoint riêng dùng <code>graph.update_state()</code> để sửa state hiện có, không phải <code>resume()</code> như Research Agent. Lý do: PDF Agent không có bước nào phụ thuộc quyết định user để <em>tiếp tục chạy</em> — P0→P4 chạy 1 lần xong hết, rồi user tương tác với kết quả đã có.</p>
+
+  <hr>
+
+  <h2 id="detail">3. Detail Step — công nghệ/API, thuật toán, vấn đề giải quyết</h2>
+
+  <h3>Step P0 — Upload + Format Detection</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>Byte sniffing thuần Python — không cần thư viện ngoài</td></tr>
+    <tr><th>Thuật toán</th><td><code>%PDF</code> → pdf; <code>PK</code> (zip magic) → tex_bundle (main.tex + figures/ + references.bib kiểu export từ Overleaf); <code>\documentclass</code>/<code>\begin{document}</code> trong 2000 byte đầu → tex trần (không có ảnh kèm); còn lại raise <code>UnsupportedFormatError</code></td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Cần nhận đúng 3 luồng input khác hẳn nhau (PDF quét OCR, .tex Overleaf export có ảnh, .tex viết tay không kèm ảnh) trước khi chọn nhánh parse phù hợp</td></tr>
+  </table>
+  <pre><code>def detect_format(raw_bytes: bytes) -&gt; Literal["pdf", "tex", "tex_bundle"]:
+    if raw_bytes.startswith(b"%PDF"): return "pdf"
+    if raw_bytes.startswith(b"PK"):   return "tex_bundle"
+    text_head = raw_bytes[:2000].decode("utf-8", errors="ignore")
+    if r"\documentclass" in text_head or r"\begin{document}" in text_head:
+        return "tex"
+    raise UnsupportedFormatError("Không nhận diện được format")</code></pre>
+
+  <h3>Step P1 — Parse → Structured Document</h3>
+  <table>
+    <tr><th>Công nghệ/API</th>
+      <td><span class="badge tech">MinerU</span> (self-host CLI, subprocess) cho nhánh PDF; <span class="badge tech">pylatexenc</span> (<code>LatexWalker</code>) cho nhánh .tex/.tex_bundle; <code>zipfile</code> stdlib + path-traversal guard viết tay; <code>pypdf</code> đọc số trang nhanh trước khi quyết định gọi MinerU</td></tr>
+    <tr><th>Thuật toán</th>
+      <td>
+        <strong>Nhánh PDF:</strong> <code>mineru -p file.pdf -o out/ -m auto</code> → parse <code>content_list.json</code> (đã có sẵn <code>img_path</code>, <code>image_caption</code>/<code>chart_caption</code>, <code>bbox</code>, <code>page_idx</code> — MinerU tự ghép caption↔figure, tỷ lệ mất caption gần 0) → 1 LLM call <code>temperature=0</code> dọn reference list thô thành <code>RawCitation[]</code>. Guardrail: reject PDF &gt;<code>PDF_AGENT_MAX_PAGES</code> trước khi gọi MinerU (đọc số trang qua <code>pypdf</code> nhẹ, không cần OCR để biết số trang).<br>
+        <strong>Nhánh .tex_bundle:</strong> <code>extract_zip_safe()</code> validate <code>os.path.realpath()</code> mỗi entry nằm trong <code>dest_dir</code> <em>trước</em> <code>extractall()</code> (chống zip-slip) → <code>find_main_tex()</code> heuristic (file có cả <code>\documentclass</code> + <code>\begin{document}</code>) → resolve path ảnh tương đối, copy ảnh tồn tại vào output bundle, đánh dấu <code>missing=True</code> cho ảnh có path trong .tex nhưng không có file trong zip.<br>
+        <strong>Nhánh .tex trần:</strong> parse bằng <code>pylatexenc</code> (<code>\section{}</code>, <code>\cite{}</code>+context, <code>\includegraphics{}</code>), ảnh không resolve được → đánh dấu <code>missing=True</code>, KHÔNG raise lỗi cứng (để Step P4 tạo warning <code>missing_asset</code> thay vì chặn cả pipeline).
+      </td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Mỗi nguồn input có rủi ro khác nhau: PDF cần OCR/layout detection chính xác; .zip không tin cậy (path traversal); .tex trần thường thiếu ảnh đi kèm</td></tr>
+    <tr><th>An ninh <span class="badge security">bắt buộc</span></th><td>Mọi <code>.zip</code> upload là input không tin cậy — PHẢI validate path từng entry trước khi extract (OWASP path traversal / "zip slip"). Không dùng <code>zf.extractall()</code> trực tiếp mà không check.</td></tr>
+  </table>
+  <pre><code>def extract_zip_safe(zip_path: str, dest_dir: str) -&gt; str:
+    with zipfile.ZipFile(zip_path) as zf:
+        for member in zf.namelist():
+            resolved = os.path.realpath(os.path.join(dest_dir, member))
+            if not resolved.startswith(os.path.realpath(dest_dir) + os.sep):
+                raise SecurityError(f"Zip slip detected: {member}")
+        zf.extractall(dest_dir)
+    return dest_dir
+
+def find_main_tex(extract_dir: str) -&gt; str:
+    for c in glob(f"{extract_dir}/**/*.tex", recursive=True):
+        content = read(c)
+        if r"\documentclass" in content and r"\begin{document}" in content:
+            return c
+    raise NoMainTexFoundError()
+
+async def run_mineru(pdf_path: str, output_dir: str) -&gt; dict:
+    proc = await asyncio.create_subprocess_exec(
+        MINERU_BIN, "-p", pdf_path, "-o", output_dir, "-m", "auto",
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    try:
+        await asyncio.wait_for(proc.communicate(), timeout=MINERU_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        proc.kill()
+        raise MinerUTimeoutError(f"MinerU vượt {MINERU_TIMEOUT_S}s")
+    return load_json(f"{output_dir}/{stem(pdf_path)}_content_list.json")</code></pre>
+  <p><span class="badge cost">Chi phí</span> Reference list cleanup (chỉ nhánh .pdf) ~$0.0008/document.</p>
+
+  <h3>Step P2 — Render Editable Bundle</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><code>jinja2</code> template riêng (không sửa template của research_agent)</td></tr>
+    <tr><th>Thuật toán</th><td>Render <code>main.tex</code> từ <code>sections</code>/<code>figures</code>/<code>raw_citations</code> → copy ảnh không-missing vào <code>figures/</code> → zip thành <code>{doc_id}.zip</code>. Figure <code>missing=True</code> thì <strong>không xuất</strong> <code>\includegraphics</code> (tránh lỗi compile vì file không tồn tại)</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Output phải mở được trong Overleaf/<code>pdflatex</code> ngay, không phải 1 file rời rạc thiếu ảnh</td></tr>
+  </table>
+  <pre><code>{% for figure in figures if not figure.missing %}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth]{figures/{{ figure.image_path | basename }}}
+  {% if figure.caption %}\caption{ {{ figure.caption }} }{% endif %}
+  {% if figure.label %}\label{ {{ figure.label }} }{% endif %}
+\end{figure}
+{% endfor %}</code></pre>
+
+  <h3>Step P3 — Batch Analysis (3 nhánh song song)</h3>
+  <table>
+    <tr><th>P3a Critic Agent</th><td>
+      <strong>Công nghệ:</strong> <code>openai/gpt-oss-120b</code>, <code>temperature=0</code>, 1 LLM call/section, <code>asyncio.gather</code>, giới hạn <code>PDF_AGENT_MAX_SECTIONS_CRITIC</code>.<br>
+      <strong>Thuật toán:</strong> per-section + 4 aspect cố định (<code>clarity</code>/<code>terminology</code>/<code>flow</code>/<code>redundancy</code>), context isolation (mỗi agent chỉ thấy section của nó), output JSON issue list.<br>
+      <strong>Vấn đề giải quyết:</strong> feedback văn phong generic không actionable nếu 1 agent đọc nguyên bài cùng lúc.<br>
+      <strong>Backing:</strong> <strong>MARG</strong> (arXiv:2401.04259) — chia per-section+aspect giảm generic comment 60%→29%; <strong>Reviewer2</strong> — khung aspect cố định (gốc novelty/soundness/significance, đổi thành văn phong clarity/terminology/flow/redundancy để khớp Non-goals); <strong>LLM-REVal</strong> (arXiv:2510.12367) — lý do bắt buộc <code>temperature=0</code> + prompt conservative, không chấm điểm tổng, chỉ liệt kê issue cụ thể.
+    </td></tr>
+    <tr><th>P3b Reference Verification</th><td>
+      <strong>Công nghệ:</strong> tái dùng <code>semantic_scholar.py</code>/<code>openalex.py</code>/<code>arxiv_search.py</code> của research_agent ở mode "lookup 1 paper" (thêm hàm <code>lookup_by_doi()</code>/<code>lookup_by_id()</code> — bổ sung hàm, không sửa hàm <code>search()</code> cũ), <code>rapidfuzz</code>, LLM judge <code>temperature=PDF_JUDGE_TEMPERATURE(0)</code>, giới hạn <code>PDF_AGENT_MAX_CITATIONS_VERIFY=150</code>.<br>
+      <strong>Thuật toán:</strong> waterfall — DOI/arXiv ID exact lookup → nếu không có, search song song 3 nguồn (S2/OpenAlex/arXiv, mỗi nguồn top-5) → <code>rapidfuzz</code> multi-field match (title + year±1 + author overlap) → nếu score ≥<code>PDF_AGENT_MATCH_THRESHOLD_HIGH(0.85)</code> → <code>Verified</code>; &lt;<code>PDF_AGENT_MATCH_THRESHOLD_LOW(0.55)</code> → <code>Not Found</code>; vùng xám giữa 2 threshold → LLM judge.<br>
+      <strong>Vấn đề giải quyết:</strong> phát hiện citation hallucinate/sai metadata mà không cần gọi LLM cho toàn bộ — chỉ vùng xám mới cần LLM, giữ chi phí thấp.<br>
+      <strong>Backing:</strong> <strong>CheckIfExist</strong> (arXiv:2602.15871) — multi-source CrossRef+S2+OpenAlex, multi-field scoring; <strong>CiteCheck</strong> (arXiv:2605.27700) — waterfall cascade (arXiv→CrossRef→S2→OpenAlex→web) + LLM verifier 0-10 cho case khó, 88.9% accuracy — đã có sẵn 90% hạ tầng từ research_agent Step ①+⑧, chỉ đổi mode "lookup" thay vì "discover".
+    </td></tr>
+    <tr><th>P3c Link Liveness Check</th><td>
+      <strong>Công nghệ:</strong> <code>httpx.AsyncClient().head()</code> song song, timeout <code>PDF_AGENT_LINK_CHECK_TIMEOUT_S(5)</code>, không LLM.<br>
+      <strong>Vấn đề giải quyết:</strong> raw URL (không phải citation học thuật) có thể đã chết/đổi — chỉ cần check HTTP status, không cần tốn LLM call. MVP chỉ check status code, chưa làm suspicious-domain detection.
+    </td></tr>
+  </table>
+  <pre><code>async def verify_citation(c: RawCitation) -&gt; dict:
+    if doi := extract_doi(c["raw_text"]):
+        if hit := await semantic_scholar.lookup_by_doi(doi):
+            return score_match(c, hit)
+    candidates = []
+    for search_fn in (semantic_scholar.search, openalex.search, arxiv_search.search):
+        candidates += await search_fn(c["guessed_title"], n=5)
+    best = best_fuzzy_match(c, candidates)
+    if best.score &gt;= PDF_AGENT_MATCH_THRESHOLD_HIGH:
+        return {"verdict": "Verified", "confidence": best.score, "evidence": best.paper}
+    if best.score &lt; PDF_AGENT_MATCH_THRESHOLD_LOW:
+        return {"verdict": "Not Found", "confidence": best.score, "evidence": None}
+    return await llm_judge_citation_match(c, best)</code></pre>
+  <p><span class="badge cost">Chi phí</span> P3a Critic Agents (15 section, parallel) ~$0.0017/document; P3b LLM judge vùng xám (~12 citation) ~$0.0003/document; P3c $0 (không LLM).</p>
+
+  <h3>Step P4 — Build Annotations</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>W3C Web Annotation Data Model — <strong>TextQuoteSelector</strong> (<code>exact</code>+<code>prefix</code>+<code>suffix</code>, ~32 ký tự context mỗi bên qua <code>PDF_AGENT_ANCHOR_CONTEXT_CHARS</code>), dùng bởi Hypothesis</td></tr>
+    <tr><th>Thuật toán</th><td><code>build_anchor()</code> lưu context trước/sau; <code>refind_anchor()</code> tái định vị bằng regex + disambiguate qua prefix/suffix nếu <code>exact</code> lặp lại nhiều nơi trong văn bản. Không tìm thấy nữa → annotation tự ẩn ở frontend (user đã tự sửa đúng đoạn đó), không báo lỗi</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Neo annotation bằng <strong>offset số tuyệt đối</strong> sẽ trôi sai vị trí ngay khi user sửa 1 ký tự ở đoạn khác — quote+context bền với edit tuỳ ý ở chỗ khác trong văn bản</td></tr>
+    <tr><th>Ràng buộc cứng</th><td><code>type=warning</code> <strong>luôn</strong> <code>suggested_fix=None</code> — không có "bản sửa đúng" cho citation giả, Accept sẽ ngầm gợi ý có và gây hiểu lầm. 4 nhóm aspect cho warning: <code>citation_not_found</code> / <code>metadata_mismatch</code> / <code>broken_link</code> / <code>missing_asset</code>; 4 verdict citation: <code>Verified</code> (không tạo warning) / <code>Metadata Mismatch</code> (lệch năm/tác giả) / <code>Not Found</code> (không khớp ở cả 3 nguồn, kèm caveat không tuyệt đối — paper hiếm/sách/non-indexed vẫn có thể không có) / <code>Unreachable</code> (URL trả lỗi HTTP)</td></tr>
+  </table>
+  <pre><code>def build_anchor(full_text, start, end, context_chars=32) -&gt; TextQuoteSelector:
+    return {"exact": full_text[start:end],
+            "prefix": full_text[max(0,start-context_chars):start],
+            "suffix": full_text[end:end+context_chars]}
+
+def refind_anchor(current_text, anchor) -&gt; int | None:
+    candidates = [m.start() for m in re.finditer(re.escape(anchor["exact"]), current_text)]
+    if len(candidates) == 1: return candidates[0]
+    for pos in candidates:
+        if current_text[max(0,pos-32):pos].endswith(anchor["prefix"][-32:]):
+            return pos
+    return None</code></pre>
+
+  <h3>Step P5 — Selection-triggered Explain / Rewrite</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code> — Giải thích <code>temperature=EXPLAIN_TEMPERATURE(0.3)</code> stream; Viết lại <code>temperature=REWRITE_TEMPERATURE(0.5)</code> non-stream, output JSON <code>{old_text, new_text}</code></td></tr>
+    <tr><th>Thuật toán</th><td>2 action cố định (không ô chat tự do, giảm ambiguity scope LLM được làm). Trước khi Apply: <code>validate_rewrite_patch()</code> bắt buộc <code>old_text in current_doc</code> (exact-match) — nếu user đã sửa tay từ lúc tô tới lúc LLM trả lời → reject patch, trả <strong>409</strong>, báo "đoạn này đã thay đổi, vui lòng tô lại". Patch ghi vào doc bằng <code>str.replace(old_text, new_text, 1)</code> — chỉ thay occurrence đầu tiên (nếu cần chính xác hơn khi <code>old_text</code> xuất hiện nhiều lần, dùng offset từ anchor đã refind thay vì <code>replace()</code> thuần)</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Mọi thay đổi văn bản đều phải qua approve rõ ràng (0% tự động ghi đè) — pattern giống IDE diff-apply (Cursor/Copilot/Claude Code Edit tool): constrained diff + exact-match validation</td></tr>
+    <tr><th>Backing</th><td><strong>InkSync</strong> (arXiv:2309.15337) "Warn, Verify, Audit": Warn↔warning citation, Verify↔evidence từ P3b, Audit↔lịch sử <code>pending_annotations</code>. Usability study cho thấy "more agency", "more accurate, efficient editing" so với chat thường</td></tr>
+  </table>
+  <pre><code>POST .../explain
+{"role":"system","content":"Explain what this excerpt from an academic paper is arguing/about,
+ in 2-4 sentences. Do not suggest edits."}
+
+POST .../rewrite
+{"role":"system","content":"Rewrite ONLY the given excerpt. Output JSON:
+ {\"old_text\": &lt;verbatim copy of input&gt;, \"new_text\": &lt;rewritten version&gt;}.
+ Do not expand scope beyond the excerpt."}
+
+def validate_rewrite_patch(patch, current_doc) -&gt; bool:
+    return patch["old_text"] in current_doc</code></pre>
+  <p><span class="badge cost">Chi phí</span> Explain ~$0.00005/lần, Rewrite ~$0.0001/lần — on-demand, không cộng vào cost cố định/document.</p>
+
+  <h3>Step P6 — Save to My Review</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>Mở rộng additive bảng <code>reviews</code> đã có (<code>ALTER TABLE</code>, không tạo bảng mới)</td></tr>
+    <tr><th>Thuật toán</th><td>Lưu <code>source_type="uploaded"</code>, <code>content_format="tex"</code>, kèm <code>pending_annotations</code> (annotation chưa resolve) để resume đúng chỗ đang dừng — không phải chạy lại Step P3 tốn API call. Export PDF cho <code>content_format="tex"</code> chạy qua <code>pdflatex</code> thay vì <code>weasyprint</code> (markdown→PDF)</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Nếu chỉ lưu nội dung cuối (không kèm annotation), mọi warning đã tốn API verify sẽ mất khi user đóng tab</td></tr>
+  </table>
+  <pre><code>ALTER TABLE reviews
+  ADD COLUMN source_type TEXT NOT NULL DEFAULT 'generated'
+    CHECK (source_type IN ('generated', 'uploaded')),
+  ADD COLUMN content_format TEXT NOT NULL DEFAULT 'markdown'
+    CHECK (content_format IN ('markdown', 'tex')),
+  ADD COLUMN pending_annotations JSONB,
+  ALTER COLUMN query DROP NOT NULL;</code></pre>
+
+  <hr>
+
+  <h2 id="compare">4. So sánh với các kỹ thuật hiện có</h2>
+
+  <h3>4.1 PDF/.tex → .tex editable</h3>
+  <table>
+    <tr><th>Công cụ</th><th>Cơ chế</th><th>Điểm yếu/lý do không chọn</th><th>Vì sao MinerU được chọn</th></tr>
+    <tr><td>Nougat, GOT-OCR2.0 (580M, StepFun)</td><td>VLM end-to-end: ảnh trang → text+LaTeX trực tiếp</td><td>Yếu table phức tạp</td><td>—</td></tr>
+    <tr><td>olmOCR (AllenAI)</td><td>VLM ingest quy mô lớn, tối ưu throughput</td><td>Không chú trọng giữ structure</td><td>Không hợp — cần structure đẹp hơn tốc độ</td></tr>
+    <tr><td><strong>Mathpix</strong></td><td>SaaS, xử lý tốt 2-column+table chứa math, mở thẳng Overleaf</td><td>Trả phí — quyết định chỉ self-host (Non-goal)</td><td>Không tích hợp dịch vụ trả phí; PDF MinerU xử lý kém → báo warning rõ cho user thay vì tự escalate</td></tr>
+    <tr><td>Marker</td><td>Nhanh hơn MinerU, table layout tốt</td><td>License <code>cc-by-nc-sa-4.0</code> — rủi ro pháp lý nếu scale &gt;$5M doanh thu/funding</td><td>—</td></tr>
+    <tr><td>Docling (IBM)</td><td>MIT license, ecosystem LangChain/LlamaIndex tốt, không cần GPU</td><td>Yếu table phức tạp theo benchmark độc lập — đúng điểm yếu quan trọng nhất với paper khoa học (nhiều table kết quả)</td><td>—</td></tr>
+    <tr><td>OpenDataLoader-pdf</td><td>Apache 2.0, không cần GPU, nhanh hơn MinerU (60+ trang/giây), accuracy cao nhất benchmark độc lập (0.907 tổng, 0.928 table) trên 200 PDF gồm scientific paper/multi-column</td><td>Track record ngắn hơn</td><td>Đã cân nhắc kỹ — có thể là phương án tốt hơn về license/tốc độ, nhưng giữ MinerU vì track record dài hơn (nhiều người dùng production hơn), xử lý rủi ro deploy bằng Docker bake model weight lúc build</td></tr>
+    <tr><td><strong>MinerU (đã chọn)</strong></td><td>Layout detection → OCR → reading-order → formula→LaTeX, output Markdown/JSON, có structure block sẵn, đã refactor caption↔figure pairing</td><td>—</td><td>Free, self-host, output structure sẵn dùng được ngay cho <code>Figure</code>/<code>Section</code></td></tr>
+  </table>
+  <p class="note">Benchmark đối chiếu: <strong>OmniDocBench</strong> (arXiv:2412.07626) — so cả text/formula/table/reading-order giữa các công cụ.</p>
+
+  <h3>4.2 Model nhận xét văn phong/lập luận</h3>
+  <table>
+    <tr><th>Hệ thống</th><th>Cơ chế</th><th>Áp dụng vào PDF Agent (P3a)</th></tr>
+    <tr><td><strong>MARG</strong> (arXiv:2401.04259)</td><td>Leader điều phối + Worker agent/section + Expert agent/aspect (clarity, experiments, impact)</td><td>Core pattern: 1 Critic Agent/section chạy song song, giảm generic comment 60%→29%</td></tr>
+    <tr><td>Reviewer2</td><td>Aspect-specific prompt cố định (novelty/soundness/clarity/significance)</td><td>Khung 4 aspect cho output JSON của Critic Agent, đổi sang văn phong: clarity/terminology/flow/redundancy</td></tr>
+    <tr><td>ICLR Review Feedback Agent (arXiv:2504.09737)</td><td>LLM feedback giúp review cụ thể/actionable hơn, test thật 20K review, 89% được đánh giá tốt hơn</td><td>Bằng chứng pattern "agent feedback on writing" hoạt động ở quy mô lớn</td></tr>
+    <tr><td>⚠️ LLM-REVal (arXiv:2510.12367)</td><td>LLM reviewer tự thiên vị, hạ điểm văn bản con người viết có phê bình gắt</td><td>Critic Agent phải temp=0 + prompt conservative, không chấm điểm tổng, chỉ liệt kê issue cụ thể</td></tr>
+  </table>
+
+  <h3>4.3 Phát hiện citation/link giả</h3>
+  <table>
+    <tr><th>Hệ thống</th><th>Cơ chế</th><th>Áp dụng vào PDF Agent (P3b)</th></tr>
+    <tr><td><strong>CheckIfExist</strong> (arXiv:2602.15871)</td><td>Multi-source CrossRef+S2+OpenAlex, multi-field match (title/author/year/DOI/venue) → confidence score</td><td>Core logic chấm điểm match</td></tr>
+    <tr><td><strong>CiteCheck</strong> (arXiv:2605.27700)</td><td>Waterfall cascade (arXiv→CrossRef→S2→OpenAlex→web) + LLM verifier 0-10 + reviewer-pass cho case khó, 88.9% accuracy</td><td>Pattern waterfall + 2-pass verify — đã có sẵn 90% hạ tầng từ research_agent Step ①+⑧, chỉ đổi mode "lookup" thay vì "discover"</td></tr>
+    <tr><td>Reference Hallucination in Deep Research Agents (arXiv:2604.03173)</td><td>Benchmark 13 LLM × 40 domain, hallucination rate 14%-95%</td><td>Lý do bước này bắt buộc, không phải nice-to-have</td></tr>
+  </table>
+
+  <h3>4.4 Inline suggestion-mode editing &amp; human-in-loop apply</h3>
+  <table>
+    <tr><th>Hướng</th><th>Cơ chế</th><th>Áp dụng vào PDF Agent</th></tr>
+    <tr><td>Google Docs Suggesting mode</td><td>Insert/delete hiển thị inline (gạch ngang/màu), Accept (✓)/Reject (✗) từng suggestion hoặc Accept All</td><td>UX affordance cho <code>type=suggest</code></td></tr>
+    <tr><td><strong>InkSync</strong> (arXiv:2309.15337)</td><td>"Warn, Verify, Audit" — edit hiển thị ngay trong văn bản, không qua chat riêng</td><td>Map gần 1-1: Warn↔<code>warning</code>, Verify↔evidence hiển thị từ P3b, Audit↔lịch sử trong <code>pending_annotations</code></td></tr>
+    <tr><td>LaTeX-native track changes</td><td><code>changes</code> package (<code>\added</code>/<code>\deleted</code>/<code>\replaced</code>), <code>latexdiff</code> — compile PDF có màu, so sánh 2 file tĩnh</td><td>Không hợp cho editor tương tác live trên web — chỉ dùng tương lai cho "export diff PDF" (deferred)</td></tr>
+    <tr><td>IDE/coding-agent diff-apply</td><td>Cursor, GitHub Copilot, Claude Code "Edit tool" — LLM xuất diff có ràng buộc (<code>old_text</code> phải match chính xác buffer hiện tại) → preview → user confirm Apply</td><td>Pattern dùng cho Step P5 "Viết lại" — không cho LLM tự do generate lại nguyên đoạn</td></tr>
+    <tr><td><strong>W3C TextQuoteSelector</strong> (dùng bởi Hypothesis)</td><td>Anchor bằng quote (<code>exact</code>+<code>prefix</code>+<code>suffix</code>), KHÔNG dùng offset số tuyệt đối — recover được vị trí dù text trước/sau đã đổi</td><td>Bắt buộc dùng cho mọi annotation (Step P4)</td></tr>
+  </table>
+
+  <h3>4.5 Tổng quan Backing Research</h3>
+  <ul class="ref-list">
+    <li><strong>MinerU</strong> (github.com/opendatalab/mineru) — pipeline layout+OCR+formula→LaTeX, self-host free, caption↔figure pairing</li>
+    <li><strong>OmniDocBench</strong> (arXiv:2412.07626) — benchmark đối chiếu công cụ PDF parsing</li>
+    <li><strong>MARG</strong> (arXiv:2401.04259) — multi-agent feedback per-section, giảm generic comment 60%→29%</li>
+    <li><strong>ICLR Review Feedback Agent</strong> (arXiv:2504.09737) — 20K review thật, 89% được đánh giá tốt hơn</li>
+    <li><strong>LLM-REVal</strong> (arXiv:2510.12367) — cảnh báo self-bias của LLM reviewer</li>
+    <li><strong>CheckIfExist</strong> (arXiv:2602.15871) — multi-field matching algorithm</li>
+    <li><strong>CiteCheck</strong> (arXiv:2605.27700) — waterfall cascade + LLM verifier 2-pass, 88.9% accuracy</li>
+    <li><strong>Reference Hallucination in Deep Research Agents</strong> (arXiv:2604.03173) — benchmark 14%-95% hallucination rate</li>
+    <li><strong>InkSync</strong> (arXiv:2309.15337) — "Warn, Verify, Audit" framework cho LLM text-editing</li>
+    <li><strong>W3C Web Annotation Data Model — TextQuoteSelector</strong> (w3.org/TR/annotation-model) — chuẩn anchor annotation, dùng bởi Hypothesis</li>
+    <li><strong>OpenDataLoader-pdf</strong> (opendataloader.org) — Apache 2.0 + không cần GPU + accuracy cao nhất benchmark độc lập, đã cân nhắc thay MinerU</li>
+    <li>Market precedent: Elicit/Consensus (generate) vs Scite (verify) vs Paperpal (polish) tách biệt 3 sản phẩm — backing cho Non-goals</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="test">5. Phương pháp test, đánh giá so sánh</h2>
+
+  <ul class="checklist">
+    <li>E2E nhánh <code>.tex</code> trần: upload → có warning <code>missing_asset</code> nếu thiếu ảnh</li>
+    <li>E2E nhánh <code>.zip</code>: upload project Overleaf mẫu → bundle xuất ra giữ đúng ảnh</li>
+    <li>E2E nhánh <code>.pdf</code>: upload paper arXiv thật → figures + reference verification đúng</li>
+    <li>Test security: <code>.zip</code> chứa zip-slip payload (<code>../../etc/passwd</code>) → reject, không extract ra ngoài <code>dest_dir</code></li>
+    <li>Test bất biến: mọi <code>Annotation</code> type=<code>warning</code> có <code>suggested_fix is None</code> — assert cứng, không cho lọt qua review code</li>
+    <li>Test anchor: <code>refind_anchor()</code> trả đúng offset sau khi giả lập chèn 50 ký tự vào đoạn text TRƯỚC vị trí anchor</li>
+    <li>Test UI: sửa tay 1 đoạn không liên quan phía trên → annotation phía dưới KHÔNG bị lệch vị trí highlight; sửa đúng đoạn bị flag → annotation đó tự ẩn</li>
+    <li>Test rewrite: giả lập user sửa tay đoạn đã tô NGAY TRƯỚC khi bấm Apply → nhận 409, không ghi đè sai</li>
+    <li>Test concurrency: 2 PATCH annotation cùng lúc trên 1 <code>doc_id</code> — ghi rõ giới hạn SQLite single-writer (MVP single-user, không xử lý multi-user concurrent)</li>
+    <li>Đo cost thực tế 1 document ~60 citation, ~15 section — so với ước tính SPEC (~$0.003/document nhánh .pdf)</li>
+    <li>Đo latency P0→P4 cho PDF 60 trang (gồm MinerU) — guardrail timeout có kích hoạt đúng không</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="eval">6. Bảng đánh giá / đo lường kết quả</h2>
+
+  <table>
+    <tr><th>Mục tiêu</th><th>Metric</th></tr>
+    <tr><td>Chuyển PDF/.tex → .tex editable, giữ structure</td><td>Mở được bằng Overleaf/<code>pdflatex</code> không lỗi compile</td></tr>
+    <tr><td>Feedback văn phong cụ thể, hiển thị inline</td><td>&gt;70% comment "specific and actionable" (benchmark MARG)</td></tr>
+    <tr><td>Phát hiện citation/link không xác minh được</td><td>Phân loại Verified / Metadata Mismatch / Not Found / Unreachable</td></tr>
+    <tr><td><strong>Mọi thay đổi văn bản đều qua approve của user</strong></td><td>0% trường hợp tự động ghi đè text mà không có hành động Accept/Apply rõ ràng</td></tr>
+    <tr><td>Annotation không trôi vị trí khi user edit chỗ khác</td><td>Anchor bằng TextQuoteSelector, không dùng offset số tuyệt đối</td></tr>
+    <tr><td>Tái dùng tối đa infra đã có</td><td>Không xây lại S2/OpenAlex/arXiv client, LaTeX exporter, hay bảng reviews</td></tr>
+    <tr><td>Giữ được ảnh/figure khi convert</td><td>Output là .zip (main.tex + figures/), không thiếu ảnh</td></tr>
+  </table>
+
+  <h3>6.1 Chi phí ước tính/document</h3>
+  <table>
+    <tr><th>Step</th><th>Task</th><th>Chi phí</th></tr>
+    <tr><td>P1 (chỉ nhánh .pdf)</td><td>Reference list cleanup</td><td>~$0.0008</td></tr>
+    <tr><td>P3a</td><td>Critic Agents (15 section, parallel)</td><td>~$0.0017</td></tr>
+    <tr><td>P3b</td><td>LLM judge (vùng xám, ~12 citation)</td><td>~$0.0003</td></tr>
+    <tr><td>P3c</td><td>Link check</td><td>$0 (không LLM)</td></tr>
+    <tr><td>P5</td><td>Explain (mỗi lần trigger)</td><td>~$0.00005</td></tr>
+    <tr><td>P5</td><td>Rewrite (mỗi lần trigger)</td><td>~$0.0001</td></tr>
+    <tr><td>P6</td><td>Save to My Review</td><td>$0 (DB write, không LLM)</td></tr>
+    <tr><td colspan="2"><strong>TOTAL cố định/document</strong></td><td><strong>~$0.003 (.pdf) · ~$0.002 (.tex)</strong></td></tr>
+  </table>
+  <p class="note">Selection actions (P5) là on-demand, không cộng vào cost cố định/document — chỉ tính khi user thực sự dùng. Rẻ hơn 1 session Research Agent (~$0.02) vì tái dùng search infra miễn phí.</p>
+
+  <hr>
+
+  <h2 id="api">7. API &amp; Schema chi tiết</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Mô tả</th></tr>
+    <tr><td><code>POST</code></td><td><code>/api/pdf-agent/upload</code></td><td>Upload file → tạo <code>doc_id</code> → chạy graph P0→P4, SSE stream</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/pdf-agent/{doc_id}/bundle</code></td><td>Download .zip hiện tại (main.tex + figures/)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/pdf-agent/{doc_id}/annotations</code></td><td>List annotations (đọc từ checkpoint)</td></tr>
+    <tr><td><code>PATCH</code></td><td><code>/api/pdf-agent/{doc_id}/annotations/{id}</code></td><td>Accept/Reject (<code>suggest</code>) hoặc Dismiss (<code>warning</code>) — 400 nếu action=accept trên warning</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/pdf-agent/{doc_id}/explain</code></td><td>Step P5 "Giải thích" — trả text, không mutate</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/pdf-agent/{doc_id}/rewrite</code></td><td>Step P5 "Viết lại" — trả {old_text,new_text}, CHƯA apply</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/pdf-agent/{doc_id}/apply</code></td><td>Apply patch từ /rewrite — validate exact-match (409 nếu lệch) rồi mới ghi</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/pdf-agent/{doc_id}/save</code></td><td>Step P6 — gọi nội bộ service reviews với <code>source_type="uploaded"</code></td></tr>
+  </table>
+
+  <pre><code>PDF_AGENT_GUARDRAILS = {
+    "max_file_size_mb": 20, "max_pages": 60, "max_citations_verify": 150,
+    "max_sections_critic": 20, "citation_lookup_timeout_s": 10, "link_check_timeout_s": 5,
+    "critic_temperature": 0, "llm_judge_temperature": 0,
+    "match_threshold_high": 0.85, "match_threshold_low": 0.55,
+    "rewrite_temperature": 0.5, "explain_temperature": 0.3,
+    "anchor_context_chars": 32,
+    "require_exact_match_before_apply": True,
+    "warning_has_no_accept_action": True,
+}</code></pre>
+
+  <hr>
+
+  <h2 id="risk">8. Rủi ro &amp; Giải pháp</h2>
+  <table>
+    <tr><th>Rủi ro</th><th>Giải pháp</th></tr>
+    <tr><td>Zip slip / path traversal khi extract .zip user upload</td><td><code>extract_zip_safe()</code> validate <code>os.path.realpath()</code> mỗi entry nằm trong <code>dest_dir</code> trước khi extract — bắt buộc, không dùng <code>extractall()</code> trần</td></tr>
+    <tr><td>MinerU subprocess treo với PDF dị dạng</td><td><code>asyncio.wait_for(timeout=MINERU_TIMEOUT_S)</code> + <code>proc.kill()</code>, guardrail <code>max_pages</code> chặn trước khi gọi</td></tr>
+    <tr><td>MinerU không đủ chính xác cho PDF scan/layout dị, không có fallback trả phí</td><td>Báo lỗi/warning rõ cho user ("PDF này MinerU xử lý kém, vui lòng thử lại với .tex hoặc PDF chất lượng tốt hơn") — không tự động retry bằng service khác</td></tr>
+    <tr><td><code>pylatexenc</code> không parse được macro tự định nghĩa lạ</td><td><code>try/except</code> quanh <code>LatexWalker</code>, fallback cho user edit .tex thô (không structure theo section), không chặn cả pipeline</td></tr>
+    <tr><td><code>update_state()</code> đua nhau khi 2 request PATCH annotation cùng lúc</td><td>MVP single-user session — SQLite single-writer đủ an toàn; không xử lý multi-user concurrent</td></tr>
+    <tr><td>Patch /apply ghi nhầm nếu <code>old_text</code> xuất hiện nhiều lần</td><td><code>str.replace(old_text, new_text, 1)</code> chỉ thay occurrence đầu; cải tiến dùng offset từ anchor refind nếu cần chính xác hơn</td></tr>
+    <tr><td>MinerU model weights nặng, lần đầu setup chậm</td><td>Bake vào Docker image lúc build (<code>RUN</code> step), không tải lúc runtime</td></tr>
+    <tr><td>Container restart/redeploy mất checkpoint + document đang xử lý</td><td><code>PDF_AGENT_CHECKPOINT_DB</code>/<code>PDF_AGENT_OUTPUT_DIR</code> phải mount Docker volume bền</td></tr>
+    <tr><td>Reference list OCR ra quá nhiễu, LLM cleanup parse sai field</td><td>Giữ <code>raw_text</code> gốc luôn đi kèm — verification fallback dùng <code>raw_text</code> full-text search nếu <code>guessed_title</code> rỗng/sai</td></tr>
+    <tr><td>Threshold 0.85/0.55 sai ở domain ngoài CS/AI</td><td>Đánh giá lại sau khi có data thật — threshold hiện lấy theo benchmark CheckIfExist/CiteCheck, không đảm bảo đúng 100% mọi domain</td></tr>
+  </table>
+
+  <footer>PaperPulse · PDF Agent · Xem thêm <code>reseach-agent.html</code> và <code>knowledge-graph.html</code> · Nguồn: <code>academic_research/version_2.0/pdf-agent_PLAN_2.0.md</code>, <code>pdf-agent_SPEC_2.0.md</code></footer>
+</div>
+</body>
+</html>

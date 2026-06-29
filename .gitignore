@@ -1,6 +1,11 @@
 # Environment
 .env
+.env.eval
 frontend/.env
+
+# Eval generated outputs (chạy lại sẽ tạo lại)
+tests/test_research_gap/report.html
+gap_eval_template.xlsx
 
 # Python
 __pycache__/
@@ -11,6 +16,7 @@ venv/
 build/
 *.egg-info/
 .pytest_cache/
+.ruff_cache/
 .mypy_cache/
 
 #DB
@@ -22,3 +28,13 @@ data/*
 # AI logs — tracked structure, ignored content
 .ai-log/**/*.jsonl
 CLAUDE.md
+
+# Local agent/workspace files
+AGENTS.md
+.claude/settings.local.json
+.codex/hooks.json
+.codex/config.toml
+.tmp/
+.tmp-home/
+.tmp-local/
+.tmp-temp/

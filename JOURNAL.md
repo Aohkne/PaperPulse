@@ -2,10 +2,127 @@
 
 ---
 
-## 2026-06-(15-18) — Optimize RAG pipeline theo SPEC v1.0.1, Admin pages, tích hợp PR #20-#26 - Lê Hữu Khoa
+## 2026-06-26 — Hotfix: research-agent trả lời sai ngôn ngữ sau merge - Lê Hữu Khoa
 
 ### Việc đã làm
-- Viết `docs/research/SPEC_1.0.1.md` + `docs/research/PLAN_1.0.1.md` (đổi tên bản cũ thành `docs/research/version_1.0/`), document 6 fix cho flow ①→⑩ sau khi review lại SPEC v1.0:
+- Fix `graph/nodes/intent_router.py` + `graph/nodes/reply_generator.py` — khôi phục rule "suy nghĩ và trả lời cùng ngôn ngữ với câu hỏi" (đặc biệt cho query tiếng Anh ngắn/nhiều từ viết tắt) đã bị mất khi merge.
+
+### Bug / fix gặp phải
+- **Reply trôi sang tiếng Trung/Nhật/Hàn cho query ngắn/viết tắt tiếng Anh** — nhánh guardrail tách ra từ một commit cũ hơn bản fix ngôn ngữ, nên khi merge lại vào `develop` rule thinking-language ở `intent_router` và prompt clarify/greeting ở `reply_generator` bị revert theo bản cũ.
+- Fix: chép lại đúng rule ngôn ngữ vào cả 2 file, không sửa gì khác trong logic intent classification.
+
+### Next
+- Thêm test case ngắn cho rule ngôn ngữ vào eval suite — tránh regression tương tự ở lần merge song song kế tiếp.
+
+---
+
+## 2026-06-23 — PDF Agent: module độc lập đọc & QA PDF/.tex (.zip) - Lê Hữu Khoa
+
+### Việc đã làm
+- Dựng `backend/module/pdf_agent/` — package hoàn toàn độc lập với `research_agent/` (theo `pdf-agent_PLAN_2.0.md`/`pdf-agent_SPEC_2.0.md`): chỉ *import* service đã có (`semantic_scholar.py`, `arxiv_search.py` ở mode lookup-1-paper), không sửa file nào trong `research_agent/`.
+- **Step P0** `graph/nodes/format_detect.py` — byte sniffing `%PDF` / `PK` (zip magic) / `\documentclass` để phân nhánh `pdf` / `tex_bundle` / `tex`.
+- **Step P1** `graph/nodes/parse_document.py` (120 dòng) dispatch theo nhánh:
+  - `services/mineru_client.py` (289 dòng) — subprocess wrapper gọi MinerU CLI, parse `content_list.json` → `Figure`/`Section`, có timeout + `proc.kill()`.
+  - `services/tex_parser.py` (332 dòng) — `pylatexenc.LatexWalker` extract section, `\cite{}`+context, `\includegraphics{}`.
+  - `services/zip_bundle.py` (63 dòng) — `extract_zip_safe()` validate `os.path.realpath()` từng entry nằm trong `dest_dir` *trước* `extractall()` (chặn zip-slip/path traversal), `find_main_tex()` heuristic tìm file có cả `\documentclass`+`\begin{document}`.
+  - `services/pdf_parser.py` (231 dòng) — reference list thô từ MinerU → 1 LLM call dọn thành `RawCitation[]`.
+- **Step P2** `graph/nodes/render_bundle.py` + `services/bundle_exporter.py` (189 dòng) + template `templates/pdf_agent_document.tex.j2` — render `main.tex` + copy `figures/` không-missing → zip.
+- **Step P3** `graph/nodes/batch_analysis.py` — `asyncio.gather` 3 nhánh song song:
+  - `services/critic_agent.py` (86 dòng) — 1 LLM call/section, `temperature=0`, 4 aspect cố định (clarity/terminology/flow/redundancy).
+  - `services/citation_lookup.py` (187 dòng) — waterfall DOI/ID lookup → search 3 nguồn → `rapidfuzz` multi-field match → LLM judge vùng xám 0.55-0.85. Thêm hàm `lookup_by_doi()`/`lookup_by_id()` mới vào `shared/services/semantic_scholar.py` và `research_agent/services/arxiv_search.py` (không sửa `search()` cũ).
+  - `services/link_checker.py` (61 dòng) — `httpx` HEAD song song, không LLM.
+- **Step P4** `graph/nodes/build_annotations.py` (134 dòng) + `services/text_quote_selector.py` (51 dòng) — `build_anchor()`/`refind_anchor()` theo W3C TextQuoteSelector (`exact`+`prefix`+`suffix`), gộp 3 kết quả P3 thành `Annotation[]`; `type=warning` luôn `suggested_fix=None`.
+- **Step P5** `api/selection.py` (124 dòng) — 3 endpoint `/explain`, `/rewrite`, `/apply`; `services/rewrite_validator.py` (23 dòng) validate exact-match trước khi cho ghi.
+- **Step P6** `api/save.py` (127 dòng) — lưu vào bảng `reviews` có sẵn (`source_type="uploaded"`, `content_format="tex"`, `pending_annotations`); sửa `supabase/schema.sql` + `backend/api/reviews.py` cho migration additive.
+- **Graph compile** `graph/graph.py` (77 dòng): `format_detect → parse_document → render_bundle → batch_analysis → build_annotations → END` — không có `interrupt_before` nào, khác hẳn `research_agent`.
+- **Frontend** `frontend/src/features/pdf-agent/`: `PDFUploadZone.jsx`, `TexEditor.jsx` (129 dòng, Monaco + decorations), `AnnotationCard.jsx` (92 dòng), `SelectionToolbar.jsx`, `RewritePreview.jsx`, `useTextQuoteAnchor.js` (47 dòng, port `refind_anchor` sang JS), `usePdfAgentStore.js` (153 dòng), `pdfAgentApi.js`, trang `PDFAgentPage.jsx` (285 dòng).
+- **Docker**: `Dockerfile.mineru` (37 dòng, container riêng cho MinerU self-host), sửa `Dockerfile` chính + thêm `docker-compose.dev.yml` (56 dòng) nối 2 container qua network riêng cho dev. `pyproject.toml` thêm `pylatexenc`/`mineru`/`pypdf`; frontend `npm install @monaco-editor/react monaco-editor`.
+
+### Bug / fix gặp phải
+- **MinerU cần model weight riêng (~vài GB)** — không bake chung vào image API chính (sẽ kéo nặng cả service nhẹ). Fix: tách `Dockerfile.mineru` thành container riêng, gọi qua subprocess/HTTP tuỳ `MINERU_MODE`.
+- **`lookup_by_doi()`/`lookup_by_id()` chưa tồn tại** ở service `research_agent` (vốn chỉ có `search()`) — phải thêm hàm mới, kiểm tra kỹ không breaking change cho `research_agent` đang chạy ổn định.
+- **PATCH annotation ban đầu không chặn `action="accept"` cho `warning`** — review lại Non-goal của SPEC ("Accept sẽ ngầm gợi ý có bản sửa đúng cho citation giả, gây hiểu lầm") → thêm guard raise 400 trong `api/annotations.py`.
+- **`/apply` dùng `str.replace()` thẳng, không check `old_text` còn khớp buffer hiện tại** — nếu user sửa tay đúng lúc LLM đang trả lời rewrite, patch có thể áp nhầm đoạn đã đổi. Fix: `rewrite_validator.validate()` bắt buộc exact-match, trả 409 nếu lệch.
+
+### Quyết định kỹ thuật
+- **Không gọi `interrupt()`/`interrupt_before` nào trong graph PDF Agent** — khác pattern Research Agent vì không bước nào *cần* dữ liệu user duyệt để *tiếp tục chạy graph*; mọi tương tác (accept/reject/dismiss/apply) xảy ra sau khi graph chạy xong, qua `graph.update_state()` thay vì `resume()`.
+- **Checkpointer riêng schema Postgres** (`pdf_agent_checkpoints`, tách khỏi `research_agent_checkpoints`) — 2 domain khác nhau (session nghiên cứu vs document upload), tránh lẫn `thread_id`.
+- **Annotation anchor bắt buộc TextQuoteSelector**, không offset số tuyệt đối — để annotation không trôi vị trí khi user sửa đoạn khác trong văn bản.
+
+### Next
+- Đo cost thật 1 document ~60 citation/~15 section, so với ước tính SPEC (~$0.003/document nhánh .pdf).
+- Test security: thử payload zip-slip thật (`../../etc/passwd`) trong môi trường container để xác nhận guard hoạt động đúng.
+- Gap riêng cần patch ở `research_agent` (không phải lỗi PDF Agent): Step ⑩ Intro/Conclusion sinh sau Step ⑦/⑧ nên citation trong đó chưa qua claim verification.
+
+---
+
+## 2026-06-21 — Plan Review interrupt + multi-source MMR + Knowledge Graph visualization (Step ⑨bis) - Lê Hữu Khoa
+
+### Việc đã làm
+- **Step 0c Plan Review**: `graph/nodes/plan_review.py` (mới) — gọi `interrupt({"sub_queries":..., "sources":..., "plan_description":...})` ngay sau khi `intent_router` sinh research plan, dừng cho user duyệt/sửa `sub_queries`/`sources` trước khi gọi API search nào — đúng goal "User confirm research scope trước khi search" của SPEC 2.0. Nối vào `graph.py`: `intent_router → plan_review → parallel_search`.
+- **`services/mmr.py`** (74 dòng, mới) — Maximal Marginal Relevance thuần Python: `MMR(d) = λ·Sim(d,query) − (1−λ)·max_{s∈selected} Sim(d,s)`, chọn greedy từng round (round 1 luôn lấy candidate relevance cao nhất). Dùng cho Step ④ Outline (MMR-20) và Step ⑤ hybrid search per-theme.
+- **Multi-source search thật**: thêm `services/pubmed_search.py` (115 dòng, cho domain y sinh); update `arxiv_search.py`/`openalex.py`; sửa `parallel_search_node` gọi đủ nguồn theo `sources` đã chốt ở Plan Review.
+- **`services/vector_store.py`** — cải thiện batch upsert ChromaDB cho corpus lớn hơn (600-900 bài sau snowball).
+- **Knowledge Graph (Step ⑨bis)** theo `knowledge-graph_PLAN_2.0.md`/`knowledge-graph_SPEC_2.0.md`:
+  - Sửa `services/snowball.py`: `run_snowball()` đổi return type `list[Paper]` → `tuple[list[Paper], list[dict]]`, giữ lại `citation_edges` (`{source, target, intent, isInfluential}`) từ response S2 references/citations — trước đây chỉ giữ `papers`, bỏ qua quan hệ cite-nhau hoàn toàn.
+  - `graph/state.py` thêm field `citation_edges`, `knowledge_graph`.
+  - `services/graph_builder.py` (201 dòng, mới) — `build_knowledge_graph()` dùng `networkx.MultiDiGraph`: Topic node duy nhất → Theme/Paper layer chỉ lấy paper thật xuất hiện trong `theme_contents` (không phải toàn bộ `papers` post-snowball ~600-900 bài) → Claim layer 2 edge riêng (`evidenced_by` trung tính + edge mang intent: `Claim.intent` "Supporting"/"Contrasting"/"Mentioning" map sang `supports`/`contradicts`/`mentions` — Claim model không có giá trị "Extends" nên dùng "Mentioning" thay) → `nx.node_link_data()` xuất `{nodes, edges, stats}`. Claim xét gồm `included_claims + review_claims` (loại `removed_claims`) — khớp đúng tập claim mà `export_node` dùng để bài viết và graph đồng nhất nội dung.
+  - `graph/nodes/build_graph.py` — node mới chèn `route_claims → build_graph → export`.
+  - `shared/models/graph.py` (45 dòng) — pydantic `GraphNode`/`GraphEdge`/`GraphStats`/`GraphResponse`.
+  - API: thêm `GET /api/research/graph?thread_id=` trong `api/research.py`, đọc lại `knowledge_graph` từ checkpoint, 404 nếu chưa build.
+  - Frontend: `KnowledgeGraphViewer.jsx` (295 dòng, `@react-sigma/core`), `NodeDetailCard.jsx` (225 dòng, card theo 4 type node), `radialLayout.js` (84 dòng — polar coordinate: theme=150px/paper=320px/claim=480px, lưu riêng `baseX`/`baseY`), `useKnowledgeGraph.js` (116 dòng — fetch + convert node_link JSON sang Graphology), `KnowledgeGraphDrawer.jsx` (panel riêng, không phải tab trong Review). `bun add @react-sigma/core graphology`.
+- **Admin test page**: `LiteratureReviewTestingPage.jsx` (404 dòng) + `useAdminTestStore.js` (207 dòng) — chạy thử Research Agent trực tiếp từ trang Admin để debug nhanh từng step, không cần qua chat UI.
+
+### Bug / fix gặp phải
+- **`run_snowball()` đổi sang trả tuple** — phải sửa cả `graph/nodes/snowball.py` (node wrapper) để unpack đúng `(papers, edges)`, nếu không LangGraph state nhận nhầm tuple làm `snowballed_papers`.
+- **`cites` edge add thẳng vào graph không check 2 đầu đã có node chưa** — paper nằm ngoài `theme_contents` (bị loại sau dedup/outline) tạo edge trỏ tới node không tồn tại, Graphology phía frontend throw lỗi khi load. Fix: `graph_builder.py` chỉ add `cites` nếu `g.has_node(src) and g.has_node(tgt)`.
+- **`nx.node_link_data()` trả key `links`** nhưng Graphology/frontend cần `edges` — viết adapter nhỏ trong `useKnowledgeGraph.js` map lại trước khi load vào Graph instance.
+- **Claim có `source_paperId` ngoài `theme_contents`** (paper bị loại khỏi outline sau dedup) — nếu không check sẽ tạo claim node mồ côi, không có cạnh `evidenced_by` hợp lệ. Fix: skip claim đó có chủ đích trong `graph_builder.py`.
+
+### Quyết định kỹ thuật
+- **Knowledge Graph hiện trong drawer/panel riêng** (`KnowledgeGraphDrawer.jsx`) thay vì 1 tab cố định cạnh LaTeX viewer — graph cần canvas lớn để radial layout không bị bóp méo.
+- **`renderLabels: false` mặc định** cho `SigmaContainer` — ~300 node hiện label cùng lúc sẽ rất rối, thông tin chuyển hết vào `NodeDetailCard` khi click.
+- **Animation "Chuyển động" (orbit quay) optional, tắt mặc định**, tự tắt theo `prefers-reduced-motion` — theo WCAG 2.3.3/2.2.2, ưu tiên accessibility hơn hiệu ứng đẹp.
+
+### Next
+- Bắt đầu PDF Agent module — đọc kỹ `pdf-agent_SPEC_2.0.md` trước, vì đây là module hoàn toàn độc lập (entry point riêng, không nối sau Research Agent).
+- Đo `stats.papers` thực tế sau khi `build_graph` chạy với corpus thật — xác nhận có rơi đúng khoảng ~60-150 như SPEC ước tính không.
+
+---
+
+## 2026-06-20 — Research Agent v2.0: dựng LangGraph StateGraph thay flow service tuần tự - Lê Hữu Khoa
+
+### Việc đã làm
+- Tạo `backend/module/research_agent/` — package mới gồm `graph/` (`state.py`, `graph.py`, `nodes/`), `services/`, `api/`, `models/` — thay cho 4 endpoint rời cũ (`api/search.py`, `api/snowball.py`, `api/verify.py`, `api/review.py`) + `agent/*.py`.
+- Định nghĩa `ResearchState` (TypedDict, 78 dòng) và `build_research_graph()` trong `graph/graph.py` (91 dòng): pipeline node nối tiếp `intent_router → reply_generator|parallel_search → dedup → snowball → embed → outline_gen → write_themes → extract_claims → verify_claims → route_claims → export`, conditional edge sau Step 0 (`greeting`/`clarify` → `reply_generator` → END, `search` → tiếp pipeline).
+- Viết 12 node trong `graph/nodes/` (mỗi node là thin wrapper gọi service tương ứng) + `narrator.py` (helper emit narration step cho SSE) + `reply_generator.py` (node mới, stream `reply_token` riêng cho greeting/clarify — tách khỏi `intent_router` để giữ 2 trách nhiệm classify-vs-reply độc lập).
+- Viết lại `api/research.py` (293 dòng) — endpoint `POST /api/research/stream` dùng `astream_events(version="v2")`, map `on_chain_start`/`on_chain_end`/`on_chat_model_stream` sang SSE event (`step_start`/`step_done`/`llm_token`).
+- Tạo các service còn thiếu cho flow đa nguồn: `arxiv_search.py` (76 dòng), `openalex.py` (107 dòng), `dedup_utils.py` (72 dòng, priority DOI→arXiv ID→S2 paperId→title fuzzy), `latex_utils.py`, `llm_client.py`, `supabase_client.py` riêng cho module.
+- Di chuyển + đổi tên service cũ vào module mới (`content_generator.py`→`content_agent.py`, `outline_generator.py`→`outline_agent.py`) — tách rõ "agent" (LLM call) khỏi service orchestration.
+- Cập nhật `ReActTrace.jsx`, `ProgressTracker.jsx`, `TypingIndicator.jsx`, `ResearchPage.jsx` ở frontend khớp event schema mới (`step_start`/`step_done` có field `node` thay vì step number cứng).
+- Port `backend/agent/gap_detection/*` cũ sang `backend/module/gap_detection/` cho đồng bộ cấu trúc module (chỉ đổi đường dẫn import, không đổi logic).
+
+### Bug / fix gặp phải
+- **Restructure 2 module cùng lúc (research_agent mới + gap_detection di chuyển) trong 1 commit** — dễ sót file orphan ở `backend/agent/` cũ nếu không `git status` kỹ trước khi commit.
+- **`_route_after_intent` ban đầu trả thẳng `parallel_search` cho intent=`search`** — chưa tính tới việc Plan Review (Step 0c, thêm ngày 06-21) sẽ chèn vào sau, nên phải giữ kiểu trả về (`Literal[...]`) đủ tổng quát để mai sửa route đích không đổi signature.
+- **`astream_events()` ban đầu miss event của node chạy trong `asyncio.gather`** (`write_themes`, `verify_claims`) — phải set `version="v2"` mới bắt đủ.
+
+### Quyết định kỹ thuật
+- **Mỗi node trong `graph/nodes/` là thin wrapper** — toàn bộ logic thật nằm ở `services/`, để unit test service được độc lập với LangGraph runtime.
+- **Tách `reply_generator` thành node riêng khỏi `intent_router`** — 2 trách nhiệm khác hẳn (classify JSON vs stream câu trả lời tự nhiên), để chung 1 node khó debug khi 1 trong 2 sai.
+- **Checkpointer dùng interface `BaseCheckpointSaver`** (không hardcode `SqliteSaver`) — chuẩn bị sẵn cho đổi sang Postgres sau này mà không phải sửa `graph.py`.
+
+### Next
+- Thêm Step 0c Plan Review (interrupt trước search) — hiện sub_queries/sources mới chỉ hiển thị, chưa có cơ chế user sửa trước khi search chạy thật.
+- Gọi hết multi-source (OpenAlex/PubMed) trong `parallel_search_node` — service đã tạo nhưng chưa wire đủ.
+- Sửa `snowball.py` giữ lại `citation_edges` trước khi build Knowledge Graph (Step ⑨bis) — đang chỉ trả `papers`, bỏ field này sẽ làm Paper layer thiếu cạnh `cites`.
+
+---
+
+## 2026-06-(15-18) — Optimize RAG pipeline, Admin pages, tích hợp PR #20-#26 - Lê Hữu Khoa
+
+### Việc đã làm
+- Viết `docs/research/SPEC.md` + `docs/research/PLAN.md` (đổi tên bản cũ thành `docs/research/version_1.0/`), document 6 fix cho flow ①→⑩ sau khi review lại SPEC gốc:
   - **Fix 1 — Seed selection dual-pool**: `select_seeds()` trong `snowball.py` chọn top-5 raw `citationCount` (Pool A, foundational) ∪ top-5 `citationCount/năm` (Pool B, recent impactful) thay vì 1 metric duy nhất → ~7-9 seeds sau dedup.
   - **Fix 2 — Backward filter time-decayed + isInfluential bypass**: thay flat `min_citations ≥ 5` (hardcode năm 2022) bằng threshold tương đối theo `current_year - N`, cho bài Semantic Scholar đánh `isInfluential` bypass threshold dù citations thấp.
   - **Fix 3 — Outline từ MMR-20 trên 300-400 bài** thay top-20 cosine trên 100 bài gốc, thêm bước user edit & approve outline trước khi generate content.
@@ -39,7 +156,7 @@
 - Design và execute 6 test cases tập trung vào 2 mảng: **hard hallucination** (hệ thống có bịa paper ID không?) và **citation guardrail** (claim verify có đúng rule không?).
 - TC-01: Test query topic cực hẹp (`quantum GNN + TDA + drug-target`) — verify 3 paper IDs trên Semantic Scholar, xác nhận 0 fabricated ID.
 - TC-02: Test `/api/chat` không có RAG làm baseline — verify 2 DOIs, xác nhận citation drift (DOI thật nhưng sai domain). Documented là **expected failure** để so sánh với pipeline đầy đủ.
-- TC-03: Test RAG pipeline end-to-end với query `RAG for question answering` — verify paper IDs trong `(Source: ...)` của output. TC-03c verify `/api/claims/verify` đủ 5 fields theo SPEC v1.0.1.
+- TC-03: Test RAG pipeline end-to-end với query `RAG for question answering` — verify paper IDs trong `(Source: ...)` của output. TC-03c verify `/api/claims/verify` đủ 5 fields theo SPEC.
 - TC-04: Dùng tên tác giả giả (`Zhao Wentian`) — xác nhận pipeline trả về 0 papers, không bịa nội dung.
 - TC-05: Test topic controversial (`LLMs surpassing human on medical exams`) — verify output có cả pro lẫn contra perspective. TC-05b verify claim trái chiều với `/api/claims/verify`.
 - TC-06: Test rule "status không bao giờ = supported khi không có evidence" — dùng paper không có snippet.

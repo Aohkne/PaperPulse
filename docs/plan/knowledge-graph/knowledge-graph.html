@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>PaperPulse — Knowledge Graph (Painpoint · Flow · Detail · So sánh)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --text:#e6e8eb; --muted:#9aa3af;
+    --accent:#5cc8ff; --accent2:#7ee787; --warn:#ffb454; --danger:#ff7b72;
+    --border:#2a2f3a; --code-bg:#0b0d11;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 100px}
+  h1{font-size:28px;margin-bottom:4px}
+  h2{font-size:21px;margin-top:48px;border-bottom:1px solid var(--border);padding-bottom:10px;color:var(--accent)}
+  h3{font-size:17px;margin-top:28px;color:var(--accent2)}
+  h4{font-size:15px;margin-top:20px;color:var(--text)}
+  p{color:var(--text)}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:28px;font-size:14px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:8px}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+  .badge.tech{background:rgba(92,200,255,.15);color:var(--accent)}
+  .badge.algo{background:rgba(126,231,135,.15);color:var(--accent2)}
+  .badge.problem{background:rgba(255,180,84,.15);color:var(--warn)}
+  .badge.a11y{background:rgba(255,123,114,.15);color:var(--danger)}
+  .badge.ref{background:rgba(187,134,252,.15);color:#bb86fc}
+  .badge.cost{background:rgba(255,123,114,.12);color:var(--danger)}
+  code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:13px;color:#ffd479}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.55}
+  pre code{background:none;padding:0;color:#d8dee9}
+  .file-ref{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--accent);font-size:13px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel);color:var(--muted);font-weight:600}
+  tr:nth-child(even){background:rgba(255,255,255,.02)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:16px 0}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 24px;margin:24px 0}
+  .toc ol{margin:0;padding-left:20px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  ul.checklist{list-style:none;padding-left:0}
+  ul.checklist li{padding:6px 0 6px 28px;position:relative}
+  ul.checklist li::before{content:"☐";position:absolute;left:0;color:var(--muted)}
+  .note{border-left:3px solid var(--accent);padding:8px 14px;background:rgba(92,200,255,.06);border-radius:0 6px 6px 0;margin:14px 0;font-size:14px}
+  .warn-box{border-left:3px solid var(--warn);padding:8px 14px;background:rgba(255,180,84,.07);border-radius:0 6px 6px 0;margin:14px 0;font-size:14px}
+  .arch{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:18px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre;overflow-x:auto;color:#d8dee9}
+  hr{border:none;border-top:1px solid var(--border);margin:36px 0}
+  footer{color:var(--muted);font-size:12px;margin-top:60px;border-top:1px solid var(--border);padding-top:16px}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .ref-list{font-size:13px;color:var(--muted);padding-left:20px}
+  .ref-list li{margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PaperPulse — Knowledge Graph</h1>
+  <p class="subtitle">Step ⑨bis — gắn vào Research Agent (sau Routing + Human Review, trước Export) · networkx + Sigma.js/Graphology · $0 LLM call thêm</p>
+  <div class="meta">
+    <span>📅 Nguồn: <code>knowledge-graph_PLAN_2.0.md</code> · <code>knowledge-graph_SPEC_2.0.md</code></span>
+    <span>🎯 Mục tiêu: visualize literature review thành multi-layer graph "hệ mặt trời" — không cần đọc tuyến tính</span>
+  </div>
+
+  <div class="toc">
+    <strong>Mục lục</strong>
+    <ol>
+      <li><a href="#painpoint">Painpoint</a></li>
+      <li><a href="#flow">Flow (step by step) — diagram</a></li>
+      <li><a href="#detail">Detail Step — công nghệ, thuật toán, vấn đề giải quyết</a></li>
+      <li><a href="#compare">So sánh với các kỹ thuật hiện có</a></li>
+      <li><a href="#test">Phương pháp test, đánh giá so sánh</a></li>
+      <li><a href="#eval">Bảng đánh giá / đo lường kết quả</a></li>
+      <li><a href="#risk">Rủi ro &amp; Giải pháp</a></li>
+    </ol>
+  </div>
+
+  <hr>
+
+  <h2 id="painpoint">1. Painpoint</h2>
+
+  <div class="card">
+    <strong>Painpoint trung tâm:</strong>
+    <p>Literature review dạng văn xuôi (<code>.tex</code>) là <strong>tuyến tính</strong> — đọc xong 8 theme section, người dùng vẫn khó tự dựng trong đầu "ai đồng ý với ai, ai phản bác ai, cụm nào đang mâu thuẫn nhiều nhất". Đây là khoảng trống có chủ đích (xem mục Non-goal) — Knowledge Graph không thay thế gap-analysis có cấu trúc, chỉ <strong>gợi ý</strong> bằng trực quan.</p>
+  </div>
+
+  <table>
+    <tr><th>#</th><th>Painpoint</th><th>Hệ quả thực tế</th><th>Cách làm sai cần tránh</th></tr>
+    <tr>
+      <td>1</td>
+      <td>Đọc 8 theme section tuần tự không thấy được cấu trúc tranh luận tổng thể</td>
+      <td>Mất thời gian tự ghép nối "research tension" trong đầu, dễ bỏ sót cụm mâu thuẫn quan trọng</td>
+      <td>Vẽ lại citation network kiểu Connected Papers/Litmaps (node=paper, edge=cites) — không sai nhưng <strong>không khác biệt</strong>, không gian đã bão hoà, edge "cites" không nói lên <em>tại sao</em> 2 bài liên quan</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Pipeline đã sinh đủ nguyên liệu ngữ nghĩa (citation intent, theme membership, claim Supports/Contradicts/Extends đã verify 3-tier) nhưng chưa lắp ráp lại thành thứ nhìn được</td>
+      <td>Dữ liệu giá trị (đã tốn API call để verify) bị "chôn" trong văn bản, không tận dụng được cho việc nhìn nhanh structure tổng thể</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Graph visualization animation liên tục (orbit/xoay) gây khó chịu cho người dùng có rối loạn tiền đình khi đang cần đọc claim text cẩn thận</td>
+      <td>Tool gây chóng mặt, giảm khả năng đọc nội dung chi tiết khi graph đang chuyển động</td>
+      <td><strong>WCAG 2.3.3</strong> (Animation from Interactions) yêu cầu phải tắt được animation không thiết yếu; <strong>WCAG 2.2.2</strong> (Pause, Stop, Hide) yêu cầu nút pause cho animation chạy nền liên tục</td>
+    </tr>
+  </table>
+
+  <div class="note">
+    Cách làm của thiết kế này: pipeline đến cuối Step ⑨ đã tự sinh đủ nguyên liệu — chỉ cần <strong>lắp ráp lại thành graph</strong>, không cần thêm LLM call mới. Output: 1 multi-layer graph hình hệ mặt trời (1 Topic node trung tâm → Theme → Paper [chỉ bài thật xuất hiện trong review] → Claim/discourse).
+  </div>
+
+  <h3>Non-goals</h3>
+  <ul class="checklist">
+    <li>Không thay thế research gap identification có cấu trúc — graph chỉ <em>gợi ý</em> gap bằng trực quan, không <em>phân loại</em> gap</li>
+    <li>Không build concept-extraction NLP riêng — dùng OpenAlex Topics có sẵn trước (xem mục Concept Layer)</li>
+    <li>Không cần graph database (Neo4j) ở quy mô MVP — graph đã scope nhỏ (~60-150 paper + theme + claim), <code>networkx</code> in-memory dư khả năng</li>
+    <li>Không bắt buộc graph phải "chuyển động" liên tục — animation chỉ là tính năng optional, tắt mặc định vì lý do accessibility</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="flow">2. Flow (step by step) — diagram</h2>
+
+  <div class="arch">[Step ⑨]    Routing + Human Review
+                  │
+                  ▼
+[Step ⑨bis] Knowledge Graph Construction   (không gọi LLM, chỉ networkx assembly)
+                  │
+       ┌──────────┼──────────────────────────────────────────┐
+       │ Topic layer (1 node, label=query gốc)                │
+       │ Theme layer  ← papers_per_theme (key)                │
+       │ Paper layer  ← papers_per_theme (value) — KHÔNG lấy  │
+       │               toàn bộ snowballed_papers (~600-900)   │
+       │ Claim layer  ← human_reviewed_claims (đã qua verify  │
+       │               Step ⑧ + human review Step ⑨)          │
+       └───────────────────────────────────────────────────────┘
+                  │
+                  ▼
+[Step ⑩]    Merge → Literature Review + PDF Links → Export</div>
+
+  <div class="arch">          ┌─────────────┐
+          │ topic:root  │  ← 1 node duy nhất, label = câu query gốc
+          └──────┬──────┘
+        covers ╱  │  ╲ covers
+              ╱   │   ╲
+       theme:A  theme:B  theme:C        ← Theme layer (1 vòng quanh Topic, radius 150)
+        │  │      │
+   belongs_to   belongs_to
+        │  │      │
+     paper:1  paper:2  paper:3          ← Paper layer (radius 320, chỉ paper trong papers_per_theme)
+        │         │  ╲
+   evidenced_by  evidenced_by  cites (chỉ nếu CẢ 2 đầu đã có node)
+        │         │
+     claim:c1   claim:c3                ← Claim layer (radius 480)
+        │         │
+     supports  contradicts   ← edge claim→theme mang ý nghĩa, dùng filter "chỉ hiện contradicts"</div>
+
+  <p class="note">Vị trí trong flow: sau Step ⑨ (claims phải đã qua verify Step ⑧ <strong>và</strong> human review Step ⑨ mới chốt include/remove — graph dựng trên claim chưa lọc sẽ lẫn claim bị reject), trước/song song Step ⑩ Export. Không cần parallel hoá với Step ⑩ vì không có LLM call → build graph cho ~300 node bằng <code>networkx</code> chỉ tốn vài chục ms, không phải bottleneck cần tối ưu song song.</p>
+
+  <hr>
+
+  <h2 id="detail">3. Detail Step — công nghệ/API, thuật toán, vấn đề giải quyết</h2>
+
+  <h3>Backend — Data prerequisite: citation_edges từ Step ②bis</h3>
+  <table>
+    <tr><th>Yêu cầu dữ liệu</th><td><code>ResearchState</code> cần có field <code>citation_edges: list[dict]</code> (<code>source, target, intent, isInfluential</code>) — lấy từ response S2 citations/references API ở Step ②bis (đã có sẵn <code>contexts</code>, <code>intents</code>, <code>isInfluential</code>, <code>citingPaper</code> trong response gốc)</td></tr>
+    <tr><th>Vì sao bắt buộc</th><td>Đây là nguyên liệu duy nhất để vẽ edge <code>cites</code> ở Paper layer — không có field này, Paper layer chỉ có node rời rạc, không có quan hệ cite-nhau nào để vẽ</td></tr>
+    <tr><th>Hàm liên quan</th><td><code>services/snowball_logic.py: snowball(seed_papers) -&gt; tuple[list[dict], list[dict]]</code> — trả về cả <code>papers</code> và <code>edges</code>, không chỉ <code>papers</code></td></tr>
+  </table>
+  <pre><code>def snowball(seed_papers: list[dict]) -&gt; tuple[list[dict], list[dict]]:
+    papers, edges = [], []
+    for seed in seed_papers:
+        for citation in s2_citations(seed["paperId"]):
+            papers.append(citation["citingPaper"])
+            edges.append({
+                "source": citation["citingPaper"]["paperId"],
+                "target": seed["paperId"],
+                "intent": citation["intents"][0] if citation["intents"] else "background",
+                "isInfluential": citation["isInfluential"],
+            })
+    return papers, edges</code></pre>
+
+  <h3>Backend — Graph Assembly (Step ⑨bis)</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><span class="badge tech">networkx</span> (<code>MultiDiGraph</code>, in-memory — đủ cho ~300 node), <span class="badge tech">python-slugify</span> (tạo <code>id</code> ổn định cho theme node, ví dụ <code>theme:rag-efficiency</code>), LangGraph node <code>build_graph</code> chèn giữa <code>route_claims</code> và <code>export</code></td></tr>
+    <tr><th>Thuật toán</th>
+    <td>
+      <strong>Topic layer:</strong> 1 node duy nhất <code>topic:root</code>, label=<code>state["query"]</code>.<br>
+      <strong>Theme+Paper layer:</strong> chỉ lấy paper từ <code>papers_per_theme</code> (value) — <strong>KHÔNG</strong> dùng <code>snowballed_papers</code> toàn bộ (~600-900 bài) — đây là quyết định scope quan trọng nhất, giữ Paper layer ở ~60-150 node đúng "bài thật sự xuất hiện trong review" thay vì "toàn bộ corpus search".<br>
+      <strong>cites edge:</strong> chỉ thêm nếu <strong>CẢ 2 đầu</strong> (paper nguồn + đích) đã có node trong graph (đã nằm trong scope <code>papers_per_theme</code>).<br>
+      <strong>Claim layer:</strong> 2 edge riêng — <code>claim→paper</code> (<code>evidenced_by</code>, trung tính, chỉ để tra nguồn, không mang stance) và <code>claim→theme</code> (<code>type=intent</code>: supports/contradicts/extends, mang ý nghĩa, dùng cho filter "chỉ hiện contradicts"). Theme đích suy ra từ <code>papers_per_theme</code> tra ngược (paper thuộc theme nào → claim từ paper đó nối tới theme đó; 1 paper có thể thuộc nhiều theme nếu liên ngành → claim của nó nối tới tất cả theme đó) — <strong>không cần sửa schema Step ⑦</strong> (claim extraction), theme đích được suy luận hoàn toàn từ <code>papers_per_theme</code> đã có sẵn. Claim có <code>source_paperId</code> ngoài <code>papers_per_theme</code> → skip có chủ đích, không tạo node mồ côi.
+    </td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>1 claim không thể "contradict" chính paper nó được trích ra — tách 2 edge (<code>evidenced_by</code> trung tính + <code>intent</code> mang nghĩa) giải quyết đúng ngữ nghĩa thay vì gộp chung 1 edge claim→paper rồi gắn nhãn intent lên đó; scope Paper layer theo review thay vì corpus giúp graph nhỏ, dễ đọc, đúng mục đích "visualize review" chứ không "visualize search corpus"</td></tr>
+    <tr><th>Chi phí</th><td><strong>$0/session</strong> — không gọi LLM, chỉ tái sử dụng output đã có từ Step ②bis/④/⑤/⑦/⑧/⑨, build ~300 node bằng networkx chỉ tốn vài chục ms</td></tr>
+  </table>
+  <pre><code>def build_graph(state: dict) -&gt; dict:
+    g = nx.MultiDiGraph()
+    topic_id = "topic:root"
+    g.add_node(topic_id, type="topic", label=state["query"])
+
+    paper_to_themes: dict[str, list[str]] = {}
+    for theme, papers in state["papers_per_theme"].items():
+        theme_id = f"theme:{slugify(theme)}"
+        g.add_node(theme_id, type="theme", label=theme)
+        g.add_edge(topic_id, theme_id, type="covers")
+        for p in papers:
+            paper_id = f"paper:{p['paperId']}"
+            if not g.has_node(paper_id):
+                g.add_node(paper_id, type="paper", label=p["title"], year=p.get("year"),
+                           citation_count=p.get("citationCount", 0), source=p.get("source"))
+            g.add_edge(paper_id, theme_id, type="belongs_to")
+            paper_to_themes.setdefault(paper_id, []).append(theme_id)
+
+    for edge in state["citation_edges"]:
+        src, tgt = f"paper:{edge['source']}", f"paper:{edge['target']}"
+        if g.has_node(src) and g.has_node(tgt):
+            g.add_edge(src, tgt, type="cites", is_influential=edge["isInfluential"], intent=edge["intent"])
+
+    for claim in state["human_reviewed_claims"]:
+        paper_id = f"paper:{claim['source_paperId']}"
+        if paper_id not in paper_to_themes:
+            continue   # claim của paper ngoài scope review → bỏ qua, không tạo node mồ côi
+        claim_id = f"claim:{claim['id']}"
+        g.add_node(claim_id, type="claim", label=claim["claim"],
+                   verdict=claim["verdict"], confidence=claim["confidence"])
+        g.add_edge(claim_id, paper_id, type="evidenced_by")
+        for theme_id in paper_to_themes[paper_id]:
+            g.add_edge(claim_id, theme_id, type=claim["intent"].lower())
+
+    data = nx.node_link_data(g)
+    stats = {
+        "papers": sum(1 for _, d in g.nodes(data=True) if d["type"] == "paper"),
+        "themes": sum(1 for _, d in g.nodes(data=True) if d["type"] == "theme"),
+        "claims": sum(1 for _, d in g.nodes(data=True) if d["type"] == "claim"),
+        "contradicts_edges": sum(1 for *_, d in g.edges(data=True) if d.get("type") == "contradicts"),
+    }
+    return {"nodes": data["nodes"], "edges": data["links"], "stats": stats}</code></pre>
+
+  <h3>Node/Edge JSON Schema</h3>
+  <pre><code>{
+  "nodes": [
+    {"id": "topic:root", "type": "topic", "label": "Diffusion Language Models as Drafters in Speculative Decoding"},
+    {"id": "theme:foundations", "type": "theme", "label": "Foundations of Speculative Decoding"},
+    {"id": "paper:2211.17192", "type": "paper", "label": "Fast Inference from Transformers via Speculative Decoding",
+     "year": 2023, "citation_count": 612, "source": "arxiv"},
+    {"id": "claim:c1", "type": "claim", "label": "Speculative decoding preserves target model's output distribution exactly",
+     "verdict": "Supported", "confidence": 0.95}
+  ],
+  "edges": [
+    {"source": "topic:root", "target": "theme:foundations", "type": "covers"},
+    {"source": "paper:2211.17192", "target": "theme:foundations", "type": "belongs_to"},
+    {"source": "paper:p3_demo", "target": "paper:2211.17192", "type": "cites", "is_influential": true, "intent": "methodology"},
+    {"source": "claim:c1", "target": "paper:2211.17192", "type": "evidenced_by"},
+    {"source": "claim:c1", "target": "theme:foundations", "type": "supports"}
+  ],
+  "stats": {"papers": 87, "themes": 8, "claims": 187, "contradicts_edges": 14}
+}</code></pre>
+
+  <h3>API Endpoint</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><code>GET /api/research/graph?thread_id={thread_id}</code></td></tr>
+    <tr><th>Thuật toán</th><td>Đọc lại <code>graph.get_state(config).values["knowledge_graph"]</code> đã có sẵn trong checkpoint — <strong>không build lại</strong> trong endpoint (giống cách <code>api/export.py</code> đọc <code>.tex</code> đã build sẵn)</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Trả <strong>404</strong> rõ ràng nếu session chưa qua Step ⑨bis (chưa có field <code>knowledge_graph</code> trong state), tránh crash hoặc trả dữ liệu rỗng gây nhầm lẫn; frontend disable tab "Knowledge Graph" cho tới khi nhận event <code>step_done</code> của <code>build_graph</code></td></tr>
+  </table>
+  <pre><code>@app.get("/api/research/graph")
+async def get_graph(thread_id: str):
+    config = {"configurable": {"thread_id": thread_id}}
+    state = graph.get_state(config).values
+    if "knowledge_graph" not in state:
+        raise HTTPException(404, "Graph not built yet — session chưa qua Step ⑨bis")
+    return state["knowledge_graph"]</code></pre>
+
+  <h3>Frontend — Visualization &amp; Interaction</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><span class="badge tech">@react-sigma/core</span> + <span class="badge tech">@react-sigma/graphology</span> + <span class="badge tech">graphology</span> (Sigma.js WebGL — render mượt, React binding chính thức <code>&lt;SigmaContainer&gt;</code>/<code>useLoadGraph</code>, có sẵn <code>nodeReducer</code>/<code>edgeReducer</code> cho highlight, event <code>clickNode</code>/<code>clickStage</code>/drag mouse events chính thức)</td></tr>
+    <tr><th>Thuật toán layout</th><td><strong>Radial tree layout</strong> viết tay (~30 dòng trig, không cần <code>d3-hierarchy</code> vì cây chỉ sâu 4 tầng, fanout nhỏ) — convert toạ độ cây (Topic→Theme→Paper→Claim) sang toạ độ cực: góc = vị trí trong vòng (chia đều theo số sibling), bán kính = tầng (<code>theme=150px</code>, <code>paper=320px</code>, <code>claim=480px</code>). Lưu riêng <code>baseX</code>/<code>baseY</code> làm "vị trí gốc", tách biệt với <code>x</code>/<code>y</code> hiện tại (có thể bị kéo lệch tạm thời)</td></tr>
+    <tr><th>Thuật toán tương tác</th><td><strong>Spring-back tween</strong> viết tay (~250ms easing, <code>requestAnimationFrame</code>) — kéo node rồi buông sẽ bay về lại <code>baseX</code>/<code>baseY</code>, không ở yên vị trí buông tay. Click node → Sigma reducer bôi đậm edge nối tới node đó, mờ các edge khác + mở <code>NodeDetailCard</code> (không hiện label nổi trên graph); click khoảng trống (<code>clickStage</code>) → đóng card, bỏ highlight</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Layout đứng yên theo mặc định có 1 điểm gốc rõ ràng để mắt bắt đầu — đọc structure trong &lt;30s nhìn graph, không cần đọc tuyến tính 8 theme. Kéo node rồi buông không tween sẽ làm node "mất" vị trí gốc — lưu <code>baseX</code>/<code>baseY</code> riêng giải quyết đúng vấn đề này</td></tr>
+    <tr><th>Accessibility <span class="badge a11y">WCAG 2.3.3 / 2.2.2</span></th><td>Toggle "▶ Chuyển động" (orbit animation liên tục, mỗi frame <code>requestAnimationFrame</code> tăng góc quay chậm, gán lại x,y) <strong>tắt mặc định</strong> (<code>KG_MOTION_ENABLED_DEFAULT=false</code>), tự tắt nếu <code>window.matchMedia("(prefers-reduced-motion: reduce)").matches</code>, có nút pause rõ ràng khi bật. Người có rối loạn tiền đình (vestibular disorder) có thể chóng mặt khi nhìn node xoay liên tục — không hợp với tool cần đọc claim text cẩn thận. <code>renderLabels:false</code> mặc định — chỉ thấy chấm tròn màu theo <code>type</code>, không chữ nào trên graph, tránh rối với ~300 node; thông tin chỉ hiện qua <code>NodeDetailCard</code> khi click</td></tr>
+  </table>
+
+  <pre><code>const RADIUS = { theme: 150, paper: 320, claim: 480 };
+
+function computeRadialLayout(graph: Graph) {
+  graph.setNodeAttribute("topic:root", "x", 0);
+  graph.setNodeAttribute("topic:root", "y", 0);
+  const themes = graph.filterNodes((_, a) =&gt; a.type === "theme");
+  themes.forEach((themeId, i) =&gt; {
+    const angle = (2 * Math.PI * i) / themes.length;
+    const [tx, ty] = [RADIUS.theme * Math.cos(angle), RADIUS.theme * Math.sin(angle)];
+    graph.mergeNodeAttributes(themeId, { x: tx, y: ty, baseX: tx, baseY: ty });
+    const papers = graph.filterInNeighbors(themeId, (_, a) =&gt; a.type === "paper");
+    papers.forEach((paperId, j) =&gt; {
+      const paperAngle = angle + (j - papers.length / 2) * 0.15;
+      const [px, py] = [RADIUS.paper * Math.cos(paperAngle), RADIUS.paper * Math.sin(paperAngle)];
+      graph.mergeNodeAttributes(paperId, { x: px, y: py, baseX: px, baseY: py });
+      const claims = graph.filterInNeighbors(paperId, (_, a) =&gt; a.type === "claim");
+      claims.forEach((claimId, k) =&gt; {
+        const claimAngle = paperAngle + (k - claims.length / 2) * 0.08;
+        const [cx, cy] = [RADIUS.claim * Math.cos(claimAngle), RADIUS.claim * Math.sin(claimAngle)];
+        graph.mergeNodeAttributes(claimId, { x: cx, y: cy, baseX: cx, baseY: cy });
+      });
+    });
+  });
+}</code></pre>
+
+  <h3>Nội dung card theo node type</h3>
+  <table>
+    <tr><th>Type</th><th>Card hiện gì</th></tr>
+    <tr><td><code>topic</code></td><td>Câu query gốc + <code>stats</code> tổng (số paper/theme/claim/contradicts)</td></tr>
+    <tr><td><code>theme</code></td><td>Tên theme + danh sách paper con + breakdown supports/contradicts/extends</td></tr>
+    <tr><td><code>paper</code></td><td>Title, year, citation count, nguồn (s2/openalex/arxiv), link PDF nếu có</td></tr>
+    <tr><td><code>claim</code></td><td>Claim text, verdict, confidence, evidence snippet (từ Step ⑧ 3-tier verification), link tới paper nguồn</td></tr>
+  </table>
+
+  <h3>Bảng màu (tránh trùng ý nghĩa với edge)</h3>
+  <table>
+    <tr><th>Đối tượng</th><th>Màu</th><th>Lý do</th></tr>
+    <tr><td>Node <code>topic</code></td><td><span class="swatch" style="background:#d97706"></span>Vàng/hổ phách</td><td>Không dùng đỏ — tránh trùng với edge <code>contradicts</code>, gây hiểu lầm "đây là điểm mâu thuẫn"</td></tr>
+    <tr><td>Node <code>theme</code></td><td><span class="swatch" style="background:#94a3b8"></span>Xám trung tính</td><td>Vai trò trung gian, không cần nổi bật</td></tr>
+    <tr><td>Node <code>paper</code></td><td><span class="swatch" style="background:#4f86c6"></span>Xanh biển</td><td>Theo đề xuất ban đầu</td></tr>
+    <tr><td>Node <code>claim</code></td><td><span class="swatch" style="background:#8040e8"></span>Tím</td><td>Theo đề xuất ban đầu</td></tr>
+    <tr><td>Edge <code>contradicts</code></td><td><span class="swatch" style="background:#dc2626"></span>Đỏ</td><td>Quy ước mạnh: đỏ = mâu thuẫn/cảnh báo</td></tr>
+    <tr><td>Edge <code>supports</code></td><td><span class="swatch" style="background:#16a34a"></span>Xanh lá</td><td>Đồng thuận</td></tr>
+    <tr><td>Edge <code>extends</code></td><td><span class="swatch" style="background:#f97316"></span>Cam</td><td>Khác xanh biển của node paper để không gây nhiễu</td></tr>
+    <tr><td>Edge <code>evidenced_by</code></td><td><span class="swatch" style="background:#cbd5e1"></span>Xám nhạt, nét đứt</td><td>Trung tính — chỉ tra nguồn, không mang stance</td></tr>
+    <tr><td>Edge <code>cites</code>/<code>belongs_to</code>/<code>covers</code></td><td>Xám nhạt</td><td>Edge cấu trúc, không mang ý kiến</td></tr>
+  </table>
+
+  <h3>Concept Layer — Optional, không nằm trong MVP</h3>
+  <p>Nếu sau này cần thêm node "concept" (vd "Chunking", "Hallucination") thay vì chỉ topic/theme/paper/claim: <strong>ưu tiên trước</strong> lấy <code>primary_topic</code> từ OpenAlex response (đã gọi ở Step ①, free, không cần LLM call mới). <strong>Chỉ nếu</strong> OpenAlex topic được xác nhận quá general mới áp dụng kỹ thuật GraphRAG (LLM extract entity-relation triples từ <code>theme_contents</code>, Leiden community detection để cluster) — chi phí ~$0.002/session thêm (15K input + 5K output tokens), defer cho đến khi đo thực tế chứng minh OpenAlex topic không đủ chi tiết.</p>
+
+  <hr>
+
+  <h2 id="compare">4. So sánh với các kỹ thuật hiện có</h2>
+
+  <table>
+    <tr><th>Hướng</th><th>Đại diện</th><th>Cơ chế</th><th>Vì sao không chọn làm core / chọn làm core</th></tr>
+    <tr>
+      <td>Citation-topology graph</td>
+      <td>Connected Papers, Litmaps, ResearchRabbit (acquired by Litmaps, 11/2025), Inciteful</td>
+      <td>Node=paper, edge=cites/co-cited, force-directed layout</td>
+      <td>❌ Không chọn làm core — chỉ khám phá bài mới, không visualize nội dung 1 review đã hoàn thành, không tạo khác biệt cạnh tranh</td>
+    </tr>
+    <tr>
+      <td>Bibliometric/co-citation mapping</td>
+      <td>VOSviewer, CiteSpace, Bibliometrix</td>
+      <td>Cluster theo co-citation, bibliographic coupling, co-word; xuất ảnh tĩnh</td>
+      <td>⚠️ Dùng làm edge-weight phụ (đã defer), không phải layer chính</td>
+    </tr>
+    <tr>
+      <td>Stance-classified citations</td>
+      <td><strong>scite.ai Smart Citations</strong></td>
+      <td>DL model gán nhãn Supporting/Contrasting/Mentioning, ~88-92% precision, 1.4B citation statements</td>
+      <td>✅ Prior art gần nhất với claim layer — nhưng scite làm ở mức câu trích dẫn toàn corpus; pipeline này làm ở mức claim-trong-theme đã verify 3-tier → granularity tốt hơn</td>
+    </tr>
+    <tr>
+      <td>Structured/machine-actionable KG</td>
+      <td>ORKG (TIB Hannover)</td>
+      <td>Paper → RDF triples (problem/method/result), so sánh side-by-side</td>
+      <td>❌ Không chọn — cần ontology curation thủ công, conflict với pipeline tự động hoàn toàn</td>
+    </tr>
+    <tr>
+      <td><strong>Discourse graph</strong></td>
+      <td>Joel Chan / Protocol Labs Research, Roam discourse-graph extension (arXiv:2407.20666)</td>
+      <td>Node=Claim/Question/Evidence (không phải document), edge=supports/opposes</td>
+      <td>✅ <strong>Conceptually đây là core của thiết kế này</strong> — khác biệt duy nhất: họ làm thủ công, ở đây có claim extraction + verification tự động sẵn</td>
+    </tr>
+    <tr>
+      <td>LLM-automated KG construction</td>
+      <td>Microsoft GraphRAG</td>
+      <td>LLM extract entity-relation triples → Leiden community detection → hierarchical summary</td>
+      <td>⚠️ Kỹ thuật tham khảo cho concept layer optional (không phải MVP) — tốn thêm 1 LLM call</td>
+    </tr>
+    <tr>
+      <td>Free concept tagging</td>
+      <td>OpenAlex Topics</td>
+      <td>Taxonomy 4 tầng (domain&gt;field&gt;subfield&gt;topic, ~4.500 topic), LLM-named cluster, free qua API</td>
+      <td>✅ Dùng nếu cần concept-layer — miễn phí, lấy ngay từ Step ① (đã gọi OpenAlex rồi), không cần LLM call riêng</td>
+    </tr>
+    <tr>
+      <td>Radial/hierarchical layout</td>
+      <td>D3 <code>d3-hierarchy</code> (tree/cluster + polar coordinate)</td>
+      <td>Convert toạ độ cây → toạ độ cực: góc=nhánh, bán kính=độ sâu — hiệu ứng "hệ mặt trời"</td>
+      <td>✅ Dùng làm thuật toán bố cục frontend — không cần thêm dependency, chỉ trig cơ bản vì cây chỉ sâu 4 tầng</td>
+    </tr>
+  </table>
+
+  <h3>4.1 Tổng quan Backing Research</h3>
+  <ul class="ref-list">
+    <li><strong>scite.ai Smart Citations</strong> (Nicholson et al., Quantitative Science Studies, MIT Press, 2021) — DL classifier cho citation intent, 1.4B citation statements</li>
+    <li><strong>Discourse Graphs</strong> (arXiv:2407.20666, Protocol Labs Research) — claim/evidence là unit trung tâm thay vì document</li>
+    <li><strong>GraphRAG</strong> (Microsoft Research, 2024) — LLM entity-relation extraction + Leiden community detection</li>
+    <li><strong>Open Research Knowledge Graph</strong> (arXiv:2206.01439, TIB Hannover) — structured machine-actionable literature review</li>
+    <li><strong>OpenAlex Topics</strong> (Priem et al., 2022 + CWTS Leiden) — taxonomy 4 tầng, free qua API</li>
+    <li><strong>VOSviewer / CiteSpace</strong> — co-citation, bibliographic coupling, kỹ thuật edge-weight phụ</li>
+    <li><strong>D3 radial tree layout</strong> (d3-hierarchy docs, Observable radial tree example) — kỹ thuật convert tree/cluster layout sang toạ độ cực, hiệu ứng "solar system-like"</li>
+    <li><strong>Sigma.js reducers &amp; events</strong> (sigmajs.org) — pattern chính thức cho highlight-neighborhood-on-click và drag node</li>
+    <li><strong>WCAG 2.3.3 Animation from Interactions &amp; 2.2.2 Pause, Stop, Hide</strong> (W3C WAI) — căn cứ cho quyết định tắt animation mặc định + yêu cầu nút pause khi bật</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="test">5. Phương pháp test, đánh giá so sánh</h2>
+
+  <ul class="checklist">
+    <li>E2E: query "RAG optimization techniques" → chạy full flow tới Step ⑨bis → graph có đủ 4 layer</li>
+    <li>Đo <code>stats.papers</code> ~60-150 (xác nhận Paper layer scope đúng theo <code>papers_per_theme</code>, không lẫn cả corpus ~900)</li>
+    <li>Đo <code>stats.contradicts_edges</code> &gt; 0 với corpus đủ lớn (xác nhận tension-detection có hoạt động)</li>
+    <li>Đo performance: render ~300 node (topic+theme+paper+claim) trong &lt; 1s trên máy dev thường</li>
+    <li>Test edge case: claim mà <code>source_paperId</code> không nằm trong <code>papers_per_theme</code> nào → bị skip đúng, không tạo node mồ côi</li>
+    <li>Test: session chưa qua Step ⑨bis → endpoint trả 404 đúng, không crash</li>
+    <li>Test accessibility: <code>prefers-reduced-motion: reduce</code> → toggle "Chuyển động" tự disable/không chạy animation</li>
+    <li>Test UI: click 1 paper node → edge đậm lên, edge khác mờ đi, card hiện đúng title/year/citation/PDF link; click khoảng trống → đóng card, hết highlight</li>
+    <li>Test drag: kéo 1 node ra xa rồi buông → tween mượt về đúng vị trí ban đầu, không đứng yên ở chỗ buông</li>
+    <li>Test filter: "chỉ hiện contradicts" → graph co lại đúng các cặp <code>claim --contradicts--> theme</code></li>
+  </ul>
+
+  <hr>
+
+  <h2 id="eval">6. Bảng đánh giá / đo lường kết quả</h2>
+
+  <table>
+    <tr><th>Mục tiêu</th><th>Metric</th><th>Cách đạt được</th></tr>
+    <tr><td>Visualize literature review không cần đọc tuyến tính</td><td>User thấy structure trong &lt;30s nhìn graph</td><td>Multi-layer node-link graph, bố cục hệ mặt trời quanh 1 Topic node</td></tr>
+    <tr><td>Lộ ra "research tension" không cần gap-analysis riêng</td><td>Cụm <code>contradicts</code> dày quanh 1 theme = tín hiệu trực quan</td><td>Claim layer, edge <code>intent</code> nối claim→theme, filter theo edge type</td></tr>
+    <tr><td>Không tốn thêm LLM call</td><td>Chi phí thêm <strong>~$0/session</strong></td><td>Tái sử dụng data đã có từ Step ②bis/④/⑤/⑦/⑧</td></tr>
+    <tr><td>Graph nhỏ, đúng phạm vi review</td><td>Paper node <strong>~60-150</strong> (không phải 600-900)</td><td>Paper layer chỉ lấy từ <code>papers_per_theme</code></td></tr>
+    <tr><td>Không rối mắt khi nhìn nhiều node</td><td>Mặc định không hiện label trên graph</td><td><code>renderLabels: false</code>, click node → mở card riêng</td></tr>
+    <tr><td>Bố cục dễ định hướng ngay từ cái nhìn đầu</td><td>Có 1 điểm gốc duy nhất để mắt bắt đầu</td><td>Topic (root) node ở tâm, layout radial tĩnh</td></tr>
+  </table>
+
+  <h3>6.1 System Guardrails</h3>
+  <pre><code>KG_GUARDRAILS = {
+    "max_nodes_rendered": 500,             # Paper layer scope nhỏ (~60-150), không phải 900
+    "max_edges_rendered": 3000,
+    "contradicts_cluster_min_size": 2,     # >=2 contradicting claims cùng theme → highlight cluster
+    "default_visible_layers": ["topic", "theme", "paper", "claim"],  # hiện cả 4 — graph đã đủ nhỏ
+    "motion_enabled_default": False,       # animation tắt mặc định — accessibility
+    "respect_prefers_reduced_motion": True,
+    "node_labels_default_visible": False,  # renderLabels: false — tránh rối, dùng card khi click
+}</code></pre>
+
+  <table>
+    <tr><th>Guardrail</th><th>Giá trị</th><th>Lý do</th></tr>
+    <tr><td><code>KG_MAX_NODES_RENDERED</code></td><td>500</td><td>Paper layer scope nhỏ (~60-150), hiếm khi chạm ngưỡng ở quy mô review thông thường</td></tr>
+    <tr><td><code>KG_MAX_EDGES_RENDERED</code></td><td>3000</td><td>Chặn render quá tải nếu corpus đặc biệt lớn</td></tr>
+    <tr><td><code>KG_CONTRADICTS_CLUSTER_MIN_SIZE</code></td><td>2</td><td>≥2 claim mâu thuẫn cùng theme mới highlight cluster, tránh false signal từ 1 claim đơn lẻ</td></tr>
+    <tr><td><code>KG_DEFAULT_VISIBLE_LAYERS</code></td><td>topic,theme,paper,claim (cả 4)</td><td>Graph đã đủ nhỏ để hiện hết vẫn không rối — layer toggle vẫn giữ để decluttering theo nhu cầu</td></tr>
+    <tr><td><code>KG_MOTION_ENABLED_DEFAULT</code></td><td>false</td><td>Accessibility — WCAG 2.3.3</td></tr>
+    <tr><td><code>KG_RESPECT_PREFERS_REDUCED_MOTION</code></td><td>true</td><td>Tự tắt nếu OS bật reduced-motion</td></tr>
+    <tr><td><code>KG_NODE_LABELS_DEFAULT_VISIBLE</code></td><td>false</td><td>Tránh rối với ~300 node, dùng card khi click</td></tr>
+  </table>
+
+  <hr>
+
+  <h2 id="risk">7. Rủi ro &amp; Giải pháp</h2>
+  <table>
+    <tr><th>Rủi ro</th><th>Giải pháp</th></tr>
+    <tr><td><code>citation_edges</code> rỗng nếu snowball không giữ lại edge</td><td>Graph builder phải block cho tới khi field này có dữ liệu — Paper layer thiếu edge <code>cites</code> nếu không</td></tr>
+    <tr><td>Claim có <code>source_paperId</code> ngoài <code>papers_per_theme</code> (ví dụ paper bị loại khỏi outline sau dedup)</td><td><code>graph_builder.py</code> skip claim đó có chủ đích — không tạo node mồ côi</td></tr>
+    <tr><td>Render &gt;500 node làm browser lag</td><td><code>KG_MAX_NODES_RENDERED</code> guardrail — với scope ~300 node hiếm khi chạm ngưỡng</td></tr>
+    <tr><td><code>route_claims</code> chưa resume (user chưa review xong) mà gọi <code>/api/research/graph</code></td><td>Endpoint trả 404 rõ ràng, frontend disable tab "Knowledge Graph" cho tới khi nhận event <code>step_done</code> của <code>build_graph</code></td></tr>
+    <tr><td><code>networkx</code> <code>node_link_data()</code> format không khớp Graphology format frontend cần</td><td>Viết adapter nhỏ map <code>links</code> → <code>edges</code>, test với sample JSON trước khi nối thật</td></tr>
+    <tr><td>Animation hệ mặt trời gây khó chịu/chóng mặt (vestibular disorder)</td><td>Tắt mặc định, tự tắt theo <code>prefers-reduced-motion</code>, có nút pause khi bật — theo WCAG 2.3.3/2.2.2</td></tr>
+    <tr><td>Label hiện mặc định trên graph gây rối với ~300 node</td><td><code>renderLabels: false</code> mặc định, thông tin chỉ hiện qua <code>NodeDetailCard</code> khi click</td></tr>
+    <tr><td>Kéo node rồi buông, không tween → node "mất" vị trí gốc</td><td>Lưu <code>baseX</code>/<code>baseY</code> riêng trong layout, spring-back luôn tween về đúng giá trị này khi <code>mouseup</code></td></tr>
+  </table>
+
+  <h3>Identified Gaps — defer post-MVP</h3>
+  <ul class="checklist">
+    <li>Concept layer qua LLM (GraphRAG-style) — chỉ làm nếu OpenAlex Topics không đủ chi tiết</li>
+    <li>Co-citation + bibliographic coupling edge weighting — dùng làm layout hint phụ khi cần</li>
+    <li>Graph database (Neo4j) migration — chỉ xét lại nếu sau này mở rộng nhiều phiên đồng thời cần query phức tạp</li>
+    <li>ORKG-style structured comparison table — feature riêng, không block MVP</li>
+    <li>Continuous orbit animation — optional toggle, tắt mặc định vì lý do accessibility (quyết định thiết kế có chủ đích, không phải gap)</li>
+  </ul>
+
+  <footer>PaperPulse · Knowledge Graph · Xem thêm <code>reseach-agent.html</code> và <code>pdf-agent.html</code> · Nguồn: <code>academic_research/version_2.0/knowledge-graph_PLAN_2.0.md</code>, <code>knowledge-graph_SPEC_2.0.md</code></footer>
+</div>
+</body>
+</html>

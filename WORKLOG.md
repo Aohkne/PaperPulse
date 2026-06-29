@@ -5,7 +5,92 @@
 
 ---
 
-## 2026-06-(15-18) — Optimize literature review pipeline (SPEC v1.0.1), thêm Admin pages, tích hợp PR #20-#26 vào develop
+## 2026-06-23 — PDF Agent: module độc lập đọc & QA tài liệu PDF/.tex/.zip
+
+### Context
+
+Research Agent chỉ tự sinh literature review mới — không có cách nào để user upload một paper có sẵn (của mình hoặc người khác) để kiểm tra văn phong/lập luận và xác minh citation có thật hay bị bịa, trước khi tin vào nó. `pdf-agent_SPEC_2.0.md` định nghĩa module mới cho nhu cầu này, với quyết định scope quan trọng: **không tự fact-check lại output của chính Research Agent** — tránh nghịch lý trust (tool tự sinh nội dung rồi tự nghi ngờ nội dung của mình). Market precedent: Elicit/Consensus (generate) vs Scite (verify) vs Paperpal (polish) luôn tách 3 sản phẩm riêng.
+
+### Quyết định kỹ thuật
+
+**1. Module hoàn toàn độc lập (`backend/module/pdf_agent/`), không nối sau Research Agent:**
+- Entry point riêng do user upload file, chỉ *import* service đã có (`semantic_scholar.py`/`arxiv_search.py` ở mode "lookup 1 paper" thay vì "search N"), không sửa file nào trong `research_agent/`.
+- **Lý do:** giữ đúng ranh giới "generate vs verify" theo market precedent ở trên.
+
+**2. Graph LangGraph riêng KHÔNG có `interrupt_before` nào — khác hẳn `research_agent`:**
+- `format_detect → parse_document → render_bundle → batch_analysis → build_annotations → END` chạy 1 lần liên tục. Mọi tương tác user (accept/reject/dismiss, apply rewrite) xảy ra SAU khi graph chạy xong, qua `graph.update_state()` — không phải `resume()`.
+- **Lý do:** không bước nào trong P0→P4 phụ thuộc quyết định user để *tiếp tục chạy* — khác Research Agent cần outline/claim-review duyệt giữa pipeline để bước sau dùng đúng input đã duyệt.
+
+**3. Annotation anchor bắt buộc W3C TextQuoteSelector (`exact`+`prefix`+`suffix`), không offset số tuyệt đối:**
+- **Lý do:** offset số sẽ trôi sai vị trí ngay khi user sửa 1 ký tự ở đoạn khác trong văn bản; quote+context (chuẩn dùng bởi Hypothesis) recover được vị trí dù text trước/sau đã đổi.
+
+**4. `type=warning` annotation luôn `suggested_fix=None`, PATCH chặn `action=accept` cho warning:**
+- **Lý do:** không có "bản sửa đúng" cho citation giả/link chết — Accept sẽ ngầm gợi ý có, gây hiểu lầm.
+
+**5. MinerU chạy qua container riêng (`Dockerfile.mineru`), không bake chung image API chính:**
+- **Lý do:** model weight MinerU nặng (~vài GB) — bake chung sẽ kéo nặng cả service API nhẹ. Tách riêng, gọi qua subprocess/HTTP tuỳ `MINERU_MODE`.
+
+**6. `/apply` validate exact-match (`old_text in current_doc`) trước khi `str.replace()`, trả 409 nếu lệch:**
+- **Lý do:** nếu user sửa tay đúng đoạn đã tô ngay lúc LLM đang trả lời rewrite, ghi thẳng patch cũ sẽ đè sai lên bản user vừa sửa.
+
+**7. Reference verification dùng waterfall (DOI/ID exact lookup → search 3 nguồn → `rapidfuzz` multi-field → LLM judge vùng xám 0.55-0.85), tái dùng tối đa service `research_agent`:**
+- Chỉ thêm hàm mới `lookup_by_doi()`/`lookup_by_id()` vào `shared/services/semantic_scholar.py` và `research_agent/services/arxiv_search.py` — không sửa `search()` cũ, không ảnh hưởng Research Agent đang chạy ổn định.
+
+### Trade-offs chấp nhận
+- Không có fallback OCR trả phí (Mathpix) khi MinerU xử lý kém — chỉ báo warning rõ cho user, không tự động escalate sang service khác.
+- Checkpointer riêng schema Postgres (`pdf_agent_checkpoints`, tách khỏi `research_agent_checkpoints`) — tránh lẫn `thread_id` 2 domain, nhưng phải maintain 2 schema riêng.
+- Concurrency 2 PATCH annotation cùng lúc trên 1 `doc_id` chưa xử lý — chấp nhận cho MVP single-user, không phải multi-user collaborative editing.
+
+### Bugs quan trọng được fix trong quá trình này
+- Zip-slip/path traversal nếu extract `.zip` không validate path từng entry — `extract_zip_safe()` check `os.path.realpath()` mỗi entry nằm trong `dest_dir` trước `extractall()`.
+- PATCH annotation ban đầu không chặn `action="accept"` cho `warning` — thêm guard raise 400 sau khi review lại Non-goal của SPEC.
+- `/apply` ban đầu không kiểm tra `old_text` còn khớp buffer hiện tại — thêm `rewrite_validator.validate()` exact-match + 409.
+
+---
+
+## 2026-06-(20-21) — Research Agent v2.0: migrate sang LangGraph StateGraph, multi-agent parallel pipeline, Knowledge Graph (Step ⑨bis)
+
+### Context
+
+`research-agent_SPEC_2.0.md` xác định 3 điểm yếu của pipeline hiện có trước khi viết lại bằng LangGraph: (1) không có intent routing thật — mọi input kể cả "hello" bị đẩy thẳng vào search; (2) single-query single-source — 1 query trên Semantic Scholar bỏ sót paper nhìn từ góc khác hoặc nằm ở database khác (LSE Study arXiv:2603.20235: chỉ 20% overlap AI-chọn vs expert-chọn); (3) các bước sinh nội dung/verify claim đáng lẽ độc lập nhau nhưng chạy tuần tự, tốn 5-10 phút không cần thiết. Đồng thời `knowledge-graph_SPEC_2.0.md` đề xuất thêm Step ⑨bis — lắp ráp lại dữ liệu pipeline đã có thành 1 graph trực quan, không tốn LLM call thêm, để literature review không còn thuần tuyến tính.
+
+### Quyết định kỹ thuật
+
+**1. Chuyển từ 4 endpoint rời (`api/search.py`/`snowball.py`/`verify.py`/`review.py`) sang 1 LangGraph `StateGraph` duy nhất (`backend/module/research_agent/graph/graph.py`):**
+- **Lý do:** pipeline 12 bước có thứ tự phụ thuộc rõ + cần 2-3 điểm dừng cho user duyệt (plan, outline, claim review) — LangGraph checkpoint + `interrupt()` giải quyết cả state persistence và human-in-loop bằng 1 cơ chế, thay vì tự build resume logic thủ công qua nhiều endpoint.
+- **Trade-off:** thêm dependency `langgraph`, cả team cần học cơ chế checkpoint/interrupt để maintain tiếp.
+
+**2. Step 0c Plan Review — interrupt thêm TRƯỚC `parallel_search`:**
+- User duyệt/sửa `sub_queries`+`sources` trước khi tốn API call search thật, đúng goal "User confirm research scope trước khi search" của SPEC 2.0.
+- **Trade-off:** thêm 1 round-trip chờ user, nhưng tránh tốn search call cho research plan sai hướng.
+
+**3. `interrupt()` gọi inline trong thân node (dynamic interrupt), không dùng `interrupt_before=[...]` tĩnh ở compile:**
+- **Lý do:** cho phép node tự tính payload (research plan / outline / routing summary) rồi mới dừng, gửi đúng đúng dữ liệu đó cho frontend trong 1 lần round-trip; resume qua `Command(resume=...)`. Cách tĩnh sẽ cần thêm 1 node phụ chỉ để tính dữ liệu trước khi node bị `interrupt_before` chạy.
+
+**4. Knowledge Graph (Step ⑨bis) build bằng `networkx` thuần, không gọi LLM:**
+- Pipeline tới Step ⑨ đã sinh đủ nguyên liệu ngữ nghĩa (citation intent, theme membership, claim verdict đã verify 3-tier) — chỉ cần lắp ráp lại. Paper layer scope theo paper thật xuất hiện trong `theme_contents` (không phải toàn bộ corpus post-snowball ~600-900 bài) để graph nhỏ, đúng "visualize review" thay vì "visualize corpus search".
+- **Trade-off:** Paper layer sẽ không có node cho paper "liên quan" nhưng cuối cùng không được trích trong bài — đánh đổi để graph không bị loãng.
+
+**5. Sửa `services/snowball.py` giữ lại `citation_edges` (trước đây discard hoàn toàn):**
+- **Lý do:** đây là blocker bắt buộc — không giữ field này thì Paper layer của Knowledge Graph không có cạnh `cites` nào để vẽ. `run_snowball()` đổi return type từ `list[Paper]` sang `tuple[list[Paper], list[dict]]`.
+
+**6. Knowledge Graph hiện qua drawer/panel riêng (`KnowledgeGraphDrawer.jsx`), không phải tab cố định cạnh LaTeX viewer:**
+- **Lý do:** graph cần canvas rộng cho radial layout, animation orbit tắt mặc định + tự tắt theo `prefers-reduced-motion` (WCAG 2.3.3/2.2.2) — ưu tiên accessibility hơn hiệu ứng.
+
+### Trade-offs chấp nhận
+- Checkpointer vẫn chạy SQLite local (chưa migrate Postgres) ở giai đoạn này — đủ cho dev, biết sẽ phải đổi khi deploy serverless.
+- Concept layer (LLM entity extraction cho Knowledge Graph) chưa làm — chỉ 4 layer topic/theme/paper/claim, defer post-MVP theo đúng SPEC.
+- Multi-source search (OpenAlex/PubMed) đã có code và wire vào `parallel_search_node`, nhưng chưa benchmark coverage thật so với baseline trước đó.
+
+### Bugs quan trọng được fix trong quá trình này
+- `cites` edge add vào graph mà không check 2 đầu đã có node — paper ngoài scope review tạo edge trỏ tới node không tồn tại, Graphology frontend crash khi load. Fix: chỉ add nếu `g.has_node(src) and g.has_node(tgt)`.
+- `nx.node_link_data()` trả key `links`, Graphology cần `edges` — viết adapter map lại ở `useKnowledgeGraph.js`.
+- Claim với `source_paperId` ngoài `theme_contents` tạo node mồ côi — fix bằng skip có chủ đích trong `graph_builder.py`.
+- `astream_events()` miss event của node chạy trong `asyncio.gather` (`write_themes`, `verify_claims`) nếu không set `version="v2"`.
+
+---
+
+## 2026-06-(15-18) — Optimize literature review pipeline, thêm Admin pages, tích hợp PR #20-#26 vào develop
 
 ### Context
 
@@ -51,7 +136,7 @@ Sau khi flow cơ bản ①→⑩ chạy được (xem entry "Bỏ opendeepresear
 - **Trade-off:** tăng latency snowball (~1.8s cho 6 seeds) nhưng đổi lại ổn định, không bị throttle.
 
 ### Trade-offs chấp nhận
-- Co-citation / bibliographic coupling chưa implement (ghi nhận trong CHANGELOG của `SPEC_1.0.1.md`, defer v1.1) — cần data thực tế từ MVP để đánh giá.
+- Co-citation / bibliographic coupling chưa implement (ghi nhận trong CHANGELOG của SPEC, defer post-MVP) — cần data thực tế từ MVP để đánh giá.
 - Single-hop snowballing only — 2-hop tăng recall nhưng tăng corpus size + latency, chưa đủ data để quyết định có cần không.
 - Theme cross-disciplinary gap: paper chạm nhiều theme nhưng không dominate theme nào có thể bị miss ở top-10 mọi theme — MMR ở Step ⑤ chỉ partial mitigation.
 
