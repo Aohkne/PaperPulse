@@ -7,7 +7,7 @@ const authHeader = () => ({ Authorization: `Bearer ${useAuthStore.getState().tok
 let _seq = 0;
 const makeId = () => `${++_seq}-${Math.random().toString(36).slice(2, 8)}`;
 
-let _sendInFlight = false;
+const _sendInFlightBySessionId = new Set();
 
 const createSession = (overrides = {}) => ({
   id: makeId(),
@@ -27,8 +27,8 @@ const createSession = (overrides = {}) => ({
 const normalizeMessage = (message) => ({
   ...message,
   timestamp: message.timestamp ?? message.created_at ?? new Date().toISOString(),
-  steps: message.steps ?? [],
-  pendingPlan: message.pendingPlan ?? null,
+  steps: message.steps ?? message.metadata?.steps ?? [],
+  pendingPlan: message.pendingPlan ?? message.metadata?.pending_plan ?? null,
 });
 
 const normalizeNotification = (notification) => ({
@@ -100,6 +100,112 @@ const upsertSession = (sessions, session) => {
   return next;
 };
 
+const removeSessionBinding = (bindings, sessionId) => Object.fromEntries(
+  Object.entries(bindings).filter(([id]) => id !== sessionId)
+);
+
+const getLastAssistantMessage = (messages = []) => (
+  [...messages].reverse().find((message) => message.role === 'assistant') ?? null
+);
+
+const resolveAssistantId = (state, sessionId, assistantId) => {
+  const session = state.sessions.find((item) => item.id === sessionId);
+  if (!session) return assistantId;
+  if (assistantId && session.messages.some((message) => message.id === assistantId)) {
+    return assistantId;
+  }
+  return state.runningTurnBySessionId[sessionId]
+    ?? getLastAssistantMessage(session.messages)?.id
+    ?? assistantId;
+};
+
+const shouldPreservePendingPlan = ({
+  hydratedStatus,
+  existingStatus,
+  baseMessage,
+  overlayMessage,
+}) => {
+  if (hydratedStatus !== 'awaiting_plan') return false;
+  if (existingStatus !== 'awaiting_plan') return false;
+  return Boolean(baseMessage?.pendingPlan) && Boolean(overlayMessage?.pendingPlan);
+};
+
+const mergeMessageState = (baseMessage, overlayMessage) => ({
+  ...baseMessage,
+  ...overlayMessage,
+  id: baseMessage.id,
+  content: overlayMessage.content || baseMessage.content,
+  steps: (overlayMessage.steps?.length ?? 0) >= (baseMessage.steps?.length ?? 0)
+    ? (overlayMessage.steps ?? [])
+    : (baseMessage.steps ?? []),
+  timestamp: overlayMessage.timestamp ?? baseMessage.timestamp,
+  status: overlayMessage.status ?? baseMessage.status,
+  metadata: overlayMessage.metadata ?? baseMessage.metadata,
+});
+
+const resolveHydratedStatus = (existingStatus, hydratedStatus) => {
+  if (existingStatus !== 'loading') {
+    return existingStatus === 'awaiting_plan' ? (hydratedStatus ?? existingStatus) : hydratedStatus;
+  }
+
+  if (!hydratedStatus || hydratedStatus === 'loading') {
+    return 'loading';
+  }
+
+  return hydratedStatus;
+};
+
+const mergeHydratedSession = (existingSession, hydratedSession, runningAssistantId) => {
+  if (!existingSession || !runningAssistantId) {
+    return { session: hydratedSession, runningAssistantId };
+  }
+
+  const existingAssistant = existingSession.messages.find((message) => message.id === runningAssistantId)
+    ?? getLastAssistantMessage(existingSession.messages);
+  const targetAssistant = hydratedSession.messages.find((message) => message.id === runningAssistantId)
+    ?? getLastAssistantMessage(hydratedSession.messages);
+
+  let messages = hydratedSession.messages;
+  let nextRunningAssistantId = runningAssistantId;
+  const status = resolveHydratedStatus(existingSession.status, hydratedSession.status);
+
+  if (existingAssistant && targetAssistant) {
+    const mergedAssistant = {
+      ...mergeMessageState(targetAssistant, existingAssistant),
+      pendingPlan: shouldPreservePendingPlan({
+        hydratedStatus: status,
+        existingStatus: existingSession.status,
+        baseMessage: targetAssistant,
+        overlayMessage: existingAssistant,
+      })
+        ? (existingAssistant.pendingPlan ?? targetAssistant.pendingPlan ?? null)
+        : (targetAssistant.pendingPlan ?? null),
+    };
+    nextRunningAssistantId = targetAssistant.id;
+    messages = hydratedSession.messages.map((message) => (
+      message.id === targetAssistant.id ? mergedAssistant : message
+    ));
+  } else if (existingAssistant && !targetAssistant) {
+    const appendedAssistant = status === 'awaiting_plan'
+      ? existingAssistant
+      : { ...existingAssistant, pendingPlan: null };
+    messages = [...hydratedSession.messages, appendedAssistant];
+  }
+  const shouldPreserveError = existingSession.status === 'loading' && status === 'loading';
+
+  return {
+    session: {
+      ...hydratedSession,
+      messages,
+      status,
+      error: shouldPreserveError ? existingSession.error : null,
+      threadId: hydratedSession.threadId ?? existingSession.threadId ?? null,
+      lastMessageAt: existingSession.lastMessageAt ?? hydratedSession.lastMessageAt,
+    },
+    runningAssistantId: nextRunningAssistantId,
+  };
+};
+
 export const useChatStore = create((set, get) => ({
   sessions: [],
   activeSessionId: null,
@@ -122,6 +228,7 @@ export const useChatStore = create((set, get) => ({
   pauseAllInApp: false,
   notificationSettingsLoaded: false,
   topicInterestPendingById: {},
+  runningTurnBySessionId: {},
 
   loadNotifications: async () => {
     const token = useAuthStore.getState().token;
@@ -385,12 +492,22 @@ export const useChatStore = create((set, get) => ({
       if (!res.ok) throw new Error(`Failed to open chat: ${res.status}`);
       const detail = await res.json();
       const session = hydrateServerSession(detail.chat, detail.messages || []);
-      set((state) => ({
-        sessions: upsertSession(state.sessions, session),
-        serverChats: sortChatsByActivity(state.serverChats.some((item) => item.id === detail.chat.id)
-          ? state.serverChats.map((item) => (item.id === detail.chat.id ? detail.chat : item))
-          : [detail.chat, ...state.serverChats]),
-      }));
+      set((state) => {
+        const existingSession = state.sessions.find((item) => item.id === detail.chat.id) ?? null;
+        const runningAssistantId = state.runningTurnBySessionId[detail.chat.id] ?? null;
+        const merged = mergeHydratedSession(existingSession, session, runningAssistantId);
+        const nextRunningTurnBySessionId = { ...state.runningTurnBySessionId };
+        if (merged.runningAssistantId && merged.runningAssistantId !== runningAssistantId) {
+          nextRunningTurnBySessionId[detail.chat.id] = merged.runningAssistantId;
+        }
+        return {
+          sessions: upsertSession(state.sessions, merged.session),
+          runningTurnBySessionId: nextRunningTurnBySessionId,
+          serverChats: sortChatsByActivity(state.serverChats.some((item) => item.id === detail.chat.id)
+            ? state.serverChats.map((item) => (item.id === detail.chat.id ? detail.chat : item))
+            : [detail.chat, ...state.serverChats]),
+        };
+      });
       return session.id;
     } catch (err) {
       const message = err?.message ?? 'Failed to open chat.';
@@ -416,6 +533,7 @@ export const useChatStore = create((set, get) => ({
         serverChats: state.serverChats.filter((item) => item.id !== chatId),
         sessions: state.sessions.filter((item) => item.id !== chatId),
         activeSessionId: state.activeSessionId === chatId ? null : state.activeSessionId,
+        runningTurnBySessionId: removeSessionBinding(state.runningTurnBySessionId, chatId),
       }));
       return true;
     } catch (err) {
@@ -446,19 +564,26 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    if (_sendInFlight) return;
-    _sendInFlight = true;
 
+    const initialState = get();
+    const sessionId = initialState.activeSessionId ?? initialState.ensureActiveSession();
+    const session = get().sessions.find((item) => item.id === sessionId);
+
+    if (!session) return;
+    if (session.status === 'loading' || session.status === 'awaiting_plan') return;
+    if (_sendInFlightBySessionId.has(sessionId)) return;
+
+    _sendInFlightBySessionId.add(sessionId);
     try {
-      await get()._sendMessageImpl(trimmed);
+      await get()._sendMessageImpl(trimmed, sessionId);
     } finally {
-      _sendInFlight = false;
+      _sendInFlightBySessionId.delete(sessionId);
     }
   },
 
-  _sendMessageImpl: async (trimmed) => {
+  _sendMessageImpl: async (trimmed, sessionId) => {
     const token = useAuthStore.getState().token;
-    let activeId = get().activeSessionId;
+    let activeId = sessionId;
     let activeSession = get().sessions.find((session) => session.id === activeId);
 
     if (!activeSession && token) {
@@ -521,6 +646,10 @@ export const useChatStore = create((set, get) => ({
             }
           : session
       ),
+      runningTurnBySessionId: {
+        ...state.runningTurnBySessionId,
+        [activeId]: assistantId,
+      },
     }));
 
     try {
@@ -563,11 +692,19 @@ export const useChatStore = create((set, get) => ({
               ...item,
               status: 'loading',
               messages: item.messages.map((message) =>
-                message.id === assistantMsg.id ? { ...message, pendingPlan: null } : message
+                message.role === 'assistant' && message.pendingPlan
+                  ? { ...message, pendingPlan: null }
+                  : message.id === assistantMsg.id
+                    ? { ...message, pendingPlan: null }
+                    : message
               ),
             }
           : item
       ),
+      runningTurnBySessionId: {
+        ...state.runningTurnBySessionId,
+        [sessionId]: assistantMsg.id,
+      },
     }));
 
     try {
@@ -622,6 +759,7 @@ export const useChatStore = create((set, get) => ({
       set((state) => ({
         sessions: state.sessions.map((session) => (session.id === activeId ? { ...session, status: 'idle' } : session)),
       }));
+      get()._clearRunningTurn(activeId);
     }
   },
 
@@ -652,7 +790,11 @@ export const useChatStore = create((set, get) => ({
 
         switch (event.type) {
           case 'thread_id':
-            get()._setThreadId(activeId, event.thread_id);
+            get()._bindRunningTurn(activeId, {
+              threadId: event.thread_id,
+              assistantMessageId: event.assistant_message_id,
+              fallbackAssistantId: assistantId,
+            });
             break;
           case 'thinking_token':
           case 'reply_token':
@@ -703,36 +845,75 @@ export const useChatStore = create((set, get) => ({
     return { interrupted, pendingApproval };
   },
 
-  _setThreadId: (sessionId, threadId) =>
+  _bindRunningTurn: (sessionId, { threadId, assistantMessageId, fallbackAssistantId = null }) =>
+    set((state) => {
+      const nextAssistantId = assistantMessageId || state.runningTurnBySessionId[sessionId] || fallbackAssistantId;
+      return {
+        sessions: state.sessions.map((session) => {
+          if (session.id !== sessionId) return session;
+          const fallbackId = fallbackAssistantId || state.runningTurnBySessionId[sessionId] || nextAssistantId;
+          const hasCanonical = nextAssistantId && session.messages.some((message) => message.id === nextAssistantId);
+          const hasFallback = fallbackId && session.messages.some((message) => message.id === fallbackId);
+          let messages = session.messages;
+          if (nextAssistantId && fallbackId && nextAssistantId !== fallbackId && hasFallback && !hasCanonical) {
+            messages = session.messages.map((message) => (
+              message.id === fallbackId ? { ...message, id: nextAssistantId } : message
+            ));
+          } else if (nextAssistantId && fallbackId && nextAssistantId !== fallbackId && hasFallback && hasCanonical) {
+            const fallbackMessage = session.messages.find((message) => message.id === fallbackId);
+            const canonicalMessage = session.messages.find((message) => message.id === nextAssistantId);
+            const mergedMessage = fallbackMessage && canonicalMessage
+              ? mergeMessageState(canonicalMessage, fallbackMessage)
+              : canonicalMessage;
+            messages = session.messages
+              .filter((message) => message.id !== fallbackId)
+              .map((message) => (message.id === nextAssistantId && mergedMessage ? mergedMessage : message));
+          }
+          return {
+            ...session,
+            threadId,
+            messages,
+          };
+        }),
+        runningTurnBySessionId: nextAssistantId
+          ? { ...state.runningTurnBySessionId, [sessionId]: nextAssistantId }
+          : state.runningTurnBySessionId,
+        serverChats: state.serverChats.map((chat) => (chat.id === sessionId ? { ...chat, thread_id: threadId } : chat)),
+      };
+    }),
+
+  _resolveAssistantId: (sessionId, assistantId) => resolveAssistantId(get(), sessionId, assistantId),
+
+  _clearRunningTurn: (sessionId) =>
     set((state) => ({
-      sessions: state.sessions.map((session) =>
-        session.id === sessionId ? { ...session, threadId } : session
-      ),
-      serverChats: state.serverChats.map((chat) => (chat.id === sessionId ? { ...chat, thread_id: threadId } : chat)),
+      runningTurnBySessionId: removeSessionBinding(state.runningTurnBySessionId, sessionId),
     })),
 
-  _setPendingPlan: (sessionId, assistantId, data) =>
+  _setPendingPlan: (sessionId, assistantId, data) => {
+    const resolvedAssistantId = get()._resolveAssistantId(sessionId, assistantId);
     set((state) => ({
       sessions: state.sessions.map((session) =>
         session.id === sessionId
           ? {
               ...session,
               messages: session.messages.map((message) =>
-                message.id === assistantId ? { ...message, pendingPlan: data } : message
+                message.id === resolvedAssistantId ? { ...message, pendingPlan: data } : message
               ),
             }
           : session
       ),
-    })),
+    }));
+  },
 
-  _upsertRunningStep: (sessionId, assistantId, stepNum, token) =>
+  _upsertRunningStep: (sessionId, assistantId, stepNum, token) => {
+    const resolvedAssistantId = get()._resolveAssistantId(sessionId, assistantId);
     set((state) => ({
       sessions: state.sessions.map((session) => {
         if (session.id !== sessionId) return session;
         return {
           ...session,
           messages: session.messages.map((message) => {
-            if (message.id !== assistantId) return message;
+            if (message.id !== resolvedAssistantId) return message;
             const steps = message.steps || [];
             const idx = steps.findIndex((step) => step.stepNum === stepNum && step.status === 'running');
             if (idx === -1) {
@@ -747,16 +928,18 @@ export const useChatStore = create((set, get) => ({
           }),
         };
       }),
-    })),
+    }));
+  },
 
-  _completeStep: (sessionId, assistantId, event) =>
+  _completeStep: (sessionId, assistantId, event) => {
+    const resolvedAssistantId = get()._resolveAssistantId(sessionId, assistantId);
     set((state) => ({
       sessions: state.sessions.map((session) => {
         if (session.id !== sessionId) return session;
         return {
           ...session,
           messages: session.messages.map((message) => {
-            if (message.id !== assistantId) return message;
+            if (message.id !== resolvedAssistantId) return message;
             const steps = message.steps || [];
             const idx = steps.findIndex((step) => step.stepNum === event.stepNum && step.status === 'running');
             const finalised = {
@@ -774,25 +957,29 @@ export const useChatStore = create((set, get) => ({
           }),
         };
       }),
-    })),
+    }));
+  },
 
-  _addStep: (sessionId, assistantId, step) =>
+  _addStep: (sessionId, assistantId, step) => {
+    const resolvedAssistantId = get()._resolveAssistantId(sessionId, assistantId);
     set((state) => ({
       sessions: state.sessions.map((session) =>
         session.id === sessionId
           ? {
               ...session,
               messages: session.messages.map((message) =>
-                message.id === assistantId
+                message.id === resolvedAssistantId
                   ? { ...message, steps: [...(message.steps || []), { id: ++_seq, status: 'done', ...step }] }
                   : message
               ),
             }
           : session
       ),
-    })),
+    }));
+  },
 
-  _setContent: (sessionId, assistantId, content) =>
+  _setContent: (sessionId, assistantId, content) => {
+    const resolvedAssistantId = get()._resolveAssistantId(sessionId, assistantId);
     set((state) => ({
       sessions: state.sessions.map((session) =>
         session.id === sessionId
@@ -800,17 +987,20 @@ export const useChatStore = create((set, get) => ({
               ...session,
               status: 'idle',
               lastMessageAt: new Date().toISOString(),
-              messages: session.messages.map((message) => (message.id === assistantId ? { ...message, content } : message)),
+              messages: session.messages.map((message) => (message.id === resolvedAssistantId ? { ...message, content } : message)),
             }
           : session
       ),
-    })),
+      runningTurnBySessionId: removeSessionBinding(state.runningTurnBySessionId, sessionId),
+    }));
+  },
 
   _setError: (sessionId, message) =>
     set((state) => ({
       sessions: state.sessions.map((session) =>
         session.id === sessionId ? { ...session, status: 'error', error: message } : session
       ),
+      runningTurnBySessionId: removeSessionBinding(state.runningTurnBySessionId, sessionId),
     })),
 
   clearError: (sessionId) =>

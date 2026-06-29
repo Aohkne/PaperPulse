@@ -12,6 +12,11 @@ from backend.config import get_settings
 DEFAULT_CHAT_TITLE = "New chat"
 
 
+class ChatDeletedError(HTTPException):
+    def __init__(self, detail: str = "Chat deleted"):
+        super().__init__(status_code=409, detail=detail)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -78,6 +83,18 @@ async def get_owned_chat_by_thread(token: str, user_id: str, thread_id: str) -> 
     return res.data[0] if res.data else None
 
 
+async def ensure_chat_not_deleted(token: str, user_id: str, chat_id: str) -> dict[str, Any]:
+    chat = await get_owned_chat(token, user_id, chat_id, include_deleted=True)
+    if chat.get("deleted_at") is not None:
+        raise ChatDeletedError()
+    return chat
+
+
+async def is_chat_deleted(token: str, user_id: str, chat_id: str) -> bool:
+    chat = await get_owned_chat(token, user_id, chat_id, include_deleted=True)
+    return chat.get("deleted_at") is not None
+
+
 async def create_chat(token: str, user_id: str, title: str, thread_id: str | None = None) -> dict[str, Any]:
     db = _db_client(token)
     res = db.table("chats").insert({
@@ -95,18 +112,20 @@ async def create_chat(token: str, user_id: str, title: str, thread_id: str | Non
 
 async def update_chat(token: str, user_id: str, chat_id: str, **fields: Any) -> dict[str, Any]:
     payload = {key: value for key, value in fields.items() if value is not None}
+    chat = await ensure_chat_not_deleted(token, user_id, chat_id)
     if not payload:
-        return await get_owned_chat(token, user_id, chat_id, include_deleted=True)
+        return chat
     db = _db_client(token)
     res = (
         db.table("chats")
         .update(payload)
         .eq("id", chat_id)
         .eq("user_id", user_id)
+        .is_("deleted_at", "null")
         .execute()
     )
     if not res.data:
-        raise HTTPException(status_code=404, detail="Chat not found")
+        raise ChatDeletedError()
     return {**res.data[0], "deleted_at": res.data[0].get("deleted_at")}
 
 
@@ -257,6 +276,8 @@ async def update_assistant_message(
     content: str | None = None,
     status: str | None = None,
     metadata: dict[str, Any] | None = None,
+    user_id: str | None = None,
+    chat_id: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {}
     if content is not None:
@@ -268,9 +289,17 @@ async def update_assistant_message(
     if not payload:
         raise HTTPException(status_code=500, detail="No assistant message update payload")
 
+    if user_id and chat_id:
+        await ensure_chat_not_deleted(token, user_id, chat_id)
+
     db = _service_db_client()
-    res = db.table("messages").update(payload).eq("id", message_id).execute()
+    query = db.table("messages").update(payload).eq("id", message_id)
+    if chat_id is not None:
+        query = query.eq("chat_id", chat_id)
+    res = query.execute()
     if not res.data:
+        if user_id and chat_id:
+            raise ChatDeletedError()
         raise HTTPException(status_code=404, detail="Assistant message not found")
     return res.data[0]
 

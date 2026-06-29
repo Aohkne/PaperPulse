@@ -56,6 +56,8 @@ const ChatMessage = ({ message, animate = true }) => {
   const approvePlan = useChatStore((s) => s.approvePlan);
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const sessionTitle = activeSession?.title ?? '';
+  const shouldRenderPendingPlan = Boolean(message.pendingPlan);
+  const shouldRenderContent = Boolean(message.content) && !shouldRenderPendingPlan;
 
   if (message.role === 'user') {
     return (
@@ -90,7 +92,7 @@ const ChatMessage = ({ message, animate = true }) => {
           {message.steps?.length > 0 && <ReActTrace steps={message.steps} />}
 
           {/* Step 0c — research plan awaiting user approval before any search calls */}
-          {message.pendingPlan && (
+          {shouldRenderPendingPlan && (
             <ResearchPlanCard
               planDescription={message.pendingPlan.plan_description}
               subQueries={message.pendingPlan.sub_queries || []}
@@ -100,11 +102,11 @@ const ChatMessage = ({ message, animate = true }) => {
           )}
 
           {/* Final answer — only render preview when content exists */}
-          {message.content
+          {shouldRenderContent
             ? animate
               ? <TypewriterLatex content={message.content} />
               : <LatexPreview content={message.content} />
-            : !message.steps?.length && !message.pendingPlan && <TypingIndicator inline />
+            : !message.steps?.length && !shouldRenderPendingPlan && <TypingIndicator inline />
           }
           <span style={{ fontSize: '12px', color: 'var(--color-paper-light)', display: 'block', marginTop: '4px' }}>
             {formatTime(message.timestamp)}

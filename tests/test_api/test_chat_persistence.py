@@ -275,6 +275,22 @@ async def test_delete_chat_soft_deletes_owned_chat(client, monkeypatch):
 
 
 
+
+@pytest.mark.asyncio
+async def test_update_chat_rejects_deleted_chat(monkeypatch):
+    db = DBStub()
+    from backend.shared.services import chat_persistence
+
+    next(row for row in db.chats if row["id"] == "chat-a")["deleted_at"] = "2026-06-25T10:06:00Z"
+    monkeypatch.setattr(chat_persistence, "_db_client", lambda _token: db)
+
+    with pytest.raises(chat_persistence.ChatDeletedError) as exc_info:
+        await chat_persistence.update_chat("test-token", "user-1", "chat-a", status="complete")
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == "Chat deleted"
+
+
 def test_update_assistant_message_requires_service_role(monkeypatch):
     from backend.shared.services import chat_persistence
 

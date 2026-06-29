@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
+import time
 import uuid
+
+import httpx
 
 from typing import Any
 
@@ -80,14 +84,47 @@ def _format_clarify_content(questions: list[str]) -> str:
     return f"I need a bit more context:\n\n{formatted}"
 
 
-def _compact_interrupt_content(data: dict[str, Any]) -> str:
-    if data.get("plan_description"):
-        return f"{data['plan_description']}\n\nAwaiting approval to continue."
-    return "Research plan ready. Awaiting approval to continue."
+def _deleted_chat_sse(chat_id: str) -> str:
+    return _sse({
+        "type": "error",
+        "code": "chat_deleted",
+        "chat_id": chat_id,
+        "message": "Chat deleted while research was running.",
+    })
+
+
+_DELETED_POLL_INTERVAL_SECONDS = 0.5
+
+
+class _DeletedChatTermination(Exception):
+    pass
+
+
+def _build_deleted_chat_poller(*, poll_deleted, chat_id: str, interval_seconds: float = _DELETED_POLL_INTERVAL_SECONDS):
+    last_checked_at: float | None = None
+    last_deleted = False
+
+    async def _poll() -> bool:
+        nonlocal last_checked_at, last_deleted
+
+        now = time.monotonic()
+        if last_checked_at is not None and (now - last_checked_at) < interval_seconds:
+            return last_deleted
+
+        last_checked_at = now
+        try:
+            last_deleted = bool(await poll_deleted())
+        except httpx.TransportError as exc:
+            log.warning("deleted-chat poll failed for chat_id=%s: %s", chat_id, exc)
+        return last_deleted
+
+    return _poll
 
 
 async def _record_assistant_state(
     token: str,
+    user_id: str,
+    chat_id: str,
     assistant_message_id: str,
     content: str,
     status: str,
@@ -116,6 +153,8 @@ async def _record_assistant_state(
         content=content,
         status=status,
         metadata=metadata,
+        user_id=user_id,
+        chat_id=chat_id,
     )
 
 
@@ -198,7 +237,24 @@ async def _node_to_step_event(node_name: str, state_update: dict) -> str:
     })
 
 
-async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
+async def _iterate_stream_graph(graph, input_or_command, config: dict, thread_id: str, stop_requested=None):
+    params = inspect.signature(_stream_graph).parameters
+    if "stop_requested" in params:
+        async for item in _stream_graph(
+            graph,
+            input_or_command,
+            config,
+            thread_id,
+            stop_requested=stop_requested,
+        ):
+            yield item
+        return
+
+    async for item in _stream_graph(graph, input_or_command, config, thread_id):
+        yield item
+
+
+async def _stream_graph(graph, input_or_command, config: dict, thread_id: str, stop_requested=None):
     export_reached = False
     queue: asyncio.Queue = asyncio.Queue()
     done_marker = object()
@@ -212,13 +268,24 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
         finally:
             await queue.put(done_marker)
 
+    async def _should_stop() -> bool:
+        if stop_requested is None:
+            return False
+        return bool(await stop_requested())
+
+    async def _raise_if_stop_requested() -> None:
+        if await _should_stop():
+            raise _DeletedChatTermination
+
     producer_task = asyncio.create_task(_produce())
 
     try:
         while True:
+            await _raise_if_stop_requested()
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_SECONDS)
             except asyncio.TimeoutError:
+                await _raise_if_stop_requested()
                 yield _sse({"type": "heartbeat"})
                 continue
 
@@ -226,6 +293,8 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
                 break
             if isinstance(item, Exception):
                 raise item
+
+            await _raise_if_stop_requested()
 
             event = item
             await asyncio.sleep(0)
@@ -240,10 +309,13 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
                     continue
 
                 if node == "intent_router":
+                    await _raise_if_stop_requested()
                     yield _sse({"type": "thinking_token", "content": token})
                 elif node == "reply_generator":
+                    await _raise_if_stop_requested()
                     yield _sse({"type": "reply_token", "content": token})
                 elif node in _SEARCH_NODES:
+                    await _raise_if_stop_requested()
                     yield _sse({
                         "type": "step_token",
                         "stepNum": _NODE_STEP_NUM.get(node, ""),
@@ -291,6 +363,8 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str):
                         "content": output.get("latex_doc", ""),
                         "bib": output.get("bib_content", ""),
                     })
+    except _DeletedChatTermination:
+        raise
     except Exception as exc:
         log.exception("astream_events error: %s", exc)
         yield _sse({"type": "error", "message": str(exc)})
@@ -408,142 +482,175 @@ async def research_stream(
         final_bib: str | None = None
         event_counts: dict[str, int] = {}
 
-        yield _sse({"type": "thread_id", "thread_id": thread_id, "chat_id": chat_id})
+        yield _sse({
+            "type": "thread_id",
+            "thread_id": thread_id,
+            "chat_id": chat_id,
+            "assistant_message_id": assistant_message_id,
+        })
 
-        async for raw_event in _stream_graph(graph, initial_state, config, thread_id):
-            payload = _parse_sse(raw_event) or {}
-            event_type = payload.get("type")
-            if event_type:
-                event_counts[event_type] = event_counts.get(event_type, 0) + 1
+        async def _chat_deleted() -> bool:
+            return await chat_persistence.is_chat_deleted(token, str(user.id), chat_id)
 
-            if event_type == "thread_id":
-                await chat_persistence.update_chat(token, str(user.id), chat_id, thread_id=thread_id, status="running")
-            elif event_type == "step":
-                steps.append({
-                    "stepNum": payload.get("stepNum"),
-                    "type": payload.get("step_type"),
-                    "content": payload.get("content"),
-                    "stat": payload.get("stat"),
-                })
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "streaming",
-                    thread_id,
-                    request_kind,
-                    steps,
-                    pending_plan=pending_plan,
-                    events=event_counts,
-                )
-            elif event_type == "interrupt":
-                pending_plan = payload.get("data") or {}
-                final_content = final_content or _compact_interrupt_content(pending_plan)
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "awaiting_plan",
-                    thread_id,
-                    request_kind,
-                    steps,
-                    pending_plan=pending_plan,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=thread_id,
-                    status="awaiting_plan",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "done":
-                final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
-                final_bib = payload.get("bib")
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "done",
-                    thread_id,
-                    request_kind,
-                    steps,
-                    pending_plan=pending_plan,
-                    bib=final_bib,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=thread_id,
-                    status="complete",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "greeting":
-                final_content = payload.get("content") or "Hello!"
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "done",
-                    thread_id,
-                    request_kind,
-                    steps,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=thread_id,
-                    status="idle",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "clarify":
-                final_content = _format_clarify_content(payload.get("questions") or [])
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "done",
-                    thread_id,
-                    request_kind,
-                    steps,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=thread_id,
-                    status="idle",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "error":
-                final_content = final_content or payload.get("message") or "Research pipeline failed."
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "error",
-                    thread_id,
-                    request_kind,
-                    steps,
-                    pending_plan=pending_plan,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=thread_id,
-                    status="error",
-                    last_message_at=chat_persistence._now_iso(),
-                )
+        deleted_poller = _build_deleted_chat_poller(poll_deleted=_chat_deleted, chat_id=chat_id)
 
-            yield raw_event
+        try:
+            async for raw_event in _iterate_stream_graph(graph, initial_state, config, thread_id, stop_requested=deleted_poller):
+                payload = _parse_sse(raw_event) or {}
+                event_type = payload.get("type")
+                if event_type:
+                    event_counts[event_type] = event_counts.get(event_type, 0) + 1
+
+                try:
+                    if event_type != "thread_id" and await deleted_poller():
+                        yield _deleted_chat_sse(chat_id)
+                        return
+
+                    if event_type == "thread_id":
+                        await chat_persistence.update_chat(token, str(user.id), chat_id, thread_id=thread_id, status="running")
+                    elif event_type == "step":
+                        steps.append({
+                            "stepNum": payload.get("stepNum"),
+                            "type": payload.get("step_type"),
+                            "content": payload.get("content"),
+                            "stat": payload.get("stat"),
+                        })
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "streaming",
+                            thread_id,
+                            request_kind,
+                            steps,
+                            pending_plan=pending_plan,
+                            events=event_counts,
+                        )
+                    elif event_type == "interrupt":
+                        pending_plan = payload.get("data") or {}
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "awaiting_plan",
+                            thread_id,
+                            request_kind,
+                            steps,
+                            pending_plan=pending_plan,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=thread_id,
+                            status="awaiting_plan",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "done":
+                        final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                        final_bib = payload.get("bib")
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "done",
+                            thread_id,
+                            request_kind,
+                            steps,
+                            pending_plan=pending_plan,
+                            bib=final_bib,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=thread_id,
+                            status="complete",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "greeting":
+                        final_content = payload.get("content") or "Hello!"
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "done",
+                            thread_id,
+                            request_kind,
+                            steps,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=thread_id,
+                            status="idle",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "clarify":
+                        final_content = _format_clarify_content(payload.get("questions") or [])
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "done",
+                            thread_id,
+                            request_kind,
+                            steps,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=thread_id,
+                            status="idle",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "error":
+                        final_content = final_content or payload.get("message") or "Research pipeline failed."
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "error",
+                            thread_id,
+                            request_kind,
+                            steps,
+                            pending_plan=pending_plan,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=thread_id,
+                            status="error",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                except chat_persistence.ChatDeletedError:
+                    yield _deleted_chat_sse(chat_id)
+                    return
+
+                yield raw_event
+        except _DeletedChatTermination:
+            yield _deleted_chat_sse(chat_id)
+            return
 
     return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
@@ -585,145 +692,213 @@ async def research_resume(
     async def generator():
         steps = ((turn["assistant_message"].get("metadata") or {}).get("steps")) or []
         pending_plan = ((turn["assistant_message"].get("metadata") or {}).get("pending_plan"))
-        final_content = turn["assistant_message"].get("content") or ""
+        resume_from_pending_plan = pending_plan is not None
+        final_content = "" if resume_from_pending_plan else (turn["assistant_message"].get("content") or "")
         final_bib = ((turn["assistant_message"].get("metadata") or {}).get("bib"))
         event_counts: dict[str, int] = {}
 
-        async for raw_event in _stream_graph(graph, Command(resume=body.resume_value), config, body.thread_id):
-            payload = _parse_sse(raw_event) or {}
-            event_type = payload.get("type")
-            if event_type:
-                event_counts[event_type] = event_counts.get(event_type, 0) + 1
+        if resume_from_pending_plan:
+            pending_plan = None
+            await _record_assistant_state(
+                token,
+                str(user.id),
+                chat_id,
+                assistant_message_id,
+                final_content,
+                "streaming",
+                body.thread_id,
+                "resume",
+                steps,
+                pending_plan=pending_plan,
+                bib=final_bib,
+                events=event_counts,
+            )
+            await chat_persistence.update_chat(
+                token,
+                str(user.id),
+                chat_id,
+                thread_id=body.thread_id,
+                status="running",
+                last_message_at=chat_persistence._now_iso(),
+            )
+            resume_from_pending_plan = False
 
-            if event_type == "step":
-                steps.append({
-                    "stepNum": payload.get("stepNum"),
-                    "type": payload.get("step_type"),
-                    "content": payload.get("content"),
-                    "stat": payload.get("stat"),
-                })
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "streaming",
-                    body.thread_id,
-                    "resume",
-                    steps,
-                    pending_plan=pending_plan,
-                    bib=final_bib,
-                    events=event_counts,
-                )
-            elif event_type == "interrupt":
-                pending_plan = payload.get("data") or {}
-                final_content = final_content or _compact_interrupt_content(pending_plan)
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "awaiting_plan",
-                    body.thread_id,
-                    "resume",
-                    steps,
-                    pending_plan=pending_plan,
-                    bib=final_bib,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=body.thread_id,
-                    status="awaiting_plan",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "done":
-                final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
-                final_bib = payload.get("bib")
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "done",
-                    body.thread_id,
-                    "resume",
-                    steps,
-                    pending_plan=pending_plan,
-                    bib=final_bib,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=body.thread_id,
-                    status="complete",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "greeting":
-                final_content = payload.get("content") or "Hello!"
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "done",
-                    body.thread_id,
-                    "resume",
-                    steps,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=body.thread_id,
-                    status="idle",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "clarify":
-                final_content = _format_clarify_content(payload.get("questions") or [])
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "done",
-                    body.thread_id,
-                    "resume",
-                    steps,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=body.thread_id,
-                    status="idle",
-                    last_message_at=chat_persistence._now_iso(),
-                )
-            elif event_type == "error":
-                final_content = final_content or payload.get("message") or "Research pipeline failed."
-                await _record_assistant_state(
-                    token,
-                    assistant_message_id,
-                    final_content,
-                    "error",
-                    body.thread_id,
-                    "resume",
-                    steps,
-                    pending_plan=pending_plan,
-                    bib=final_bib,
-                    events=event_counts,
-                )
-                await chat_persistence.update_chat(
-                    token,
-                    str(user.id),
-                    chat_id,
-                    thread_id=body.thread_id,
-                    status="error",
-                    last_message_at=chat_persistence._now_iso(),
-                )
+        yield _sse({
+            "type": "thread_id",
+            "thread_id": body.thread_id,
+            "chat_id": chat_id,
+            "assistant_message_id": assistant_message_id,
+        })
 
-            yield raw_event
+        async def _chat_deleted() -> bool:
+            return await chat_persistence.is_chat_deleted(token, str(user.id), chat_id)
+
+        deleted_poller = _build_deleted_chat_poller(poll_deleted=_chat_deleted, chat_id=chat_id)
+
+        try:
+            async for raw_event in _iterate_stream_graph(
+                graph,
+                Command(resume=body.resume_value),
+                config,
+                body.thread_id,
+                stop_requested=deleted_poller,
+            ):
+                payload = _parse_sse(raw_event) or {}
+                event_type = payload.get("type")
+                if event_type:
+                    event_counts[event_type] = event_counts.get(event_type, 0) + 1
+
+                try:
+                    if event_type != "thread_id" and await deleted_poller():
+                        yield _deleted_chat_sse(chat_id)
+                        return
+
+                    if event_type == "step":
+                        steps.append({
+                            "stepNum": payload.get("stepNum"),
+                            "type": payload.get("step_type"),
+                            "content": payload.get("content"),
+                            "stat": payload.get("stat"),
+                        })
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "streaming",
+                            body.thread_id,
+                            "resume",
+                            steps,
+                            pending_plan=pending_plan,
+                            bib=final_bib,
+                            events=event_counts,
+                        )
+                    elif event_type == "interrupt":
+                        pending_plan = payload.get("data") or {}
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "awaiting_plan",
+                            body.thread_id,
+                            "resume",
+                            steps,
+                            pending_plan=pending_plan,
+                            bib=final_bib,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=body.thread_id,
+                            status="awaiting_plan",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "done":
+                        final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                        final_bib = payload.get("bib")
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "done",
+                            body.thread_id,
+                            "resume",
+                            steps,
+                            pending_plan=pending_plan,
+                            bib=final_bib,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=body.thread_id,
+                            status="complete",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "greeting":
+                        final_content = payload.get("content") or "Hello!"
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "done",
+                            body.thread_id,
+                            "resume",
+                            steps,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=body.thread_id,
+                            status="idle",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "clarify":
+                        final_content = _format_clarify_content(payload.get("questions") or [])
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "done",
+                            body.thread_id,
+                            "resume",
+                            steps,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=body.thread_id,
+                            status="idle",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                    elif event_type == "error":
+                        final_content = final_content or payload.get("message") or "Research pipeline failed."
+                        await _record_assistant_state(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            assistant_message_id,
+                            final_content,
+                            "error",
+                            body.thread_id,
+                            "resume",
+                            steps,
+                            pending_plan=pending_plan,
+                            bib=final_bib,
+                            events=event_counts,
+                        )
+                        await chat_persistence.update_chat(
+                            token,
+                            str(user.id),
+                            chat_id,
+                            thread_id=body.thread_id,
+                            status="error",
+                            last_message_at=chat_persistence._now_iso(),
+                        )
+                except chat_persistence.ChatDeletedError:
+                    yield _deleted_chat_sse(chat_id)
+                    return
+
+                yield raw_event
+        except _DeletedChatTermination:
+            yield _deleted_chat_sse(chat_id)
+            return
 
     return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)
 

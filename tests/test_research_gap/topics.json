@@ -1,0 +1,26 @@
+[
+  {
+    "topic": "speculative decoding for LLM inference",
+    "domain": "NLP",
+    "note": "mainstream topic — expect ≥5 papers and ≥2 gaps",
+    "expect_empty": false
+  },
+  {
+    "topic": "federated learning privacy in healthcare",
+    "domain": "Healthcare AI",
+    "note": "cross-disciplinary — tests coherence gate",
+    "expect_empty": false
+  },
+  {
+    "topic": "contrastive learning for graph neural networks",
+    "domain": "Graph ML",
+    "note": "niche but real — may return fewer gaps",
+    "expect_empty": false
+  },
+  {
+    "topic": "xyzxyz nghiên cứu không tồn tại 99999",
+    "domain": "N/A",
+    "note": "nonsense topic — pipeline must return gaps=[], no hallucination",
+    "expect_empty": true
+  }
+]

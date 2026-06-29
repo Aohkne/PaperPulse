@@ -1,3 +1,4 @@
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +10,18 @@ from backend.main import app
 
 async def _override_user():
     return SimpleNamespace(id="user-1", email="user@example.com")
+
+
+
+
+@pytest.fixture(autouse=True)
+def _stub_is_chat_deleted(monkeypatch):
+    from backend.module.research_agent.api import research
+
+    async def _not_deleted(*_args, **_kwargs):
+        return False
+
+    monkeypatch.setattr(research.chat_persistence, "is_chat_deleted", _not_deleted)
 
 
 class MessageQueryStub:
@@ -399,6 +412,7 @@ async def test_research_stream_interrupt_persists_awaiting_plan(client, monkeypa
 
     assert response.status_code == 200
     assert assistant_updates[-1]["status"] == "awaiting_plan"
+    assert assistant_updates[-1]["content"] == ""
     assert assistant_updates[-1]["metadata"]["pending_plan"]["sub_queries"] == ["q1"]
     assert chat_updates[-1]["status"] == "awaiting_plan"
 
@@ -482,9 +496,282 @@ async def test_research_resume_updates_same_chat_without_quota_charge(client, mo
     assert response.status_code == 200
     assert calls["start_session"] == 0
     assert calls["topic"] == [{"user_id": "user-1", "signal": "plan_approval", "chat_id": "chat-1", "token": "test-token"}]
+    assert calls["assistant"][0]["status"] == "streaming"
+    assert calls["assistant"][0]["content"] == ""
+    assert calls["assistant"][0]["metadata"].get("pending_plan") is None
+    assert calls["chat"][0]["status"] == "running"
     assert calls["assistant"][-1]["status"] == "done"
+    assert calls["assistant"][-1]["metadata"].get("pending_plan") is None
+    assert calls["assistant"][-1]["content"] == "Resumed answer"
     assert calls["chat"][-1]["status"] == "complete"
 
+
+@pytest.mark.asyncio
+async def test_research_resume_clears_stale_pending_plan_before_first_resume_event(client, monkeypatch):
+    from backend.module.research_agent.api import research
+
+    assistant_updates = []
+    chat_updates = []
+
+    async def start_resume_turn(**kwargs):
+        assert kwargs["chat_id"] == "chat-1"
+        return {
+            "chat": {"id": "chat-1"},
+            "assistant_message": {
+                "id": "assistant-1",
+                "content": "User wants to search ...\n\nAwaiting approval to continue.",
+                "metadata": {
+                    "steps": [{"stepNum": "0", "type": "observation", "content": "Plan ready", "stat": "1 sub-query"}],
+                    "pending_plan": {"sub_queries": ["q1"], "plan_description": "User wants to search ..."},
+                },
+            },
+        }
+
+    async def score_topic_signal(*_args, **_kwargs):
+        return {"topic": {"id": "topic-1"}, "interest": {"id": "interest-1", "interest_score": 8}}
+
+    async def update_assistant_message(token, message_id, **kwargs):
+        assistant_updates.append({"token": token, "message_id": message_id, **kwargs})
+        return {"id": message_id}
+
+    async def update_chat(token, user_id, chat_id, **kwargs):
+        chat_updates.append({"token": token, "user_id": user_id, "chat_id": chat_id, **kwargs})
+        return {"id": chat_id}
+
+    async def get_graph():
+        return object()
+
+    async def stream_graph(_graph, _input, _config, _thread_id):
+        yield research._sse({"type": "done", "content": "Resumed answer", "bib": "refs"})
+
+    monkeypatch.setattr(research, "get_research_graph", get_graph)
+    monkeypatch.setattr(research, "_stream_graph", stream_graph)
+    monkeypatch.setattr(research.chat_persistence, "start_resume_turn", start_resume_turn)
+    monkeypatch.setattr(research.chat_persistence, "update_assistant_message", update_assistant_message)
+    monkeypatch.setattr(research.chat_persistence, "update_chat", update_chat)
+    monkeypatch.setattr(research.topic_monitoring, "score_topic_signal", score_topic_signal)
+
+    app.dependency_overrides[get_current_user] = _override_user
+    response = await client.post(
+        "/api/research/resume",
+        json={"thread_id": "thread-1", "chat_id": "chat-1", "resume_value": True},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert assistant_updates[0]["status"] == "streaming"
+    assert assistant_updates[0]["content"] == ""
+    assert assistant_updates[0]["metadata"].get("pending_plan") is None
+    assert assistant_updates[0]["metadata"]["steps"][0]["stepNum"] == "0"
+    assert chat_updates[0]["status"] == "running"
+    assert assistant_updates[-1]["status"] == "done"
+    assert assistant_updates[-1]["content"] == "Resumed answer"
+    assert assistant_updates[-1]["metadata"].get("pending_plan") is None
+    assert chat_updates[-1]["status"] == "complete"
+
+
+@pytest.mark.asyncio
+async def test_research_resume_clears_stale_pending_plan_and_content_once_steps_continue(client, monkeypatch):
+    from backend.module.research_agent.api import research
+
+    assistant_updates = []
+    chat_updates = []
+
+    async def start_resume_turn(**kwargs):
+        assert kwargs["chat_id"] == "chat-1"
+        return {
+            "chat": {"id": "chat-1"},
+            "assistant_message": {
+                "id": "assistant-1",
+                "content": "User wants to search ...\n\nAwaiting approval to continue.",
+                "metadata": {
+                    "steps": [{"stepNum": "0", "type": "observation", "content": "Plan ready", "stat": "1 sub-query"}],
+                    "pending_plan": {"sub_queries": ["q1"], "plan_description": "User wants to search ..."},
+                },
+            },
+        }
+
+    async def score_topic_signal(*_args, **_kwargs):
+        return {"topic": {"id": "topic-1"}, "interest": {"id": "interest-1", "interest_score": 8}}
+
+    async def update_assistant_message(token, message_id, **kwargs):
+        assistant_updates.append({"token": token, "message_id": message_id, **kwargs})
+        return {"id": message_id}
+
+    async def update_chat(token, user_id, chat_id, **kwargs):
+        chat_updates.append({"token": token, "user_id": user_id, "chat_id": chat_id, **kwargs})
+        return {"id": chat_id}
+
+    async def get_graph():
+        return object()
+
+    async def stream_graph(_graph, _input, _config, _thread_id):
+        yield research._sse({"type": "step", "step_type": "observation", "stepNum": "1", "content": "10 papers fetched.", "stat": "total:10"})
+        yield research._sse({"type": "done", "content": "Resumed answer", "bib": "refs"})
+
+    monkeypatch.setattr(research, "get_research_graph", get_graph)
+    monkeypatch.setattr(research, "_stream_graph", stream_graph)
+    monkeypatch.setattr(research.chat_persistence, "start_resume_turn", start_resume_turn)
+    monkeypatch.setattr(research.chat_persistence, "update_assistant_message", update_assistant_message)
+    monkeypatch.setattr(research.chat_persistence, "update_chat", update_chat)
+    monkeypatch.setattr(research.topic_monitoring, "score_topic_signal", score_topic_signal)
+
+    app.dependency_overrides[get_current_user] = _override_user
+    response = await client.post(
+        "/api/research/resume",
+        json={"thread_id": "thread-1", "chat_id": "chat-1", "resume_value": True},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert assistant_updates[0]["status"] == "streaming"
+    assert assistant_updates[0]["content"] == ""
+    assert assistant_updates[0]["metadata"].get("pending_plan") is None
+    assert assistant_updates[0]["metadata"]["steps"][0]["stepNum"] == "0"
+    assert assistant_updates[0]["metadata"]["steps"][-1]["stepNum"] == "1"
+    assert assistant_updates[-1]["status"] == "done"
+    assert assistant_updates[-1]["content"] == "Resumed answer"
+    assert assistant_updates[-1]["metadata"].get("pending_plan") is None
+    assert chat_updates[-1]["status"] == "complete"
+
+
+
+
+@pytest.mark.asyncio
+async def test_research_stream_stops_when_chat_is_deleted_mid_run(client, monkeypatch):
+    from backend.module.research_agent.api import research
+    from backend.shared.services.chat_persistence import ChatDeletedError
+
+    assistant_updates = []
+    chat_updates = []
+    deleted = {"value": False}
+
+    async def start_stream_turn(**_kwargs):
+        return {
+            "chat": {"id": "chat-1"},
+            "assistant_message": {"id": "assistant-1"},
+            "user_message": {"id": "user-1", "created_at": "2026-06-25T10:01:00Z"},
+        }
+
+    async def update_assistant_message(token, message_id, **kwargs):
+        if deleted["value"]:
+            raise ChatDeletedError()
+        assistant_updates.append({"token": token, "message_id": message_id, **kwargs})
+        return {"id": message_id}
+
+    async def update_chat(token, user_id, chat_id, **kwargs):
+        if deleted["value"]:
+            raise ChatDeletedError()
+        chat_updates.append({"token": token, "user_id": user_id, "chat_id": chat_id, **kwargs})
+        return {"id": chat_id}
+
+    async def get_graph():
+        return object()
+
+    async def stream_graph(_graph, _input, _config, _thread_id):
+        yield research._sse({"type": "step", "step_type": "observation", "stepNum": "1", "content": "First running step", "stat": "phase-1"})
+        deleted["value"] = True
+        yield research._sse({"type": "step", "step_type": "observation", "stepNum": "2", "content": "Second running step", "stat": "phase-2"})
+        yield research._sse({"type": "done", "content": "Final answer after delete", "bib": "refs"})
+
+    async def start_session(_user_id, _feature, _session_id):
+        return {"source": "subscription"}
+
+    monkeypatch.setattr(research.billing_db, "start_session", start_session)
+    monkeypatch.setattr(research, "get_research_graph", get_graph)
+    monkeypatch.setattr(research, "_stream_graph", stream_graph)
+    async def is_chat_deleted(*_args, **_kwargs):
+        return deleted["value"]
+
+    monkeypatch.setattr(research.chat_persistence, "start_stream_turn", start_stream_turn)
+    monkeypatch.setattr(research.chat_persistence, "update_assistant_message", update_assistant_message)
+    monkeypatch.setattr(research.chat_persistence, "update_chat", update_chat)
+    monkeypatch.setattr(research.chat_persistence, "is_chat_deleted", is_chat_deleted)
+
+    app.dependency_overrides[get_current_user] = _override_user
+    response = await client.post(
+        "/api/research/stream",
+        json={"query": "Delete mid-run"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.text
+    assert '"code": "chat_deleted"' in body
+    assert 'Final answer after delete' not in body
+    assert len(assistant_updates) == 1
+    assert assistant_updates[0]["status"] == "streaming"
+    assert len(chat_updates) == 0
+
+
+@pytest.mark.asyncio
+async def test_research_resume_stops_when_chat_is_deleted_mid_run(client, monkeypatch):
+    from backend.module.research_agent.api import research
+    from backend.shared.services.chat_persistence import ChatDeletedError
+
+    assistant_updates = []
+    chat_updates = []
+    deleted = {"value": False}
+
+    async def start_resume_turn(**kwargs):
+        assert kwargs["chat_id"] == "chat-1"
+        return {
+            "chat": {"id": "chat-1"},
+            "assistant_message": {
+                "id": "assistant-1",
+                "content": "",
+                "metadata": {"steps": [{"stepNum": "0", "type": "observation", "content": "Plan ready", "stat": "1 sub-query"}]},
+            },
+        }
+
+    async def score_topic_signal(*_args, **_kwargs):
+        return {"topic": {"id": "topic-1"}, "interest": {"id": "interest-1", "interest_score": 8}}
+
+    async def update_assistant_message(token, message_id, **kwargs):
+        if deleted["value"]:
+            raise ChatDeletedError()
+        assistant_updates.append({"token": token, "message_id": message_id, **kwargs})
+        return {"id": message_id}
+
+    async def update_chat(token, user_id, chat_id, **kwargs):
+        if deleted["value"]:
+            raise ChatDeletedError()
+        chat_updates.append({"token": token, "user_id": user_id, "chat_id": chat_id, **kwargs})
+        return {"id": chat_id}
+
+    async def get_graph():
+        return object()
+
+    async def stream_graph(_graph, _input, _config, _thread_id):
+        yield research._sse({"type": "step", "step_type": "observation", "stepNum": "1", "content": "Resumed running step", "stat": "phase-1"})
+        deleted["value"] = True
+        yield research._sse({"type": "done", "content": "Resumed answer after delete", "bib": "refs"})
+
+    monkeypatch.setattr(research, "get_research_graph", get_graph)
+    monkeypatch.setattr(research, "_stream_graph", stream_graph)
+    monkeypatch.setattr(research.chat_persistence, "start_resume_turn", start_resume_turn)
+    monkeypatch.setattr(research.chat_persistence, "update_assistant_message", update_assistant_message)
+    monkeypatch.setattr(research.chat_persistence, "update_chat", update_chat)
+    monkeypatch.setattr(research.topic_monitoring, "score_topic_signal", score_topic_signal)
+
+    app.dependency_overrides[get_current_user] = _override_user
+    response = await client.post(
+        "/api/research/resume",
+        json={"thread_id": "thread-1", "chat_id": "chat-1", "resume_value": True},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.text
+    assert '"code": "chat_deleted"' in body
+    assert 'Resumed answer after delete' not in body
+    assert len(assistant_updates) == 1
+    assert assistant_updates[0]["status"] == "streaming"
+    assert not any(item.get("status") == "complete" for item in chat_updates)
 
 @pytest.mark.asyncio
 async def test_research_resume_rejects_deleted_or_cross_user_chat(client, monkeypatch):
@@ -504,3 +791,249 @@ async def test_research_resume_rejects_deleted_or_cross_user_chat(client, monkey
     app.dependency_overrides.clear()
 
     assert response.status_code == 404
+
+
+
+@pytest.mark.asyncio
+async def test_stream_graph_stops_heartbeats_and_late_steps_once_delete_is_observed(monkeypatch):
+    from backend.module.research_agent.api import research
+
+    class GraphStub:
+        def __init__(self):
+            self.state_requested = False
+
+        async def astream_events(self, _input, _config, version="v2"):
+            yield {
+                "event": "on_chain_end",
+                "name": "parallel_search",
+                "data": {"output": {"search_stats": {"s2": 3}}},
+                "metadata": {"langgraph_node": "parallel_search"},
+            }
+            await asyncio.sleep(0)
+            yield {
+                "event": "on_chain_end",
+                "name": "dedup",
+                "data": {"output": {"papers": [1, 2]}},
+                "metadata": {"langgraph_node": "dedup"},
+            }
+
+        async def aget_state(self, _config):
+            self.state_requested = True
+            return SimpleNamespace(next=(), tasks=[])
+
+    deleted = {"value": False}
+    graph = GraphStub()
+
+    async def stop_requested():
+        return deleted["value"]
+
+    events = []
+    with pytest.raises(research._DeletedChatTermination):
+        async for raw_event in research._stream_graph(
+            graph,
+            {"query": "Delete during later phase"},
+            {"configurable": {"thread_id": "thread-1"}},
+            "thread-1",
+            stop_requested=stop_requested,
+        ):
+            payload = research._parse_sse(raw_event)
+            events.append(payload)
+            if payload and payload.get("stepNum") == "1":
+                deleted["value"] = True
+
+    assert [event.get("stepNum") for event in events if event and event.get("type") == "step"] == ["1"]
+    assert not any(event.get("type") == "heartbeat" for event in events if event)
+    assert graph.state_requested is False
+
+
+@pytest.mark.asyncio
+async def test_research_resume_emits_chat_deleted_during_early_step_token_phase(client, monkeypatch):
+    from backend.module.research_agent.api import research
+
+    deleted_poll_calls = {"count": 0}
+
+    class Chunk:
+        def __init__(self, content):
+            self.content = content
+
+    class GraphStub:
+        async def astream_events(self, _input, _config, version="v2"):
+            yield {
+                "event": "on_chat_model_stream",
+                "name": "parallel_search",
+                "data": {"chunk": Chunk("token-1")},
+                "metadata": {"langgraph_node": "parallel_search"},
+            }
+            yield {
+                "event": "on_chat_model_stream",
+                "name": "parallel_search",
+                "data": {"chunk": Chunk("token-2")},
+                "metadata": {"langgraph_node": "parallel_search"},
+            }
+            yield {
+                "event": "on_chain_end",
+                "name": "final_answer",
+                "data": {"output": {"answer": "should not finish", "bib_markdown": "refs"}},
+                "metadata": {"langgraph_node": "final_answer"},
+            }
+
+    async def start_resume_turn(**kwargs):
+        assert kwargs['chat_id'] == 'chat-1'
+        return {
+            'chat': {'id': 'chat-1'},
+            'assistant_message': {
+                'id': 'assistant-1',
+                'content': '',
+                'metadata': {'steps': []},
+            },
+        }
+
+    async def score_topic_signal(*_args, **_kwargs):
+        return {'topic': {'id': 'topic-1'}, 'interest': {'id': 'interest-1', 'interest_score': 8}}
+
+    async def get_graph():
+        return GraphStub()
+
+    async def is_chat_deleted(*_args, **_kwargs):
+        deleted_poll_calls['count'] += 1
+        return deleted_poll_calls['count'] >= 5
+
+    def immediate_deleted_poller(*, poll_deleted, chat_id, interval_seconds=0.5):
+        async def _poll():
+            return await poll_deleted()
+        return _poll
+
+    monkeypatch.setattr(research, 'get_research_graph', get_graph)
+    monkeypatch.setattr(research, '_build_deleted_chat_poller', immediate_deleted_poller)
+    monkeypatch.setattr(research.chat_persistence, 'start_resume_turn', start_resume_turn)
+    monkeypatch.setattr(research.chat_persistence, 'is_chat_deleted', is_chat_deleted)
+    monkeypatch.setattr(research.topic_monitoring, 'score_topic_signal', score_topic_signal)
+
+    app.dependency_overrides[get_current_user] = _override_user
+    response = await client.post(
+        '/api/research/resume',
+        json={'thread_id': 'thread-1', 'chat_id': 'chat-1', 'resume_value': True},
+        headers={'Authorization': 'Bearer test-token'},
+    )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.text
+    assert 'token-1' in body
+    assert 'token-2' not in body
+    assert 'should not finish' not in body
+    assert '"code": "chat_deleted"' in body
+
+
+@pytest.mark.asyncio
+async def test_deleted_chat_poller_throttles_reads_within_interval(monkeypatch):
+    from backend.module.research_agent.api import research
+
+    polls = []
+    times = iter([100.0, 100.1, 100.2, 100.8])
+    original_monotonic = research.time.monotonic
+
+    async def poll_deleted():
+        polls.append('poll')
+        return False
+
+    monkeypatch.setattr(research.time, 'monotonic', lambda: next(times, original_monotonic()))
+    poller = research._build_deleted_chat_poller(poll_deleted=poll_deleted, chat_id='chat-1', interval_seconds=0.5)
+
+    assert await poller() is False
+    assert await poller() is False
+    assert await poller() is False
+    assert await poller() is False
+    assert len(polls) == 2
+
+
+@pytest.mark.asyncio
+async def test_deleted_chat_poller_fails_open_on_transport_error_then_recovers(monkeypatch):
+    from backend.module.research_agent.api import research
+    import httpx
+
+    calls = {'count': 0}
+    times = iter([200.0, 200.6, 201.2])
+    original_monotonic = research.time.monotonic
+
+    async def poll_deleted():
+        calls['count'] += 1
+        if calls['count'] == 1:
+            raise httpx.RemoteProtocolError('Server disconnected')
+        return True
+
+    monkeypatch.setattr(research.time, 'monotonic', lambda: next(times, original_monotonic()))
+    poller = research._build_deleted_chat_poller(poll_deleted=poll_deleted, chat_id='chat-1', interval_seconds=0.5)
+
+    assert await poller() is False
+    assert await poller() is True
+    assert await poller() is True
+
+
+@pytest.mark.asyncio
+async def test_research_resume_ignores_transient_deleted_poll_transport_error(client, monkeypatch):
+    from backend.module.research_agent.api import research
+    import httpx
+
+    assistant_updates = []
+    chat_updates = []
+    deleted_checks = {'count': 0}
+
+    async def start_resume_turn(**kwargs):
+        assert kwargs['chat_id'] == 'chat-1'
+        return {
+            'chat': {'id': 'chat-1'},
+            'assistant_message': {
+                'id': 'assistant-1',
+                'content': '',
+                'metadata': {'steps': []},
+            },
+        }
+
+    async def score_topic_signal(*_args, **_kwargs):
+        return {'topic': {'id': 'topic-1'}, 'interest': {'id': 'interest-1', 'interest_score': 8}}
+
+    async def update_assistant_message(token, message_id, **kwargs):
+        assistant_updates.append({'token': token, 'message_id': message_id, **kwargs})
+        return {'id': message_id}
+
+    async def update_chat(token, user_id, chat_id, **kwargs):
+        chat_updates.append({'token': token, 'user_id': user_id, 'chat_id': chat_id, **kwargs})
+        return {'id': chat_id}
+
+    async def get_graph():
+        return object()
+
+    async def stream_graph(_graph, _input, _config, _thread_id):
+        yield research._sse({'type': 'step', 'step_type': 'observation', 'stepNum': '1', 'content': 'Resumed running step', 'stat': 'phase-1'})
+        yield research._sse({'type': 'done', 'content': 'Resumed answer', 'bib': 'refs'})
+
+    async def is_chat_deleted(*_args, **_kwargs):
+        deleted_checks['count'] += 1
+        if deleted_checks['count'] == 1:
+            raise httpx.RemoteProtocolError('Server disconnected')
+        return False
+
+    monkeypatch.setattr(research, 'get_research_graph', get_graph)
+    monkeypatch.setattr(research, '_stream_graph', stream_graph)
+    monkeypatch.setattr(research.chat_persistence, 'start_resume_turn', start_resume_turn)
+    monkeypatch.setattr(research.chat_persistence, 'update_assistant_message', update_assistant_message)
+    monkeypatch.setattr(research.chat_persistence, 'update_chat', update_chat)
+    monkeypatch.setattr(research.chat_persistence, 'is_chat_deleted', is_chat_deleted)
+    monkeypatch.setattr(research.topic_monitoring, 'score_topic_signal', score_topic_signal)
+
+    app.dependency_overrides[get_current_user] = _override_user
+    response = await client.post(
+        '/api/research/resume',
+        json={'thread_id': 'thread-1', 'chat_id': 'chat-1', 'resume_value': True},
+        headers={'Authorization': 'Bearer test-token'},
+    )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.text
+    assert 'Server disconnected' not in body
+    assert '"type": "error"' not in body
+    assert 'Resumed answer' in body
+    assert assistant_updates[-1]['status'] == 'done'
+    assert chat_updates[-1]['status'] == 'complete'

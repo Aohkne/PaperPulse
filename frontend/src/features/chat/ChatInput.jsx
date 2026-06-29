@@ -10,8 +10,9 @@ const ChatInput = () => {
   const status = useChatStore((s) => s.sessions.find((sess) => sess.id === s.activeSessionId)?.status ?? 'idle');
   const textareaRef = useRef(null);
   const quotaExhausted = useQuotaExhausted('lr');
-  const isLoading = status === 'loading' || status === 'awaiting_plan';
-  const inputDisabled = isLoading || quotaExhausted;
+  const isLoading = status === 'loading';
+  const isAwaitingPlan = status === 'awaiting_plan';
+  const inputDisabled = isLoading || isAwaitingPlan || quotaExhausted;
 
   const handleChange = (e) => {
     setValue(e.target.value);
@@ -118,6 +119,16 @@ const ChatInput = () => {
                     style={{ display: 'block', width: 13, height: 13, border: '2px solid var(--color-paper-bg)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }}
                   />
                   Thinking…
+                </motion.span>
+              ) : isAwaitingPlan ? (
+                <motion.span
+                  key="awaiting-plan"
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.6 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  Awaiting approval…
                 </motion.span>
               ) : (
                 <motion.span
