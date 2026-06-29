@@ -264,6 +264,41 @@ const LandingPage = () => {
           </div>
         </section>
 
+        {/* ── Demo Video ───────────────────────────────────────────────── */}
+        <section
+          id="demo"
+          style={{ background: 'var(--color-paper-bg)', padding: '88px 24px' }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <motion.div {...inView()} style={{ marginBottom: 18 }}>
+              <Eyebrow icon="mdi:play-circle-outline">Demo</Eyebrow>
+            </motion.div>
+            <motion.h2 {...inView(0.08)} style={{
+              fontFamily: 'var(--font-inknut)', fontSize: 30, fontWeight: 500,
+              color: 'var(--color-paper-dark)', margin: 0,
+            }}>
+              See PaperPulse in action
+            </motion.h2>
+          </div>
+
+          <motion.div {...inView(0.1)} style={{ maxWidth: 760, margin: '0 auto' }}>
+            <div style={{
+              position: 'relative', width: '100%', paddingTop: '56.25%',
+              borderRadius: 16, overflow: 'hidden',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+            }}>
+              <iframe
+                src="https://www.youtube.com/embed/g7bTfmkbx7g"
+                title="PaperPulse demo"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+          </motion.div>
+        </section>
+
         {/* ── How It Works ─────────────────────────────────────────────── */}
         <section
           ref={howItWorksRef}
@@ -281,23 +316,6 @@ const LandingPage = () => {
               From question to insight — in minutes
             </motion.h2>
           </div>
-
-          <motion.div {...inView(0.1)} style={{ maxWidth: 760, margin: '0 auto 56px' }}>
-            <div style={{
-              position: 'relative', width: '100%', paddingTop: '56.25%',
-              borderRadius: 16, overflow: 'hidden',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
-            }}>
-              <iframe
-                src="https://www.youtube.com/embed/g7bTfmkbx7g"
-                title="PaperPulse demo"
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-          </motion.div>
 
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
