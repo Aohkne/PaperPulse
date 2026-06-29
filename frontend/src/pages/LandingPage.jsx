@@ -267,7 +267,7 @@ const LandingPage = () => {
         {/* ── Demo Video ───────────────────────────────────────────────── */}
         <section
           id="demo"
-          style={{ background: 'var(--color-paper-bg)', padding: '88px 24px' }}
+          style={{ background: 'var(--color-paper-surface)', padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
