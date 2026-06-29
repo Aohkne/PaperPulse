@@ -1,383 +1,339 @@
 # JOURNAL — G069
 
----
-
-## 2026-06-26 — Hotfix: research-agent trả lời sai ngôn ngữ sau merge - Lê Hữu Khoa
-
-### Việc đã làm
-- Fix `graph/nodes/intent_router.py` + `graph/nodes/reply_generator.py` — khôi phục rule "suy nghĩ và trả lời cùng ngôn ngữ với câu hỏi" (đặc biệt cho query tiếng Anh ngắn/nhiều từ viết tắt) đã bị mất khi merge.
-
-### Bug / fix gặp phải
-- **Reply trôi sang tiếng Trung/Nhật/Hàn cho query ngắn/viết tắt tiếng Anh** — nhánh guardrail tách ra từ một commit cũ hơn bản fix ngôn ngữ, nên khi merge lại vào `develop` rule thinking-language ở `intent_router` và prompt clarify/greeting ở `reply_generator` bị revert theo bản cũ.
-- Fix: chép lại đúng rule ngôn ngữ vào cả 2 file, không sửa gì khác trong logic intent classification.
-
-### Next
-- Thêm test case ngắn cho rule ngôn ngữ vào eval suite — tránh regression tương tự ở lần merge song song kế tiếp.
+> Ghi chú cá nhân của từng thành viên: việc đã làm, bug gặp phải, học được gì, quyết định riêng trong ngày.
+> Quyết định chung của cả nhóm xem ở `WORKLOG.md`. File này viết để người mới đọc cũng hiểu được đang làm gì, không cần biết trước code.
 
 ---
 
-## 2026-06-23 — PDF Agent: module độc lập đọc & QA PDF/.tex (.zip) - Lê Hữu Khoa
+## 2026-06-26 — Sửa lỗi: trả lời sai ngôn ngữ sau khi gộp code - Lê Hữu Khoa
 
 ### Việc đã làm
-- Dựng `backend/module/pdf_agent/` — package hoàn toàn độc lập với `research_agent/` (theo `pdf-agent_PLAN_2.0.md`/`pdf-agent_SPEC_2.0.md`): chỉ *import* service đã có (`semantic_scholar.py`, `arxiv_search.py` ở mode lookup-1-paper), không sửa file nào trong `research_agent/`.
-- **Step P0** `graph/nodes/format_detect.py` — byte sniffing `%PDF` / `PK` (zip magic) / `\documentclass` để phân nhánh `pdf` / `tex_bundle` / `tex`.
-- **Step P1** `graph/nodes/parse_document.py` (120 dòng) dispatch theo nhánh:
-  - `services/mineru_client.py` (289 dòng) — subprocess wrapper gọi MinerU CLI, parse `content_list.json` → `Figure`/`Section`, có timeout + `proc.kill()`.
-  - `services/tex_parser.py` (332 dòng) — `pylatexenc.LatexWalker` extract section, `\cite{}`+context, `\includegraphics{}`.
-  - `services/zip_bundle.py` (63 dòng) — `extract_zip_safe()` validate `os.path.realpath()` từng entry nằm trong `dest_dir` *trước* `extractall()` (chặn zip-slip/path traversal), `find_main_tex()` heuristic tìm file có cả `\documentclass`+`\begin{document}`.
-  - `services/pdf_parser.py` (231 dòng) — reference list thô từ MinerU → 1 LLM call dọn thành `RawCitation[]`.
-- **Step P2** `graph/nodes/render_bundle.py` + `services/bundle_exporter.py` (189 dòng) + template `templates/pdf_agent_document.tex.j2` — render `main.tex` + copy `figures/` không-missing → zip.
-- **Step P3** `graph/nodes/batch_analysis.py` — `asyncio.gather` 3 nhánh song song:
-  - `services/critic_agent.py` (86 dòng) — 1 LLM call/section, `temperature=0`, 4 aspect cố định (clarity/terminology/flow/redundancy).
-  - `services/citation_lookup.py` (187 dòng) — waterfall DOI/ID lookup → search 3 nguồn → `rapidfuzz` multi-field match → LLM judge vùng xám 0.55-0.85. Thêm hàm `lookup_by_doi()`/`lookup_by_id()` mới vào `shared/services/semantic_scholar.py` và `research_agent/services/arxiv_search.py` (không sửa `search()` cũ).
-  - `services/link_checker.py` (61 dòng) — `httpx` HEAD song song, không LLM.
-- **Step P4** `graph/nodes/build_annotations.py` (134 dòng) + `services/text_quote_selector.py` (51 dòng) — `build_anchor()`/`refind_anchor()` theo W3C TextQuoteSelector (`exact`+`prefix`+`suffix`), gộp 3 kết quả P3 thành `Annotation[]`; `type=warning` luôn `suggested_fix=None`.
-- **Step P5** `api/selection.py` (124 dòng) — 3 endpoint `/explain`, `/rewrite`, `/apply`; `services/rewrite_validator.py` (23 dòng) validate exact-match trước khi cho ghi.
-- **Step P6** `api/save.py` (127 dòng) — lưu vào bảng `reviews` có sẵn (`source_type="uploaded"`, `content_format="tex"`, `pending_annotations`); sửa `supabase/schema.sql` + `backend/api/reviews.py` cho migration additive.
-- **Graph compile** `graph/graph.py` (77 dòng): `format_detect → parse_document → render_bundle → batch_analysis → build_annotations → END` — không có `interrupt_before` nào, khác hẳn `research_agent`.
-- **Frontend** `frontend/src/features/pdf-agent/`: `PDFUploadZone.jsx`, `TexEditor.jsx` (129 dòng, Monaco + decorations), `AnnotationCard.jsx` (92 dòng), `SelectionToolbar.jsx`, `RewritePreview.jsx`, `useTextQuoteAnchor.js` (47 dòng, port `refind_anchor` sang JS), `usePdfAgentStore.js` (153 dòng), `pdfAgentApi.js`, trang `PDFAgentPage.jsx` (285 dòng).
-- **Docker**: `Dockerfile.mineru` (37 dòng, container riêng cho MinerU self-host), sửa `Dockerfile` chính + thêm `docker-compose.dev.yml` (56 dòng) nối 2 container qua network riêng cho dev. `pyproject.toml` thêm `pylatexenc`/`mineru`/`pypdf`; frontend `npm install @monaco-editor/react monaco-editor`.
+- Khôi phục lại quy tắc "trả lời cùng ngôn ngữ với câu hỏi của người dùng" (đặc biệt với câu hỏi tiếng Anh ngắn hoặc viết tắt) — quy tắc này đã bị mất khi gộp các nhánh code của nhóm lại.
 
 ### Bug / fix gặp phải
-- **MinerU cần model weight riêng (~vài GB)** — không bake chung vào image API chính (sẽ kéo nặng cả service nhẹ). Fix: tách `Dockerfile.mineru` thành container riêng, gọi qua subprocess/HTTP tuỳ `MINERU_MODE`.
-- **`lookup_by_doi()`/`lookup_by_id()` chưa tồn tại** ở service `research_agent` (vốn chỉ có `search()`) — phải thêm hàm mới, kiểm tra kỹ không breaking change cho `research_agent` đang chạy ổn định.
-- **PATCH annotation ban đầu không chặn `action="accept"` cho `warning`** — review lại Non-goal của SPEC ("Accept sẽ ngầm gợi ý có bản sửa đúng cho citation giả, gây hiểu lầm") → thêm guard raise 400 trong `api/annotations.py`.
-- **`/apply` dùng `str.replace()` thẳng, không check `old_text` còn khớp buffer hiện tại** — nếu user sửa tay đúng lúc LLM đang trả lời rewrite, patch có thể áp nhầm đoạn đã đổi. Fix: `rewrite_validator.validate()` bắt buộc exact-match, trả 409 nếu lệch.
+- **Hệ thống trả lời nhầm sang tiếng Trung/Nhật/Hàn khi người dùng hỏi câu tiếng Anh ngắn** — nguyên nhân là một phần code xử lý an toàn (chặn nội dung không phù hợp) được tách ra từ một bản cũ hơn, trước khi quy tắc ngôn ngữ được sửa — khi gộp lại vào nhánh chung, phần quy tắc ngôn ngữ bị ghi đè trở lại bản cũ.
+- Đã sửa lại đúng quy tắc ở cả hai chỗ liên quan, không đổi gì khác trong logic phân loại ý định người dùng.
+
+### Tiếp theo
+- Thêm vài câu hỏi kiểm tra ngắn riêng cho quy tắc ngôn ngữ vào bộ kiểm tra tự động — để tránh lặp lại lỗi này ở lần gộp code song song kế tiếp.
+
+---
+
+## 2026-06-23 — PDF Agent: tính năng đọc & kiểm tra PDF/.tex có sẵn - Lê Hữu Khoa
+
+### Việc đã làm
+- Xây tính năng mới hoàn toàn độc lập với phần viết bài tổng quan hiện có — chỉ dùng lại các phần tra cứu bài báo đã có sẵn, không sửa gì trong phần đang chạy ổn.
+- Nhận diện file người dùng tải lên thuộc loại nào (PDF / file LaTeX trần / file zip có kèm ảnh) để xử lý đúng nhánh.
+- Viết phần đọc nội dung theo từng loại file:
+  - File PDF: dùng công cụ chuyển đổi riêng (MinerU) để tách thành các phần văn bản + hình ảnh + danh sách trích dẫn thô (rồi dùng AI dọn lại danh sách trích dẫn cho sạch).
+  - File LaTeX trần: tự phân tích cấu trúc văn bản, lấy ra từng phần + các chỗ trích dẫn + các chỗ chèn ảnh.
+  - File zip: giải nén an toàn (có kiểm tra chặn đường dẫn độc hại trước khi giải nén), tự tìm ra file chính trong số nhiều file.
+- Ghép lại thành một file LaTeX hoàn chỉnh có thể chỉnh sửa, kèm thư mục ảnh — đóng gói thành 1 file zip để người dùng tải về hoặc tiếp tục sửa ngay trên web.
+- Chạy đồng thời 3 việc kiểm tra: (1) một AI riêng nhận xét văn phong từng phần (rõ ràng, thống nhất thuật ngữ, mạch lạc, có lặp ý không), (2) kiểm tra từng trích dẫn có thật không (tra nhiều nguồn, so khớp nhiều trường thông tin, AI phân xử cho các trường hợp không chắc chắn), (3) kiểm tra các đường link trong bài còn truy cập được không.
+- Ghép 3 kết quả kiểm tra trên thành các "góp ý" gắn vào đúng vị trí trong văn bản, dùng cách neo vị trí theo nội dung xung quanh (không theo số thứ tự ký tự) để góp ý không bị lệch khi người dùng sửa đoạn khác.
+- Làm 3 nút hành động khi người dùng bôi đen một đoạn: Giải thích, Viết lại, Áp dụng (chỉ Áp dụng mới ghi thật vào văn bản, và phải kiểm tra đoạn gốc chưa bị đổi trước khi ghi).
+- Làm phần lưu kết quả vào đúng chỗ lưu các bài tổng quan đã viết trước đó, chỉ thêm một vài trường đánh dấu đây là tài liệu người dùng tự tải lên.
+- Làm giao diện: khung tải file lên, trình soạn LaTeX có đánh dấu góp ý ngay trong văn bản, thẻ hiển thị từng góp ý, thanh công cụ khi bôi đen, khung xem trước đoạn viết lại.
+- Đóng gói công cụ chuyển đổi PDF (MinerU) thành một dịch vụ chạy riêng, tách khỏi dịch vụ chính — vì công cụ này khá nặng, không nên làm chậm cả hệ thống.
+
+### Bug / fix gặp phải
+- **Công cụ chuyển đổi PDF cần dung lượng lưu trữ riêng khá lớn** — không gộp chung vào dịch vụ chính (sẽ làm dịch vụ chính nặng theo không cần thiết). Sửa: tách thành dịch vụ riêng.
+- **Phần tra cứu trích dẫn cũ chỉ hỗ trợ "tìm theo từ khoá"** chưa có cách "tra theo mã định danh có sẵn" (DOI/ID) — phải viết thêm, kiểm tra kỹ để không ảnh hưởng tới phần viết bài đang chạy ổn.
+- **Ban đầu hệ thống vô tình cho phép "Đồng ý" với cả cảnh báo trích dẫn giả** — soát lại yêu cầu ban đầu (không có "bản sửa đúng" cho citation giả nên không nên có nút Đồng ý) → đã thêm chặn.
+- **Việc áp dụng đoạn viết lại ban đầu ghi đè thẳng vào văn bản, không kiểm tra đoạn gốc còn khớp hay không** — nếu người dùng vừa tự sửa tay đúng lúc AI đang trả lời, bản viết lại có thể ghi đè sai chỗ. Đã thêm bước kiểm tra khớp chính xác trước khi cho ghi, báo lỗi rõ nếu lệch.
 
 ### Quyết định kỹ thuật
-- **Không gọi `interrupt()`/`interrupt_before` nào trong graph PDF Agent** — khác pattern Research Agent vì không bước nào *cần* dữ liệu user duyệt để *tiếp tục chạy graph*; mọi tương tác (accept/reject/dismiss/apply) xảy ra sau khi graph chạy xong, qua `graph.update_state()` thay vì `resume()`.
-- **Checkpointer riêng schema Postgres** (`pdf_agent_checkpoints`, tách khỏi `research_agent_checkpoints`) — 2 domain khác nhau (session nghiên cứu vs document upload), tránh lẫn `thread_id`.
-- **Annotation anchor bắt buộc TextQuoteSelector**, không offset số tuyệt đối — để annotation không trôi vị trí khi user sửa đoạn khác trong văn bản.
+- Quy trình PDF Agent chạy liền một lượt từ đầu tới cuối, không có điểm dừng nào để chờ người dùng duyệt giữa đường — khác với phần viết bài tổng quan (cần dừng để người dùng duyệt dàn ý/luận điểm). Lý do: mọi tương tác của người dùng với PDF Agent (đồng ý/từ chối/bỏ qua/áp dụng) đều xảy ra SAU khi việc đọc + kiểm tra đã xong hết, không có bước nào cần người dùng quyết định trước thì mới chạy tiếp được.
+- Lưu trữ tiến trình của PDF Agent tách riêng khỏi tiến trình của phần viết bài tổng quan — hai việc khác nhau (một bên là phiên nghiên cứu, một bên là tài liệu người dùng tải lên), tách ra để không bị lẫn dữ liệu.
+- Mọi góp ý bắt buộc neo theo nội dung xung quanh, không theo số thứ tự ký tự — để góp ý không bị trôi sai vị trí khi người dùng sửa đoạn khác.
 
-### Next
-- Đo cost thật 1 document ~60 citation/~15 section, so với ước tính SPEC (~$0.003/document nhánh .pdf).
-- Test security: thử payload zip-slip thật (`../../etc/passwd`) trong môi trường container để xác nhận guard hoạt động đúng.
-- Gap riêng cần patch ở `research_agent` (không phải lỗi PDF Agent): Step ⑩ Intro/Conclusion sinh sau Step ⑦/⑧ nên citation trong đó chưa qua claim verification.
+### Tiếp theo
+- Đo chi phí thật khi xử lý một tài liệu có nhiều trích dẫn/nhiều phần, so với ước tính ban đầu.
+- Thử kiểm tra lại độ an toàn của bước giải nén zip với một file zip có đường dẫn độc hại thật, xác nhận có bị chặn đúng không.
+- Có một thiếu sót (không phải của PDF Agent) cần sửa ở phần viết bài tổng quan: phần Mở đầu/Kết luận được viết SAU bước kiểm tra luận điểm, nên các trích dẫn trong đó chưa từng qua kiểm tra.
 
 ---
 
-## 2026-06-21 — Plan Review interrupt + multi-source MMR + Knowledge Graph visualization (Step ⑨bis) - Lê Hữu Khoa
+## 2026-06-21 — Thêm bước duyệt kế hoạch tìm kiếm + tìm đa nguồn + Sơ đồ tri thức - Lê Hữu Khoa
 
 ### Việc đã làm
-- **Step 0c Plan Review**: `graph/nodes/plan_review.py` (mới) — gọi `interrupt({"sub_queries":..., "sources":..., "plan_description":...})` ngay sau khi `intent_router` sinh research plan, dừng cho user duyệt/sửa `sub_queries`/`sources` trước khi gọi API search nào — đúng goal "User confirm research scope trước khi search" của SPEC 2.0. Nối vào `graph.py`: `intent_router → plan_review → parallel_search`.
-- **`services/mmr.py`** (74 dòng, mới) — Maximal Marginal Relevance thuần Python: `MMR(d) = λ·Sim(d,query) − (1−λ)·max_{s∈selected} Sim(d,s)`, chọn greedy từng round (round 1 luôn lấy candidate relevance cao nhất). Dùng cho Step ④ Outline (MMR-20) và Step ⑤ hybrid search per-theme.
-- **Multi-source search thật**: thêm `services/pubmed_search.py` (115 dòng, cho domain y sinh); update `arxiv_search.py`/`openalex.py`; sửa `parallel_search_node` gọi đủ nguồn theo `sources` đã chốt ở Plan Review.
-- **`services/vector_store.py`** — cải thiện batch upsert ChromaDB cho corpus lớn hơn (600-900 bài sau snowball).
-- **Knowledge Graph (Step ⑨bis)** theo `knowledge-graph_PLAN_2.0.md`/`knowledge-graph_SPEC_2.0.md`:
-  - Sửa `services/snowball.py`: `run_snowball()` đổi return type `list[Paper]` → `tuple[list[Paper], list[dict]]`, giữ lại `citation_edges` (`{source, target, intent, isInfluential}`) từ response S2 references/citations — trước đây chỉ giữ `papers`, bỏ qua quan hệ cite-nhau hoàn toàn.
-  - `graph/state.py` thêm field `citation_edges`, `knowledge_graph`.
-  - `services/graph_builder.py` (201 dòng, mới) — `build_knowledge_graph()` dùng `networkx.MultiDiGraph`: Topic node duy nhất → Theme/Paper layer chỉ lấy paper thật xuất hiện trong `theme_contents` (không phải toàn bộ `papers` post-snowball ~600-900 bài) → Claim layer 2 edge riêng (`evidenced_by` trung tính + edge mang intent: `Claim.intent` "Supporting"/"Contrasting"/"Mentioning" map sang `supports`/`contradicts`/`mentions` — Claim model không có giá trị "Extends" nên dùng "Mentioning" thay) → `nx.node_link_data()` xuất `{nodes, edges, stats}`. Claim xét gồm `included_claims + review_claims` (loại `removed_claims`) — khớp đúng tập claim mà `export_node` dùng để bài viết và graph đồng nhất nội dung.
-  - `graph/nodes/build_graph.py` — node mới chèn `route_claims → build_graph → export`.
-  - `shared/models/graph.py` (45 dòng) — pydantic `GraphNode`/`GraphEdge`/`GraphStats`/`GraphResponse`.
-  - API: thêm `GET /api/research/graph?thread_id=` trong `api/research.py`, đọc lại `knowledge_graph` từ checkpoint, 404 nếu chưa build.
-  - Frontend: `KnowledgeGraphViewer.jsx` (295 dòng, `@react-sigma/core`), `NodeDetailCard.jsx` (225 dòng, card theo 4 type node), `radialLayout.js` (84 dòng — polar coordinate: theme=150px/paper=320px/claim=480px, lưu riêng `baseX`/`baseY`), `useKnowledgeGraph.js` (116 dòng — fetch + convert node_link JSON sang Graphology), `KnowledgeGraphDrawer.jsx` (panel riêng, không phải tab trong Review). `bun add @react-sigma/core graphology`.
-- **Admin test page**: `LiteratureReviewTestingPage.jsx` (404 dòng) + `useAdminTestStore.js` (207 dòng) — chạy thử Research Agent trực tiếp từ trang Admin để debug nhanh từng step, không cần qua chat UI.
+- **Thêm bước "Duyệt kế hoạch nghiên cứu"**: ngay sau khi hệ thống hiểu ý định người dùng và lên kế hoạch tìm kiếm, hệ thống dừng lại hiển thị kế hoạch (các câu hỏi sẽ tìm, nguồn sẽ tìm) cho người dùng xem/sửa trước khi gọi bất kỳ API tìm kiếm thật nào — tránh tốn công tìm theo hướng sai.
+- Viết một thuật toán chọn bài đa dạng (tên thuật toán: MMR — chọn bài vừa liên quan tới câu hỏi vừa khác với những bài đã chọn trước đó, tránh chọn toàn bài giống nhau) — dùng cho cả bước lên dàn ý và bước tìm bài riêng cho từng chủ đề.
+- Nối thêm các nguồn tìm kiếm thật khác ngoài Semantic Scholar: arXiv, OpenAlex, và PubMed (cho chủ đề y sinh) — hệ thống tự chọn nguồn phù hợp theo kế hoạch đã được duyệt ở bước trên.
+- Cải thiện cách lưu trữ vector cho việc tìm kiếm khi số lượng bài báo lớn hơn (sau bước lan rộng theo trích dẫn, có thể lên tới 600-900 bài).
+- Xây tính năng **Sơ đồ tri thức** (Knowledge Graph):
+  - Sửa lại bước "lan rộng tìm kiếm theo trích dẫn" để giữ lại thông tin "bài nào trích dẫn bài nào" — trước đây bước này chỉ giữ danh sách bài báo, bỏ qua hoàn toàn quan hệ trích dẫn giữa các bài.
+  - Viết phần ráp sơ đồ: 1 điểm gốc duy nhất là chủ đề nghiên cứu → các nhóm ý chính (theme) → các bài báo thật sự được dùng trong bài viết (không phải toàn bộ bài đã quét qua) → các luận điểm, với 2 loại đường nối riêng (một loại trung tính chỉ để biết luận điểm lấy từ bài nào, một loại mang ý nghĩa ủng hộ/phản bác/mở rộng để biết luận điểm đó đứng ở phía nào so với nhóm ý chính).
+  - Thêm 1 chỗ trong API để frontend lấy sơ đồ đã ráp xong, đọc lại từ tiến trình đã lưu, báo lỗi nếu sơ đồ chưa được tạo.
+  - Làm phần hiển thị sơ đồ ở giao diện: vẽ sơ đồ, thẻ chi tiết khi bấm vào từng loại điểm (chủ đề/nhóm ý/bài báo/luận điểm), bố cục dạng vòng tròn đồng tâm (giống hệ mặt trời) để dễ định hướng, và một khung riêng để mở sơ đồ ra (không phải tab cố định).
+- Làm thêm một trang Quản trị để chạy thử trực tiếp phần viết bài tổng quan, giúp debug nhanh từng bước mà không cần qua giao diện chat chính.
 
 ### Bug / fix gặp phải
-- **`run_snowball()` đổi sang trả tuple** — phải sửa cả `graph/nodes/snowball.py` (node wrapper) để unpack đúng `(papers, edges)`, nếu không LangGraph state nhận nhầm tuple làm `snowballed_papers`.
-- **`cites` edge add thẳng vào graph không check 2 đầu đã có node chưa** — paper nằm ngoài `theme_contents` (bị loại sau dedup/outline) tạo edge trỏ tới node không tồn tại, Graphology phía frontend throw lỗi khi load. Fix: `graph_builder.py` chỉ add `cites` nếu `g.has_node(src) and g.has_node(tgt)`.
-- **`nx.node_link_data()` trả key `links`** nhưng Graphology/frontend cần `edges` — viết adapter nhỏ trong `useKnowledgeGraph.js` map lại trước khi load vào Graph instance.
-- **Claim có `source_paperId` ngoài `theme_contents`** (paper bị loại khỏi outline sau dedup) — nếu không check sẽ tạo claim node mồ côi, không có cạnh `evidenced_by` hợp lệ. Fix: skip claim đó có chủ đích trong `graph_builder.py`.
+- **Bước lan rộng tìm kiếm theo trích dẫn đổi cách trả kết quả** (trả thêm cả danh sách quan hệ trích dẫn, không chỉ danh sách bài) — phải sửa luôn chỗ nhận kết quả này để đọc đúng cả hai phần, nếu không hệ thống sẽ hiểu nhầm dữ liệu.
+- **Sơ đồ bị lỗi hiển thị (crash) ở phía người dùng** vì có đường nối trích dẫn chỉ tới bài báo nằm ngoài phạm vi bài viết (bị loại sau khi lọc/lên dàn ý) — sửa bằng cách chỉ vẽ đường nối khi cả hai đầu đều đã có mặt trong sơ đồ.
+- **Tên trường dữ liệu không khớp nhau** giữa phần xử lý dữ liệu (Python) và phần hiển thị (giao diện web) — viết thêm một bước chuyển đổi nhỏ ở giữa.
+- **Một số luận điểm tham chiếu tới bài báo nằm ngoài phạm vi bài viết** (bị loại sau khi lọc/lên dàn ý) — nếu không kiểm tra sẽ tạo ra các điểm "mồ côi" trong sơ đồ. Sửa bằng cách bỏ qua có chủ đích các luận điểm này.
 
 ### Quyết định kỹ thuật
-- **Knowledge Graph hiện trong drawer/panel riêng** (`KnowledgeGraphDrawer.jsx`) thay vì 1 tab cố định cạnh LaTeX viewer — graph cần canvas lớn để radial layout không bị bóp méo.
-- **`renderLabels: false` mặc định** cho `SigmaContainer` — ~300 node hiện label cùng lúc sẽ rất rối, thông tin chuyển hết vào `NodeDetailCard` khi click.
-- **Animation "Chuyển động" (orbit quay) optional, tắt mặc định**, tự tắt theo `prefers-reduced-motion` — theo WCAG 2.3.3/2.2.2, ưu tiên accessibility hơn hiệu ứng đẹp.
+- Sơ đồ tri thức hiển thị trong một khung riêng có thể mở ra, không phải tab cố định cạnh trình soạn văn bản — vì sơ đồ cần không gian rộng để bố cục dạng vòng tròn không bị bóp méo.
+- Mặc định không hiện chữ/tên trên các điểm trong sơ đồ khi có nhiều điểm cùng lúc (dễ rối mắt) — thông tin chi tiết chuyển hết vào thẻ hiển thị khi bấm vào.
+- Hiệu ứng chuyển động (sơ đồ tự xoay) là tuỳ chọn, mặc định tắt, và tự tắt nếu máy người dùng có cài đặt "giảm chuyển động" — ưu tiên người dễ bị chóng mặt khi nhìn hình xoay liên tục hơn là hiệu ứng đẹp mắt (theo khuyến nghị tiêu chuẩn khả năng truy cập web WCAG).
 
-### Next
-- Bắt đầu PDF Agent module — đọc kỹ `pdf-agent_SPEC_2.0.md` trước, vì đây là module hoàn toàn độc lập (entry point riêng, không nối sau Research Agent).
-- Đo `stats.papers` thực tế sau khi `build_graph` chạy với corpus thật — xác nhận có rơi đúng khoảng ~60-150 như SPEC ước tính không.
+### Tiếp theo
+- Bắt đầu làm tính năng PDF Agent — đọc kỹ tài liệu thiết kế trước, vì đây là tính năng hoàn toàn độc lập, có entry point riêng, không nối sau phần viết bài tổng quan.
+- Đo số lượng bài báo thật sự xuất hiện trong sơ đồ sau khi chạy với dữ liệu thật — xác nhận có đúng khoảng 60-150 bài như ước tính không.
 
 ---
 
-## 2026-06-20 — Research Agent v2.0: dựng LangGraph StateGraph thay flow service tuần tự - Lê Hữu Khoa
+## 2026-06-20 — Viết lại "bộ não" Research Agent theo dạng quy trình có thể dừng/tiếp tục - Lê Hữu Khoa
 
 ### Việc đã làm
-- Tạo `backend/module/research_agent/` — package mới gồm `graph/` (`state.py`, `graph.py`, `nodes/`), `services/`, `api/`, `models/` — thay cho 4 endpoint rời cũ (`api/search.py`, `api/snowball.py`, `api/verify.py`, `api/review.py`) + `agent/*.py`.
-- Định nghĩa `ResearchState` (TypedDict, 78 dòng) và `build_research_graph()` trong `graph/graph.py` (91 dòng): pipeline node nối tiếp `intent_router → reply_generator|parallel_search → dedup → snowball → embed → outline_gen → write_themes → extract_claims → verify_claims → route_claims → export`, conditional edge sau Step 0 (`greeting`/`clarify` → `reply_generator` → END, `search` → tiếp pipeline).
-- Viết 12 node trong `graph/nodes/` (mỗi node là thin wrapper gọi service tương ứng) + `narrator.py` (helper emit narration step cho SSE) + `reply_generator.py` (node mới, stream `reply_token` riêng cho greeting/clarify — tách khỏi `intent_router` để giữ 2 trách nhiệm classify-vs-reply độc lập).
-- Viết lại `api/research.py` (293 dòng) — endpoint `POST /api/research/stream` dùng `astream_events(version="v2")`, map `on_chain_start`/`on_chain_end`/`on_chat_model_stream` sang SSE event (`step_start`/`step_done`/`llm_token`).
-- Tạo các service còn thiếu cho flow đa nguồn: `arxiv_search.py` (76 dòng), `openalex.py` (107 dòng), `dedup_utils.py` (72 dòng, priority DOI→arXiv ID→S2 paperId→title fuzzy), `latex_utils.py`, `llm_client.py`, `supabase_client.py` riêng cho module.
-- Di chuyển + đổi tên service cũ vào module mới (`content_generator.py`→`content_agent.py`, `outline_generator.py`→`outline_agent.py`) — tách rõ "agent" (LLM call) khỏi service orchestration.
-- Cập nhật `ReActTrace.jsx`, `ProgressTracker.jsx`, `TypingIndicator.jsx`, `ResearchPage.jsx` ở frontend khớp event schema mới (`step_start`/`step_done` có field `node` thay vì step number cứng).
-- Port `backend/agent/gap_detection/*` cũ sang `backend/module/gap_detection/` cho đồng bộ cấu trúc module (chỉ đổi đường dẫn import, không đổi logic).
+- Xây một package mới cho phần viết bài tổng quan, thay cho 4 chức năng tách rời cũ (tìm kiếm / lan rộng theo trích dẫn / kiểm tra / duyệt) — gộp lại thành một quy trình duy nhất, có thể dừng ở một số điểm để chờ người dùng xác nhận rồi tiếp tục, giống một bản nhạc có những đoạn nghỉ định trước.
+- Định nghĩa rõ luồng đi qua từng bước: hiểu ý định người dùng → (trả lời thường nếu là chào hỏi, hoặc tiếp tục tìm kiếm nếu là yêu cầu nghiên cứu) → lan rộng tìm kiếm theo trích dẫn → tạo vector tìm kiếm → lên dàn ý → viết nội dung theo từng nhóm ý → trích luận điểm → kiểm tra luận điểm → phân loại kết quả → xuất bài.
+- Viết các bước nhỏ tương ứng với từng giai đoạn trên, mỗi bước chỉ là một lớp bao mỏng gọi tới phần xử lý nghiệp vụ thật — để phần xử lý nghiệp vụ có thể kiểm tra độc lập, không phụ thuộc vào cách quy trình tổng được chạy.
+- Viết lại chỗ nhận yêu cầu từ giao diện để truyền tiến trình từng bước (đang làm gì, xong bước nào) ngay khi đang chạy, không phải chờ xong hết mới trả kết quả.
+- Bổ sung các phần tìm kiếm còn thiếu cho việc tìm đa nguồn: tìm trên arXiv, tìm trên OpenAlex, lọc trùng giữa các nguồn (ưu tiên theo mã định danh chuẩn trước, rồi mới so tên bài gần giống nếu không có mã).
+- Sắp xếp lại tên gọi cho rõ ràng: tách phần "gọi AI" ra khỏi phần "điều phối/xử lý dữ liệu" để dễ phân biệt vai trò.
+- Cập nhật phần hiển thị tiến trình ở giao diện để khớp với cách quy trình mới báo tiến trình.
+- Chuyển một tính năng cũ (phát hiện khoảng trống nghiên cứu) sang cùng cách tổ chức package mới cho đồng bộ, không đổi logic.
 
 ### Bug / fix gặp phải
-- **Restructure 2 module cùng lúc (research_agent mới + gap_detection di chuyển) trong 1 commit** — dễ sót file orphan ở `backend/agent/` cũ nếu không `git status` kỹ trước khi commit.
-- **`_route_after_intent` ban đầu trả thẳng `parallel_search` cho intent=`search`** — chưa tính tới việc Plan Review (Step 0c, thêm ngày 06-21) sẽ chèn vào sau, nên phải giữ kiểu trả về (`Literal[...]`) đủ tổng quát để mai sửa route đích không đổi signature.
-- **`astream_events()` ban đầu miss event của node chạy trong `asyncio.gather`** (`write_themes`, `verify_claims`) — phải set `version="v2"` mới bắt đủ.
+- **Tổ chức lại 2 phần lớn cùng lúc trong một lần thay đổi** (phần viết bài tổng quan mới + chuyển tính năng phát hiện khoảng trống nghiên cứu) — dễ sót file cũ không còn dùng nếu không kiểm tra kỹ trước khi lưu lại.
+- **Chỗ quyết định "đi tiếp bước nào sau khi hiểu ý định"** ban đầu viết hơi cứng, chưa tính tới việc sẽ có thêm bước "duyệt kế hoạch nghiên cứu" chèn vào sau (thêm sau đó vài ngày) — phải sửa lại để dễ mở rộng thêm bước mới mà không phải đổi cấu trúc.
+- **Theo dõi tiến trình bị thiếu sự kiện** cho các bước chạy đồng thời (viết nội dung nhiều nhóm ý cùng lúc, kiểm tra nhiều luận điểm cùng lúc) — phải nâng cấp cách lắng nghe sự kiện mới bắt đủ.
 
 ### Quyết định kỹ thuật
-- **Mỗi node trong `graph/nodes/` là thin wrapper** — toàn bộ logic thật nằm ở `services/`, để unit test service được độc lập với LangGraph runtime.
-- **Tách `reply_generator` thành node riêng khỏi `intent_router`** — 2 trách nhiệm khác hẳn (classify JSON vs stream câu trả lời tự nhiên), để chung 1 node khó debug khi 1 trong 2 sai.
-- **Checkpointer dùng interface `BaseCheckpointSaver`** (không hardcode `SqliteSaver`) — chuẩn bị sẵn cho đổi sang Postgres sau này mà không phải sửa `graph.py`.
+- Mỗi bước nhỏ trong quy trình chỉ là lớp bao mỏng, toàn bộ logic thật nằm ở phần xử lý nghiệp vụ riêng — để có thể kiểm tra phần xử lý nghiệp vụ độc lập, không cần chạy cả quy trình lớn.
+- Tách việc "trả lời thường" (chào hỏi/làm rõ câu hỏi) ra một bước riêng, không gộp chung với bước "hiểu ý định" — vì hai việc rất khác nhau (một bên là phân loại có cấu trúc, một bên là trả lời tự nhiên), gộp chung sẽ khó debug khi một trong hai bị sai.
+- Cách lưu tiến trình được viết theo kiểu chung, chưa gắn cứng vào một công nghệ lưu trữ cụ thể — để sau này đổi sang hệ thống lưu trữ chính thức mà không phải sửa lại toàn bộ quy trình.
 
-### Next
-- Thêm Step 0c Plan Review (interrupt trước search) — hiện sub_queries/sources mới chỉ hiển thị, chưa có cơ chế user sửa trước khi search chạy thật.
-- Gọi hết multi-source (OpenAlex/PubMed) trong `parallel_search_node` — service đã tạo nhưng chưa wire đủ.
-- Sửa `snowball.py` giữ lại `citation_edges` trước khi build Knowledge Graph (Step ⑨bis) — đang chỉ trả `papers`, bỏ field này sẽ làm Paper layer thiếu cạnh `cites`.
+### Tiếp theo
+- Thêm bước "duyệt kế hoạch nghiên cứu" trước khi tìm kiếm thật — hiện kế hoạch mới chỉ hiển thị, chưa có cách cho người dùng sửa trước khi chạy.
+- Nối đầy đủ các nguồn tìm kiếm đa dạng (OpenAlex/PubMed) vào quy trình chính — phần xử lý đã viết nhưng chưa gọi tới hết.
+- Sửa bước lan rộng tìm kiếm theo trích dẫn để giữ lại quan hệ "bài nào trích dẫn bài nào" trước khi làm Sơ đồ tri thức — hiện chỉ trả về danh sách bài, thiếu thông tin này sẽ làm sơ đồ thiếu đường nối.
 
 ---
 
-## 2026-06-(15-18) — Optimize RAG pipeline, Admin pages, tích hợp PR #20-#26 - Lê Hữu Khoa
+## 2026-06-(15-18) — Cải thiện chất lượng pipeline tìm kiếm/viết bài, làm trang Quản trị, gộp code nhóm - Lê Hữu Khoa
 
 ### Việc đã làm
-- Viết `docs/research/SPEC.md` + `docs/research/PLAN.md` (đổi tên bản cũ thành `docs/research/version_1.0/`), document 6 fix cho flow ①→⑩ sau khi review lại SPEC gốc:
-  - **Fix 1 — Seed selection dual-pool**: `select_seeds()` trong `snowball.py` chọn top-5 raw `citationCount` (Pool A, foundational) ∪ top-5 `citationCount/năm` (Pool B, recent impactful) thay vì 1 metric duy nhất → ~7-9 seeds sau dedup.
-  - **Fix 2 — Backward filter time-decayed + isInfluential bypass**: thay flat `min_citations ≥ 5` (hardcode năm 2022) bằng threshold tương đối theo `current_year - N`, cho bài Semantic Scholar đánh `isInfluential` bypass threshold dù citations thấp.
-  - **Fix 3 — Outline từ MMR-20 trên 300-400 bài** thay top-20 cosine trên 100 bài gốc, thêm bước user edit & approve outline trước khi generate content.
-  - **Fix 4 — Query encoder đổi sang SPECTER2 adapter `proximity`** thay default adapter — fix asymmetric retrieval (query→paper) thay vì symmetric (paper↔paper).
-  - **Fix 5 — Verification 3-tier fallback**: `/snippet/search` → arXiv HTML (`arxiv_fetcher.py`, qua `ar5iv.labs.arxiv.org`) → abstract (conservative, không bao giờ return `Supported`).
-  - **Fix 6 — Citation Intent**: bỏ early-exit khi intent ≠ Supporting (citation drift thường nằm chính trong Supporting), Contrasting ưu tiên vào human review queue.
-- Build endpoint mới `GET /api/research/stream` (`backend/api/research.py`, SSE) — orchestrate trọn flow ①→⑩, stream từng step (thought/action/observation) cho frontend.
-- Build `ReActTrace.jsx` hiển thị trace theo màu/icon riêng cho mỗi step, và mock `BRAIN_MRI_STEPS` trong `useChatStore.js` để demo UI trước khi nối API stream thật.
-- Thêm `openAccessPdf` vào toàn bộ S2 API call (search/batch/citations/references) + PDF link priority logic ở Step ⑩ (`openAccessPdf` GREEN/GOLD → ArXiv PDF → `openAccessPdf` BRONZE → DOI → trang S2).
-- Build trang Admin: `backend/api/admin.py` (stats/users/activity, query PostgREST qua service-role key để bypass RLS), `require_admin` dependency (check `role` trong bảng `profiles`) trong `backend/auth/dependencies.py`, frontend `AdminLayout/DashboardPage/UserManagementPage` + `AdminRoute` guard.
-- Refactor login/register/logout trong `auth.py`: gom việc ghi `login_logs` vào helper `_log_event()` dùng service-role key, log đủ 3 event type (register/login/logout) nhất quán.
-- Merge & giữ đồng bộ branch `develop` ↔ `feat/T-007` qua PR #20-#26 (sync develop, auth feature, review-save, gap detection port, admin pages, db schema chat/messages/notifications) — review, resolve conflict, merge lên develop.
+- Viết lại tài liệu thiết kế, ghi nhận 6 cải tiến cho quy trình tìm-viết-kiểm tra sau khi rà soát lại bản thiết kế gốc:
+  - **Cải tiến 1 — Chọn bài "hạt giống" công bằng hơn**: chọn cả nhóm bài có nhiều trích dẫn tổng cộng (bài nền tảng) và nhóm bài có tốc độ trích dẫn nhanh gần đây (bài đang nổi), thay vì chỉ chọn theo một tiêu chí.
+  - **Cải tiến 2 — Không loại bỏ bài mới vì chưa đủ trích dẫn**: đổi ngưỡng trích dẫn tối thiểu cố định thành ngưỡng linh hoạt theo thời gian, cho bài được đánh dấu "có ảnh hưởng" được giữ lại dù trích dẫn còn thấp.
+  - **Cải tiến 3 — Dàn ý từ nguồn bài rộng hơn**: chọn dàn ý từ một tập bài lớn và đa dạng hơn (300-400 bài) thay vì chỉ 100 bài tìm được ban đầu, thêm bước cho người dùng xem/sửa dàn ý trước khi viết nội dung.
+  - **Cải tiến 4 — Sửa cách "hiểu" câu hỏi tìm kiếm**: đổi sang phiên bản mô hình AI được tinh chỉnh đúng cho việc so khớp câu hỏi ngắn với nội dung bài báo (mô hình cũ vốn được huấn luyện cho việc khác — so sánh hai bài báo với nhau).
+  - **Cải tiến 5 — Kiểm tra trích dẫn đáng tin hơn**: thêm hai lớp kiểm tra dự phòng (đọc toàn văn trên arXiv nếu cách thường không tìm được, rồi mới tới kiểm tra bằng tóm tắt ở mức rất thận trọng) để tăng độ phủ kiểm tra từ ~30% lên cao hơn nhiều.
+  - **Cải tiến 6 — Không bỏ qua kiểm tra trích dẫn "ủng hộ"**: bỏ việc bỏ qua kiểm tra kỹ cho các trích dẫn có vẻ đang ủng hộ luận điểm — đây lại chính là nhóm dễ bị sai lệch nhất.
+- Làm chỗ nhận yêu cầu mới để truyền tiến trình từng bước của quy trình tìm-viết-kiểm tra ngay khi đang chạy, hiển thị cho người dùng thấy "đang làm gì" theo thời gian thực.
+- Làm phần hiển thị tiến trình ở giao diện theo màu/icon riêng cho từng bước, và dữ liệu giả lập để demo giao diện trước khi nối API thật.
+- Thêm đường dẫn file PDF (ưu tiên bản miễn phí công khai trước) vào toàn bộ kết quả tìm kiếm để người dùng có thể mở bài báo gốc dễ hơn ở bước cuối.
+- Xây trang Quản trị: xem số liệu thống kê, danh sách người dùng, lịch sử hoạt động (đọc trực tiếp từ cơ sở dữ liệu bằng quyền quản trị để không bị chặn bởi quy tắc phân quyền thông thường), và một chỗ kiểm tra "ai có quyền quản trị" dùng cho các trang admin.
+- Dọn lại phần đăng nhập/đăng xuất: gộp việc ghi log các sự kiện này vào một chỗ chung, đảm bảo ghi đủ và đúng quyền truy cập.
+- Gộp nhiều nhánh code của các thành viên trong nhóm (đồng bộ với nhánh chung, tính năng đăng nhập, lưu bài đã viết, phát hiện khoảng trống nghiên cứu, trang quản trị, cập nhật cấu trúc cơ sở dữ liệu cho chat/tin nhắn/thông báo) vào nhánh phát triển chung — kiểm tra kỹ, xử lý xung đột trước khi gộp.
 
 ### Bug / fix gặp phải
-- **`supabase-py` client fail với key format `sb_publishable_...` mới (lỗi `PGRST301`)** khi gọi PostgREST cho `require_admin` — fix bằng gọi `httpx` trực tiếp tới PostgREST với service-role key thay vì qua supabase-py client.
-- **JWT decode chỉ accept `HS256/RS256`** — project Supabase issue token `ES256`, login bị 401 sai. Fix: thêm `ES256` vào `algorithms=[...]` trong `_decode_supabase_jwt`.
-- **Snowball gọi đồng thời (`asyncio.gather`) cho tất cả seeds → bị Semantic Scholar rate-limit** (1 req/s không key). Fix: chạy sequential kèm `asyncio.sleep(0.15)` giữa mỗi seed.
-- **Login log insert qua `supabase.table(...).insert()` fail im lặng** (RLS chặn user role ghi `login_logs`, try/except nuốt lỗi) — không biết bug tồn tại tới khi check DB thấy thiếu row. Fix: chuyển sang `_log_event()` bằng service-role key.
+- **Thư viện kết nối cơ sở dữ liệu không tương thích với định dạng khóa truy cập mới** khi gọi cho chỗ kiểm tra quyền quản trị — sửa bằng cách gọi trực tiếp tới dịch vụ cơ sở dữ liệu, không qua thư viện trung gian.
+- **Hệ thống đăng nhập chỉ chấp nhận hai trong số các kiểu mã hoá token** — dự án đang dùng kiểu thứ ba, khiến đăng nhập báo lỗi sai. Đã thêm hỗ trợ kiểu mã hoá còn thiếu.
+- **Ghi log đăng nhập bị âm thầm thất bại** vì quy tắc phân quyền chặn việc ghi, lỗi không hiện ra (do code đang "nuốt" lỗi âm thầm) — chuyển sang cách ghi dùng đúng quyền truy cập.
+- **Bước lan rộng tìm kiếm theo trích dẫn gọi tất cả cùng lúc → bị nhà cung cấp tạm khoá vì vượt giới hạn tốc độ gọi** — đổi sang gọi lần lượt, có chờ một khoảng ngắn giữa mỗi lượt.
 
-### Next
-- Implement co-citation / bibliographic coupling (ghi nhận là gap trong CHANGELOG, defer post-MVP v1.1).
-- Đánh giá single-hop vs 2-hop snowballing dựa trên data thực tế từ MVP.
-- Nối `useChatStore.js` từ mock `BRAIN_MRI_STEPS` sang `/api/research/stream` thật khi frontend stream UI ổn định.
-- Theo dõi BUG-01 (Anh Thư log trong eval 06-17) — `source: "snippet"` + `snippet: null` ở Case C, liên quan tới 3-tier fallback ở Fix 5.
+### Tiếp theo
+- Làm phân tích "bài nào cùng được trích dẫn với bài nào khác" (ghi nhận là việc còn thiếu, để dành cho giai đoạn sau).
+- Đánh giá có cần làm lan rộng tìm kiếm theo trích dẫn ở lớp thứ hai không, dựa trên dữ liệu thực tế thu được.
+- Nối phần hiển thị tiến trình ở giao diện từ dữ liệu giả lập sang API thật khi phần stream ổn định.
+- Theo dõi một lỗi nhỏ (Anh Thư ghi nhận khi kiểm tra hôm 06-17) liên quan tới việc một trường thông tin trong kết quả kiểm tra trích dẫn bị hiển thị không khớp với dữ liệu thật.
 
 ---
 
-## 2026-06-17 — T-0XX: Manual Eval — Anti-Hallucination & Citation Guardrail - Trần Nguyễn Anh Thư
+## 2026-06-17 — Kiểm tra thủ công: chống bịa thông tin & kiểm tra trích dẫn - Trần Nguyễn Anh Thư
+
 ### Việc đã làm
-- Chạy 4 smoke tests (GET /health, POST /api/search, POST /api/chat, GET /api/outline/approve) — tất cả PASS trước khi vào test chính.
-- Design và execute 6 test cases tập trung vào 2 mảng: **hard hallucination** (hệ thống có bịa paper ID không?) và **citation guardrail** (claim verify có đúng rule không?).
-- TC-01: Test query topic cực hẹp (`quantum GNN + TDA + drug-target`) — verify 3 paper IDs trên Semantic Scholar, xác nhận 0 fabricated ID.
-- TC-02: Test `/api/chat` không có RAG làm baseline — verify 2 DOIs, xác nhận citation drift (DOI thật nhưng sai domain). Documented là **expected failure** để so sánh với pipeline đầy đủ.
-- TC-03: Test RAG pipeline end-to-end với query `RAG for question answering` — verify paper IDs trong `(Source: ...)` của output. TC-03c verify `/api/claims/verify` đủ 5 fields theo SPEC.
-- TC-04: Dùng tên tác giả giả (`Zhao Wentian`) — xác nhận pipeline trả về 0 papers, không bịa nội dung.
-- TC-05: Test topic controversial (`LLMs surpassing human on medical exams`) — verify output có cả pro lẫn contra perspective. TC-05b verify claim trái chiều với `/api/claims/verify`.
-- TC-06: Test rule "status không bao giờ = supported khi không có evidence" — dùng paper không có snippet.
-- Tổng hợp kết quả vào `eval/EVAL_EVIDENCE.md` và commit lên repo.
+- Kiểm tra nhanh 4 chức năng cơ bản (kiểm tra sức khoẻ hệ thống, tìm kiếm, chat, duyệt dàn ý) — tất cả đạt trước khi vào phần kiểm tra chính.
+- Thiết kế và chạy 6 trường hợp kiểm tra, tập trung vào hai việc: hệ thống có bịa ra bài báo không tồn tại không? Và việc kiểm tra luận điểm có làm đúng quy tắc không?
+- TC-01: Hỏi một câu hỏi rất hẹp, kiểm tra 3 bài báo được trả về có tồn tại thật trên Semantic Scholar không — xác nhận không có bài bị bịa.
+- TC-02: Hỏi trực tiếp AI mà không cho tra cứu dữ liệu thật (làm mốc so sánh) — xác nhận AI đưa ra trích dẫn có thật nhưng sai chủ đề (đúng mã nhưng nội dung không liên quan). Việc này được ghi nhận là kết quả "fail nhưng có giá trị" — đúng là điều cần chứng minh để thấy việc tra cứu dữ liệu thật là cần thiết, không phải lỗi cần sửa.
+- TC-03: Chạy quy trình tìm-viết-kiểm tra đầy đủ với một câu hỏi thật, kiểm tra các bài báo được trích dẫn trong bài viết ra có đúng không. TC-03c kiểm tra kết quả kiểm tra luận điểm có đủ thông tin theo thiết kế không.
+- TC-04: Dùng một tên tác giả không tồn tại — xác nhận hệ thống trả về không có bài báo nào, không bịa nội dung.
+- TC-05: Hỏi một chủ đề đang gây tranh cãi — xác nhận bài viết có đưa cả góc nhìn ủng hộ và phản bác. TC-05b kiểm tra việc xử lý một luận điểm có ý kiến trái chiều.
+- TC-06: Kiểm tra quy tắc "không được khẳng định đúng khi không có bằng chứng" — dùng một bài báo không có đoạn trích dẫn để đối chiếu.
+- Tổng hợp toàn bộ kết quả vào một file riêng và lưu lại trong repo.
+
 ### Bug / issue gặp phải
-- **TC-06 lần đầu: không trigger được Case C** — mọi response đều trả về `source: "snippet"` dù `snippet: null`. Không biết đây là bug hay Case C chưa implement → báo dev. Re-test với paper khác (`57b47dfb...`) → `status: "unsupported"`, rule không bị vi phạm → PASS.
-- **`source: "snippet"` + `snippet: null`** — inconsistency vẫn còn trong response. Core rule đúng nhưng field `source` misleading. Logged là BUG-01 (Low severity), báo dev.
-- **TC-05b ban đầu judge là PARTIAL** vì `intent: null` — sau khi clarify với dev mới biết pass criteria chỉ cần `human_review: true` + `low_confidence: true` + `status ≠ supported`. Không cần verify intent detection. → Update verdict thành PASS.
-- **TC-04: "Pipeline error at outline step"** xuất hiện ở một số run, không consistent — không reproduce được, note lại nhưng không block test.
-### Học được
-- **Clarify pass criteria với team trước khi judge verdict** — TC-05b mất thời gian vì tự assume criteria từ SPEC thay vì hỏi. Một câu hỏi sớm tiết kiệm cả buổi.
-- **Expected failure cũng có giá trị** — TC-02 FAIL không phải bug cần fix, mà là evidence chứng minh RAG guardrail necessary. Documenting *tại sao* fail quan trọng hơn verdict.
-- **Verify bằng Semantic Scholar URL** (`/paper/{id}`) là cách nhanh nhất để confirm paper ID thật — không cần đọc full paper, chỉ cần confirm tồn tại.
-- Testing một hệ thống RAG khác với testing API thông thường: output không deterministic, cần verify *property* của output (ID có thật không, status đúng không) thay vì match exact string.
-### Quyết định kỹ thuật
-- **Dùng `/api/research/stream` cho TC-01 và TC-04** thay vì gọi từng endpoint riêng — stream output cho đủ context để verify behavior end-to-end, không bị miss edge case giữa các bước.
-- **TC-02 là baseline, không phải bug** — quyết định document rõ trong file thay vì bỏ qua, để reviewer hiểu design intent của guardrail.
-- **BUG-01 giữ lại ở Low severity** thay vì escalate — core rule không bị vi phạm, inconsistency chỉ ở response field. Không block Gate 2.
-### Next
-- Commit `eval/EVAL_EVIDENCE.md` lên repo (branch `develop` hoặc theo convention của team).
-- Báo dev về BUG-01 để confirm expected behavior hay cần fix.
-- Nếu còn thời gian trước deadline: test Case B (claim verify qua ArXiv ID) để có full coverage A/B/C trong SPEC.
-
----
-
-## 2026-06-(14-15) — Dọn LangChain, tách agent layer, fix bugs khởi động - Lê Hữu Khoa
-
-### Việc đã làm
-- Xoá `backend/agents/` (toàn bộ LangGraph/opendeepresearch), `backend/prompts.py`, `backend/utils.py`.
-- Tạo `backend/agent/` mới gồm 5 module LLM thuần: `outline.py`, `content.py`, `claim_extractor.py`, `verifier.py`, `chat.py`.
-- Refactor 4 service files thành orchestration-only — không còn prompt nào nằm trong services.
-- Thêm Supabase Auth: `backend/auth/`, `backend/api/auth.py` (register / login / logout / refresh / me), `backend/services/supabase_client.py`, `supabase/schema.sql`.
-
-### Bug / fix gặp phải
-- **`chromadb.PersistentClient | None` → `TypeError` at import** — `PersistentClient` là function, không phải class, nên `|` fail ở runtime. Fix: `from __future__ import annotations`.
-- **`uvicorn.run("src.main:app", ...)` → module not found** — package đã đổi từ `src` → `backend` nhưng dòng này bị bỏ sót. Fix: đổi thành `"backend.main:app"`.
-- **`ModuleNotFoundError: No module named 'gotrue'`** trong conda env `ml` — fix bằng `TYPE_CHECKING` guard để tránh runtime import.
-- **`SUPABASE_URL` dùng PostgreSQL URL** 
-
-### Next
-- Confirm xoá `langchain*`, `langgraph`, `tavily-python`, `mcp` khỏi `pyproject.toml`.
-- Wire Supabase Auth vào các protected endpoints.
-- Test end-to-end flow ①→⑩ với topic thực.
-
----
-## 2026-06-15 — T-007: Polish auth UI + theme support - Trần Nguyễn Anh Thư
-
-### Việc đã làm
-- **Thay hardcoded color bằng CSS variables** trong `LoginPage.jsx` và `SignupPage.jsx`: toàn bộ background, input, button, label, text đều dùng `var(--color-paper-bg/dark/mid/surface)` thay vì `#FFFCF0`, `#291100`, `#657733`, `#D7E3A4` — giờ tự động đổi theo light/dark mode.
-- **Logo theme-aware** trên cả hai trang auth: import `useThemeStore`, resolve `isDark`, render `paperpulse-logo_dark.png` hoặc `paperpulse-logo_light.png` tương ứng.
-- **LandingPage header sau khi đăng nhập**: import `useAuthStore`, khi `isAuthenticated === true` thay cụm "Log in + Get Started" bằng một nút "Go to App →" dẫn thẳng vào `/app`.
-- **Eye icon ẩn/hiện password**: thêm vào `LoginPage` (password) và `SignupPage` (password + confirm password) dùng `mdi:eye` / `mdi:eye-off` từ `@iconify/react`.
-- **Confirm password field** trong `SignupPage`: thêm field riêng, validate match + min length 6 trước khi submit.
-- **Verification screen — link mở Gmail**: nút "Open email app →" dùng `href="https://mail.google.com"` mở tab mới, kèm nút phụ "Go to sign in" để fallback.
-- **Dynamic redirectTo**: khi register, frontend truyền `window.location.origin + '/login'` làm `redirect_to` → backend pass vào Supabase `sign_up` qua `options.email_redirect_to`. Sau khi verify email, user về đúng domain (tự động đúng khi deploy).
-- **Favicon PaperPulse**: thay SVG bolt tím (mặc định Vite) bằng SVG chữ "P" trên nền nâu `#291100`. `index.html` thêm 2 `<link rel="icon">` với media query `prefers-color-scheme` trỏ vào `paperpulse-logo_light/dark.png` cho browser hỗ trợ.
-
-### Bug / fix gặp phải
-- **`onFocus/onBlur` dùng string literal CSS variable** trong inline event handler — `e.target.style.borderColor = 'var(--color-paper-mid)'` hoạt động bình thường vì inline style resolve CSS variable ở runtime qua computed style.
-- **`handleResponse` trả 202 như success** — backend raise `HTTPException(202, …)` khi cần email confirm, `res.ok` = true nên không throw. `SignupPage` không dùng return value của `register()` nên flow hiển thị verification screen vẫn đúng; không cần fix.
-
-### Quyết định kỹ thuật
-- **Không tạo `PasswordInput` component riêng** — eye toggle chỉ dùng ở 3 chỗ (login + 2 field signup), inline đủ gọn, không cần abstraction.
-- **`redirectTo = window.location.origin + '/login'`** thay vì chỉ `origin` — user sau khi verify email được drop thẳng vào login page, không phải landing.
-- **Gmail hardcode** thay vì `mailto:` — `mailto:` mở native mail app có thể không cài; Gmail web là fallback an toàn hơn cho target user sinh viên.
-
-### Next
-- Thêm route `/auth/callback` hoặc query param `?verified=1` trên `/login` để hiện toast "Email verified — please sign in".
-- Cân nhắc thêm Supabase `redirectTo` vào allowed list trong dashboard khi deploy lên Railway.
-
----
-
-## 2026-06-15 — T-008: Build giao diện chính PaperPulse - Trần Nguyễn Anh Thư
-
-### Việc đã làm
-- Phân tích codebase branch `develop`: đọc `SurveyPage.jsx`, `useSurveyStore.js`, `ResultsList.jsx` để hiểu pattern đang có trước khi code.
-- Quyết định redesign toàn bộ UI từ paradigm *search + results list* sang *chatbot interface* — phù hợp hơn với product vision.
-- Build design system mới trong `index.css`: bảng màu Classic Minimalism (`#FBF2DA`, `#291100`, `#657733`, `#D7E3A4`), import font Inknut Antiqua.
-- Scaffold các component chính: `ChatLayout`, `Sidebar` (collapse thành icon bar), `ChatMessage`, `MessageList`, `ChatInput`, `ChatPage`.
-- Thêm Knowledge Graph panel (SVG force-directed, mock data) toggle bằng icon button.
-- Build `LandingPage`, `LoginPage`, `SignupPage` với mock auth (Zustand store).
-- Setup React Router: `/` → Landing, `/login`, `/signup`, `/app` (protected route).
-- Thêm resize handle kéo được giữa 3 panel bằng vanilla JS mouse events (không dùng thư viện — `react-resizable-panels` bị bug layout).
-- PR lên branch `feat/T-008-ui` → base `develop`.
-
-### Bug / fix gặp phải
-- **`react-resizable-panels` không giữ đúng default size** — thư viện load lại layout cũ từ localStorage, `defaultSize` mới không có tác dụng. Fix: bỏ thư viện, tự implement resize bằng `mousedown/mousemove/mouseup`.
-- **Sidebar có `width: 220px` hardcode bên trong** — khi ChatLayout đổi `sidebarW%` thì sidebar không co lại. Fix: lift collapsed state lên ChatLayout, Sidebar dùng `width: 100%`.
-- **`userSelect: 'none'` trên root div** làm toàn bộ text trong app không select/copy được. Fix: chỉ apply khi đang drag (dùng `isDragging` state).
-- **Toggle graph panel tạo gap thừa** — toggle strip nằm giữa chat và resize handle. Fix: strip di chuyển vào trong GraphPanel khi graph mở, thay bằng absolute button khi graph đóng.
-- **Sau login nhảy thẳng vào session cũ** thay vì welcome screen. Fix: gọi `newSession()` trước khi `navigate('/app')`.
+- **TC-06 lần đầu không tạo ra được đúng trường hợp cần kiểm tra** — mọi kết quả đều thiếu đoạn bằng chứng đi kèm. Chưa rõ là lỗi hay trường hợp này chưa được làm → báo lại cho dev. Thử lại với bài báo khác → ra đúng kết quả mong đợi → đạt.
+- **Một trường thông tin trong kết quả kiểm tra bị hiển thị không khớp với dữ liệu thật** — quy tắc chính vẫn đúng, chỉ là một trường hiển thị gây hiểu lầm. Ghi nhận là lỗi mức độ thấp, báo dev.
+- **Một trường hợp ban đầu bị đánh giá "chưa đạt"** vì thiếu một thông tin phụ — sau khi hỏi lại nhóm phát triển mới biết tiêu chí đạt không cần thông tin đó. Đổi lại kết quả thành "đạt".
+- **Một lỗi xuất hiện không cố định ở bước lên dàn ý** trong vài lần chạy — không lặp lại được để xác nhận, ghi chú lại nhưng không chặn việc kiểm tra.
 
 ### Học được
-- Frontend và backend có thể làm song song hoàn toàn nhờ mock data — UI define data shape, backend chỉ cần match.
-- Vibecoding với AI rất hiệu quả nhưng cần hiểu *tại sao* bug xảy ra trước khi đưa prompt fix, không thì fix mù sẽ loop.
-- Khi gặp bug layout phức tạp, đơn giản hoá trước (hardcode tỉ lệ cố định) rồi mới add tính năng nâng cao (resize) sau.
+- **Hỏi rõ tiêu chí đánh giá với nhóm phát triển trước khi tự đánh giá kết quả** — một trường hợp tốn thời gian vì tự đoán tiêu chí từ tài liệu thay vì hỏi sớm.
+- **Một kết quả "thất bại" cũng có giá trị** nếu nó chứng minh được lý do một cơ chế an toàn là cần thiết — quan trọng là ghi rõ *tại sao* thất bại, không chỉ ghi kết quả đạt/không đạt.
+- **Cách nhanh nhất để xác nhận một bài báo có thật**: tra trực tiếp trên trang Semantic Scholar bằng mã bài báo — không cần đọc cả bài, chỉ cần xác nhận nó tồn tại.
+- Kiểm tra một hệ thống AI sinh nội dung khác với kiểm tra API thông thường: kết quả không cố định mỗi lần chạy, nên cần kiểm tra "đặc tính" của kết quả (mã bài báo có thật không, trạng thái có đúng quy tắc không) thay vì so khớp chính xác từng chữ.
 
 ### Quyết định kỹ thuật
-- **Không dùng `react-resizable-panels`** — vanilla mouse events đủ dùng, ít dependency hơn, không có hidden state bug.
-- **Mock auth bằng Zustand** thay vì integrate Supabase Auth ngay — chờ backend confirm endpoint rồi swap.
-- **Knowledge Graph dùng plain JS physics** (không import D3) — đủ cho demo, giảm bundle size.
+- Dùng chức năng chạy toàn bộ quy trình (không gọi từng bước riêng) cho TC-01 và TC-04 — để xem được toàn cảnh hành vi hệ thống, không bị bỏ sót trường hợp lạ giữa các bước.
+- TC-02 là mốc so sánh, không phải lỗi — ghi rõ trong báo cáo để người đọc hiểu đúng mục đích của cơ chế an toàn.
+- Giữ một lỗi nhỏ phát hiện được ở mức độ thấp thay vì báo khẩn — vì quy tắc chính không bị vi phạm, chỉ là một trường hiển thị gây hiểu lầm.
 
-### Next
-- Đợi backend `/api/survey/search` xong → swap mock `sendMessage()` trong `useChatStore` bằng `fetch` thật.
-- Add resizable panel persistence (localStorage) sau khi layout ổn định.
-- Integrate Supabase Auth vào `useAuthStore` khi backend wire xong.
+### Tiếp theo
+- Lưu báo cáo kiểm tra lên repo.
+- Báo nhóm phát triển về lỗi nhỏ đã ghi nhận để xác nhận đây là hành vi mong đợi hay cần sửa.
+- Nếu còn thời gian: kiểm tra thêm trường hợp xác minh luận điểm qua mã arXiv để có đủ các trường hợp theo thiết kế.
 
 ---
 
-## 2026-06-08 — Setup Claude CLI hooks trên macOS - Lê Hữu Khoa
+## 2026-06-(14-15) — Dọn khung sườn cũ, tách lớp gọi AI, sửa lỗi khởi động - Lê Hữu Khoa
 
 ### Việc đã làm
-- Chạy `/hooks` trong Claude Code để xem dialog hooks → dismiss (đã có sẵn cấu hình trong `.claude/settings.json`, không cần thêm thủ công).
-- Xác nhận `.claude/settings.json` đã wire 3 hook events cho logging:
-  - `UserPromptSubmit`
-  - `PostToolUse` (matcher `.*`)
-  - `Stop`
-  - Cả 3 đều gọi `bash scripts/_pyrun.sh scripts/log_hook.py --tool=claude` → Python launcher auto-detect interpreter.
-- **Fix `_pyrun.sh` executable bit:**
-  - File đến từ template (`42f8720`) ở mode `100644`, cần `100755` để Git có thể spawn trực tiếp.
-  - Đã `chmod +x scripts/_pyrun.sh` để hook chạy được khi `bash` invoke.
-  - **Quyết định:** chưa commit thay đổi mode này trong PR — repo-wide noise, để dành cho một cleanup commit riêng.
-
-### Quyết định kỹ thuật
-- **Dùng Python launcher (`_pyrun.sh` / `_pyrun.cmd`) làm contract cho mọi hook helper.**
-  - Lý do: cross-platform, không phụ thuộc alias `python3 → python` trên máy từng thành viên.
-  - Hooks nào trong tương lai cũng invoke qua `_pyrun.*`, không hard-code interpreter.
-- **Mặc định trust `.claude/settings.json` của template.** Không tự thêm/sửa hook trừ khi có yêu cầu rõ ràng.
+- Xoá bỏ toàn bộ phần khung sườn cũ không còn dùng tới (vốn dùng cho việc tìm kiếm web nói chung, không phù hợp với dự án).
+- Tạo một nhóm 5 phần gọi AI riêng biệt, mỗi phần chịu trách nhiệm một việc: lên dàn ý, viết nội dung, trích luận điểm, kiểm tra luận điểm, chat thông thường.
+- Tổ chức lại các phần xử lý nghiệp vụ để chỉ còn vai trò điều phối (lấy dữ liệu, gọi AI, trả kết quả) — không còn phần nào lẫn nội dung "câu lệnh ra lệnh cho AI" (prompt) trong đó nữa.
+- Thêm hệ thống đăng nhập (qua Supabase Auth): đăng ký / đăng nhập / đăng xuất / làm mới phiên / xem thông tin tài khoản, cùng phần cơ sở dữ liệu cho tài khoản người dùng.
 
 ### Bug / fix gặp phải
-- **`scripts/_pyrun.sh` không có executable bit khi clone từ template trên macOS.**
-  - Triệu chứng tiềm ẩn: hook `bash scripts/_pyrun.sh …` fail với `Permission denied` nếu gọi trực tiếp (không qua `bash`).
-  - Fix: `chmod +x scripts/_pyrun.sh`.
-  - **Lưu ý:** chưa commit — tránh pollute PR hiện tại với một chmod change.
+- **Lỗi khởi động chương trình** do cách khai báo kiểu dữ liệu không tương thích — sửa bằng một dòng khai báo tương thích ngược.
+- **Lệnh khởi động server trỏ sai tên thư mục project** — tên thư mục đã đổi nhưng lệnh khởi động bị sót, chưa cập nhật theo.
+- **Thiếu một gói thư viện cần cho phần đăng nhập** trong môi trường máy ảo Python đang dùng — sửa bằng cách bọc phần import đó để không gây lỗi lúc chạy thật khi không cần thiết.
+- **Cấu hình kết nối cơ sở dữ liệu ban đầu dùng sai dạng địa chỉ** (dùng dạng dùng cho kết nối trực tiếp Postgres, thay vì dạng API của Supabase).
 
-### AI logging end-to-end fix (cùng ngày)
-- Kiểm tra trạng thái submit log → phát hiện 2 vấn đề chặn submit lên server (log chỉ nằm local ở `.ai-log/session.jsonl`):
-  1. **`python-dotenv` chưa cài** → `submit_log.py` gọi `load_dotenv()` fail im lặng → `AI_LOG_SERVER` rỗng → pre-push hook báo `[ai-log] AI_LOG_SERVER not set — skipping submission.`
-  2. **Python 3.14 macOS thiếu cert bundle** → khi dotenv fix xong, hook gọi được tới server nhưng fail `SSL: CERTIFICATE_VERIFY_FAILED`.
-- **Fix #1:** `python3 -m pip install --user --break-system-packages python-dotenv` (system python3 là interpreter `_pyrun.sh` dùng — không phải `.venv`).
-- **Fix #2:** chạy `/Applications/Python 3.14/Install Certificates.command` (script có sẵn của python.org build) → symlink certifi bundle vào `~/.certifi/cacert.pem` cho OpenSSL.
-- **Verify:** `bash scripts/_pyrun.sh scripts/submit_log.py` → `[ai-log] Submitted 1 entries → 202` (server accepted). Entry tự động rotate vào `.ai-log/archive/2026-06-08.jsonl`.
-- **Lưu ý:** `.venv` đã tạo nhưng `_pyrun.sh` ưu tiên `python3` system, không tìm trong `.venv/bin`. Tạm thời ổn — nếu sau này thêm deps thì cân nhắc sửa `_pyrun.sh` ưu tiên `.venv/bin/python`.
-
-### Open questions
-- Team chưa quyết stack (web/mobile/CLI) — sẽ note vào `WORKLOG.md` sau khi align.
-- Có cần thêm hook cho `SessionStart` / `Notification` không? Hiện tại 3 event trên đã đủ cho AI usage logging theo yêu cầu khoá học.
-
-### Next
-- Đợi team align stack, sau đó bắt đầu scaffold (FastAPI? Expo? CLI?) trên branch riêng.
-- Cleanup commit riêng cho `_pyrun.sh` executable bit khi có dịp.
+### Tiếp theo
+- Xác nhận đã dọn sạch các gói thư viện của khung sườn cũ khỏi cấu hình dự án.
+- Gắn hệ thống đăng nhập vào các chỗ cần bảo vệ.
+- Kiểm tra toàn bộ quy trình tìm-viết-kiểm tra với một chủ đề thật.
 
 ---
 
-## 2026-06-10 — Scaffold frontend (Vite + React) + Zustand store - Lê Hữu Khoa
+## 2026-06-15 — Hoàn thiện giao diện đăng nhập + hỗ trợ giao diện sáng/tối - Trần Nguyễn Anh Thư
 
 ### Việc đã làm
-- Cài **Bun 1.3.14** qua official script (`curl -fsSL https://bun.sh/install | bash`) — Bun chưa có sẵn trên máy, cài xong PATH được thêm vào `~/.zshrc`.
-- Scaffold **Vite + React 19** template vào `/Users/huuw_khoa/Desktop/Project/Vinuni/C2-App-069/frontend/`:
-  - `bun create vite frontend-tmp --template react` → rsync nội dung vào `frontend/` (vì `frontend/` đã tồn tại rỗng trong monorepo, Bun không overwrite).
-  - `bun install` cho base deps (~5 phút vì lockfile Vite mới).
-- Cài thêm runtime + dev deps bằng `bun add`:
-  - Runtime: `zustand@5.0.14`, `@iconify/react@6.0.2`, `clsx@2.1.1`.
-  - Dev: `tailwindcss@4.3.0`, `@tailwindcss/vite@4.3.0`.
-- Cấu hình **Tailwind v4**:
-  - Thêm `tailwindcss()` plugin trong `vite.config.js`.
-  - `src/index.css` chỉ cần `@import "tailwindcss";` + block `@theme` cho brand color (purple `#7c3aed` family) và font — không cần `tailwind.config.js` (v4 zero-config).
-- Refactor `src/` sang **feature-based structure** (xóa `App.css`, `assets/` mẫu, file `App.jsx` stub):
-  ```
-  src/
-  ├── components/   (Button.jsx, Input.jsx — dùng chung)
-  ├── features/survey/  (SearchBar.jsx, ResultsList.jsx)
-  ├── hooks/        (chưa dùng, để sẵn)
-  ├── layouts/      (AppLayout.jsx — header/main/footer)
-  ├── pages/        (SurveyPage.jsx — wire store ↔ UI)
-  ├── store/        (useSurveyStore.js — Zustand)
-  └── utils/        (cn.js — clsx wrapper)
-  ```
-- Cập nhật `vite.config.js`: thêm alias `@` → `src/` và dev proxy `/api` → `http://localhost:8000` (FastAPI backend).
-- Tạo **`useSurveyStore`** (Zustand) cho feature Literature Review:
-  - State: `query`, `results`, `status` (`idle`/`loading`/`success`/`error`), `error`, `history` (capped 10).
-  - Actions: `setQuery`, `runSearch` (hiện mock với TODO gọi `/api/survey/search`), `clearResults`, `reset`.
-  - Page subscribe đúng field bằng `useSurveyStore((s) => s.query)` — tránh re-render dư.
-- **Verify build:** `bun run build` → 28 modules transformed, CSS 14 kB, JS 215 kB, build trong ~75ms.
-- **Verify AI logging:** `.ai-log/session.jsonl` đã có 21 entries cho session hiện tại, archive ngày trước cũng còn → pipeline hoạt động bình thường.
-
-### Quyết định kỹ thuật
-- **Tailwind v4 + `@tailwindcss/vite`** thay vì v3 + PostCSS plugin — zero-config (không cần `tailwind.config.js` / `postcss.config.js`), build nhanh hơn, syntax `@theme` trực tiếp trong CSS.
-- **Dùng arrow function + functional component** cho toàn bộ components (kể cả `Input` dùng `forwardRef` vẫn trả arrow function) — theo convention trong system prompt.
-- **`cn()` helper** (wrap `clsx`) ở `utils/cn.js` thay vì import `clsx` trực tiếp — single import path cho mọi chỗ cần conditional className.
-- **`AppLayout` mặc định render `<SurveyPage />` qua `children ?? <SurveyPage />`.**
-  - Lý do: hiện single-page, nhưng sau này gắn React Router thì chỉ cần pass page qua `children` ở router outlet — không phải refactor layout.
-- **Store chia theo domain (`useSurveyStore`), không gom `useStore` tổng.**
-  - Lý do: Zustand selector cho phép subscribe đúng field, scale tốt khi thêm feature khác (`useAuthStore`, `useUIStore`…).
-- **Mock `runSearch` thay vì gọi API thật ngay.**
-  - Lý do: backend FastAPI chưa có endpoint survey search; mock cho phép wire UI end-to-end sớm, khi backend ready chỉ thay 1 block `TODO` trong store.
+- **Đổi màu cố định thành biến màu theo theme** ở trang đăng nhập/đăng ký — toàn bộ nền, ô nhập, nút, chữ giờ tự đổi theo giao diện sáng/tối, không còn mã màu viết cứng.
+- **Logo tự đổi theo theme** ở cả hai trang đăng nhập/đăng ký.
+- **Đầu trang chủ sau khi đăng nhập**: đổi cụm nút "Đăng nhập + Bắt đầu" thành một nút "Vào ứng dụng →" khi người dùng đã đăng nhập.
+- **Nút ẩn/hiện mật khẩu** ở cả ô mật khẩu trang đăng nhập và hai ô mật khẩu (mật khẩu + xác nhận) ở trang đăng ký.
+- **Thêm ô xác nhận mật khẩu** ở trang đăng ký: kiểm tra khớp với ô mật khẩu chính + độ dài tối thiểu trước khi cho gửi.
+- **Màn hình xác minh email**: nút mở thẳng tới hộp thư Gmail, kèm nút phụ để quay lại trang đăng nhập nếu cần.
+- **Đường dẫn quay lại sau khi xác minh email được tính tự động theo domain đang chạy** — để khi triển khai lên domain thật, người dùng vẫn được đưa về đúng trang đăng nhập của domain đó, không phải sửa tay.
+- **Đổi icon trang (favicon)** thành logo chữ "P" của PaperPulse, có hỗ trợ hiển thị khác nhau theo giao diện sáng/tối của trình duyệt.
 
 ### Bug / fix gặp phải
-- **`bun create vite` không ghi đè thư mục đã tồn tại** (kể cả rỗng) → phải scaffold ra `frontend-tmp/` rồi rsync vào.
-  - Lý do: Bun check dest dir tồn tại và thoát, không cho overwrite.
-  - Fix: scaffold vào tmp → `rsync -a frontend-tmp/ frontend/` → `rm -rf frontend-tmp`.
-- **zsh không có `shopt -s dotglob`** nên pattern `mv .[!.]*` ban đầu fail.
-  - Fix: dùng `rsync` thay thế — xử lý dotfiles tự động.
-- **`File has been modified since read`** khi Write `package.json` lần đầu (do `bun add` đã update nó trong khi tôi đang đọc).
-  - Fix: Read lại file → Write lại với nội dung mới nhất.
+- Cách đổi màu viền ô nhập khi focus/rời focus dùng trực tiếp biến màu theo theme — hoạt động đúng vì trình duyệt tự tính toán giá trị thật của biến màu khi áp dụng.
+- Phát hiện một trường hợp phản hồi từ server (yêu cầu xác minh email) bị xem nhầm là "thành công" ở phía giao diện — nhưng vì giao diện không thật sự dựa vào kết quả đó để quyết định hiển thị, nên không gây lỗi hiển thị thực tế, không cần sửa.
 
-### Open questions
-- Có cần thêm **React Router** ngay từ đầu không? Hiện single-page (Survey) đã đủ, nhưng nếu backend sẽ có nhiều flow (search, summary, gap-detection, export) thì setup router sớm đỡ refactor.
-- **Proxy `/api` → `http://localhost:8000`** chỉ hoạt động khi chạy `bun dev` — production build cần backend serve frontend hoặc config CORS riêng. Để dành cho bước Docker.
-- Có cần **TypeScript** không? Convention hiện tại trong system prompt nói JS + JSX, nhưng nếu team khác dùng TS thì align sớm.
+### Quyết định kỹ thuật
+- **Không tách riêng một component cho ô mật khẩu có nút ẩn/hiện** — chỉ dùng ở 3 chỗ, viết trực tiếp đủ gọn, chưa cần tách riêng.
+- **Sau khi xác minh email, đưa người dùng về thẳng trang đăng nhập** (không phải trang chủ) — để vào lại đúng luồng đăng nhập ngay.
+- **Dùng Gmail làm đường dẫn mở email mặc định** thay vì để trình duyệt tự chọn ứng dụng mail — vì người dùng mục tiêu (sinh viên) không chắc có cài ứng dụng mail riêng trên máy, mở Gmail trên web là lựa chọn chắc chắn hoạt động hơn.
 
-### Next
-- Tạo **API client thật** (`src/utils/api.js` hoặc `src/services/surveyApi.js`) thay thế TODO trong `useSurveyStore.runSearch` — call `POST /api/survey/search`.
-- Commit scaffold frontend lên branch `feat/config-pipeline` (đang làm việc) — chia thành 2 commit: (1) Vite scaffold + deps, (2) feature-based refactor + Survey store, để reviewer dễ diff.
+### Tiếp theo
+- Thêm một thông báo "Email đã xác minh, vui lòng đăng nhập" hiển thị ở trang đăng nhập sau khi người dùng xác minh xong.
+- Cân nhắc thêm đường dẫn quay lại vào danh sách được phép của Supabase khi triển khai lên Railway.
+
+---
+
+## 2026-06-15 — Xây giao diện chính của PaperPulse - Trần Nguyễn Anh Thư
+
+### Việc đã làm
+- Đọc qua các trang/luồng đang có trong nhánh phát triển chung để hiểu cách tổ chức hiện tại trước khi code.
+- Quyết định thiết kế lại toàn bộ giao diện từ kiểu "tìm kiếm + danh sách kết quả" sang kiểu "giao diện chat" — phù hợp hơn với hướng sản phẩm.
+- Xây bảng màu và font chữ riêng cho thương hiệu PaperPulse.
+- Dựng các phần chính của giao diện: khung chat tổng, thanh điều hướng bên (có thể thu nhỏ), khung tin nhắn, danh sách tin nhắn, ô nhập tin nhắn.
+- Thêm khung hiển thị Sơ đồ tri thức (lúc này còn là dữ liệu giả lập, dạng sơ đồ lực hút-lực đẩy đơn giản) có thể đóng/mở bằng một nút riêng.
+- Xây trang chủ, trang đăng nhập, trang đăng ký với phần đăng nhập giả lập (chưa nối hệ thống đăng nhập thật).
+- Thiết lập điều hướng giữa các trang: trang chủ, đăng nhập, đăng ký, trang ứng dụng chính (chỉ vào được khi đã đăng nhập).
+- Thêm thanh kéo để chỉnh độ rộng giữa 3 khung trong giao diện, tự viết bằng các sự kiện chuột cơ bản (không dùng thư viện có sẵn vì thư viện đó bị lỗi về cách giữ kích thước mặc định).
+- Gửi yêu cầu gộp code (pull request) lên nhánh phát triển chung.
+
+### Bug / fix gặp phải
+- **Thư viện kéo-resize không giữ đúng kích thước mặc định mong muốn** — thư viện tự tải lại cấu hình cũ đã lưu trước đó, kích thước mới đặt không có tác dụng. Sửa: bỏ thư viện, tự viết tính năng kéo-resize bằng sự kiện chuột cơ bản.
+- **Thanh điều hướng bên có chiều rộng cố định viết cứng bên trong nó** — khi khung cha đổi tỉ lệ thì thanh điều hướng không co theo. Sửa: chuyển trạng thái "đang thu nhỏ hay không" lên khung cha quản lý, thanh điều hướng luôn chiếm 100% phần được cấp.
+- **Toàn bộ chữ trong app không bôi đen/copy được** vì có cài đặt chặn chọn chữ áp lên toàn trang — chỉ nên áp khi đang kéo resize. Sửa: chỉ chặn chọn chữ trong lúc đang kéo, bật lại ngay sau đó.
+- **Nút đóng/mở khung Sơ đồ tri thức tạo ra một khoảng trống thừa** trên giao diện — sửa lại vị trí nút cho hợp lý hơn tuỳ theo khung đang mở hay đóng.
+- **Sau khi đăng nhập, người dùng bị đưa thẳng vào phiên chat cũ** thay vì màn hình chào mừng mới — sửa bằng cách luôn tạo phiên mới trước khi chuyển vào app.
+
+### Học được
+- Frontend và backend có thể làm song song hoàn toàn nhờ dùng dữ liệu giả lập trước — giao diện định hình sẵn "dữ liệu sẽ trông như thế nào", backend chỉ cần khớp đúng hình dạng đó khi làm xong.
+- Dùng AI để viết code rất hiệu quả, nhưng cần hiểu *tại sao* lỗi xảy ra trước khi yêu cầu AI sửa — nếu không sẽ sửa mù và lặp lại vòng lặp không ra kết quả.
+- Khi gặp lỗi giao diện phức tạp, nên đơn giản hoá trước (cố định tỉ lệ) rồi mới thêm tính năng nâng cao (cho kéo chỉnh) sau.
+
+### Quyết định kỹ thuật
+- **Không dùng thư viện kéo-resize có sẵn** — tự viết bằng sự kiện chuột cơ bản đủ dùng, ít phụ thuộc hơn, không có lỗi ẩn khó kiểm soát.
+- **Dùng đăng nhập giả lập trước** thay vì nối hệ thống đăng nhập thật ngay — chờ backend xác nhận xong rồi đổi qua sau.
+- **Sơ đồ tri thức ở giai đoạn demo này chỉ dùng hiệu ứng vật lý đơn giản viết tay**, không dùng thư viện vẽ đồ thị chuyên dụng — đủ cho việc demo, giữ dung lượng tải trang nhỏ.
+
+### Tiếp theo
+- Khi backend hoàn thành phần tìm kiếm thật, đổi phần gửi tin nhắn giả lập trong giao diện sang gọi API thật.
+- Thêm khả năng nhớ lại kích thước khung đã kéo (lưu lại) sau khi bố cục ổn định.
+- Nối hệ thống đăng nhập thật vào giao diện khi backend làm xong.
+
+---
+
+## 2026-06-08 — Setup công cụ AI hỗ trợ code trên macOS - Lê Hữu Khoa
+
+### Việc đã làm
+- Kiểm tra cấu hình tự động ghi log khi dùng AI hỗ trợ code — xác nhận đã có sẵn, không cần thêm gì.
+- Xác nhận cơ chế ghi log chạy đúng ở 3 thời điểm: khi người dùng gửi yêu cầu, sau khi dùng một công cụ hỗ trợ, và khi phiên làm việc kết thúc — cả 3 đều tự động gọi tới script ghi log chung.
+- **Sửa quyền chạy cho một file script quan trọng**: file này khi tải về từ mẫu khởi đầu bị thiếu quyền "cho phép chạy" — đã sửa quyền, nhưng quyết định KHÔNG đưa thay đổi quyền file này vào commit hiện tại (không liên quan tới nội dung commit), để dành cho một lần dọn dẹp riêng.
+
+### Quyết định kỹ thuật
+- **Dùng lớp "khởi chạy chung" làm chuẩn cho mọi script hỗ trợ** — để không phụ thuộc vào cách máy mỗi người gọi lệnh Python (có máy gọi `python`, có máy gọi `python3`).
+- **Mặc định tin tưởng cấu hình có sẵn từ mẫu khởi đầu** — không tự thêm/sửa trừ khi có yêu cầu rõ ràng.
+
+### Bug / fix gặp phải
+- **Một file script quan trọng thiếu quyền "cho phép chạy" khi clone từ mẫu trên macOS** — có thể gây lỗi "không có quyền" nếu bị gọi trực tiếp. Sửa bằng cách cấp lại quyền chạy.
+- **Việc gửi log lên server bị chặn ở 2 chỗ**: (1) thiếu một gói thư viện cần để đọc file cấu hình môi trường, khiến hệ thống không đọc được địa chỉ server cần gửi tới; (2) máy thiếu chứng chỉ bảo mật cần để kết nối an toàn tới server. Đã cài gói thư viện thiếu và cài đặt lại chứng chỉ bảo mật cho đúng phiên bản Python đang dùng.
+- Xác nhận lại: log đã gửi thành công lên server sau khi sửa cả hai vấn đề trên.
+
+### Câu hỏi còn mở
+- Nhóm chưa quyết định làm web/di động/công cụ dòng lệnh — sẽ ghi vào `WORKLOG.md` sau khi nhóm thống nhất.
+- Có cần thêm các thời điểm ghi log khác không? Hiện 3 thời điểm đang dùng đã đủ cho yêu cầu của khoá học.
+
+### Tiếp theo
+- Chờ nhóm thống nhất hướng sản phẩm, sau đó bắt đầu dựng khung dự án trên nhánh riêng.
+- Dọn riêng việc sửa quyền file script ở một lần cập nhật khác.
+
+---
+
+## 2026-06-10 — Dựng khung giao diện (Vite + React) + quản lý trạng thái - Lê Hữu Khoa
+
+### Việc đã làm
+- Cài công cụ quản lý gói cho giao diện (Bun) — chưa có sẵn trên máy.
+- Dựng khung giao diện mới (Vite + React) vào đúng thư mục `frontend/` trong dự án.
+- Cài các gói cần dùng: quản lý trạng thái dùng chung cho toàn app, bộ icon, công cụ ghép class CSS có điều kiện, và Tailwind CSS cho việc viết style nhanh.
+- Cấu hình Tailwind phiên bản mới — không cần file cấu hình riêng, viết trực tiếp trong file CSS chính.
+- Tổ chức lại thư mục theo từng tính năng (components dùng chung / tính năng tìm kiếm / layout / trang / store quản lý trạng thái / hàm dùng chung) — xoá bỏ các file mẫu không dùng tới.
+- Cấu hình để giao diện khi chạy thử (`bun dev`) tự chuyển các yêu cầu gọi API sang đúng địa chỉ backend đang chạy local.
+- Tạo phần quản lý trạng thái cho tính năng tìm kiếm tài liệu: lưu câu hỏi đang gõ, kết quả tìm được, trạng thái (đang chờ/đang tìm/thành công/lỗi), lịch sử các lần tìm gần nhất.
+- Việc gọi API tìm kiếm thật tạm thời được giả lập (chưa nối API thật vì backend chưa có sẵn endpoint này) — chỉ cần đổi 1 chỗ khi backend làm xong.
+- Kiểm tra: build thử giao diện chạy thành công; xác nhận cơ chế ghi log AI vẫn hoạt động bình thường trong phiên làm việc này.
+
+### Quyết định kỹ thuật
+- **Dùng Tailwind phiên bản mới** thay vì phiên bản cũ — không cần file cấu hình riêng, build nhanh hơn.
+- **Viết toàn bộ component theo kiểu hàm (function component)** — theo quy ước chung của dự án.
+- **Có một hàm dùng chung để ghép class CSS có điều kiện**, dùng ở mọi nơi cần — để chỉ có một cách làm thống nhất, không mỗi nơi viết kiểu khác nhau.
+- **Layout mặc định tự hiển thị trang Tìm kiếm nếu không có trang nào khác được chỉ định** — vì hiện tại chỉ có một trang, nhưng sau này khi thêm điều hướng nhiều trang thì không cần sửa lại layout.
+- **Tách riêng từng phần quản lý trạng thái theo từng tính năng** (không gộp chung một chỗ quản lý hết) — để mỗi phần giao diện chỉ theo dõi đúng phần dữ liệu mình cần, dễ mở rộng thêm tính năng khác sau này.
+- **Tạm dùng dữ liệu giả lập cho việc tìm kiếm** thay vì gọi API thật ngay — để có thể dựng xong giao diện sớm, không phải chờ backend.
+
+### Bug / fix gặp phải
+- **Công cụ dựng khung giao diện không ghi đè được vào thư mục đã có sẵn** (dù thư mục đó đang rỗng) — phải dựng ra một thư mục tạm trước, rồi sao chép nội dung vào đúng thư mục dự án, sau đó xoá thư mục tạm.
+- **Một vài lệnh sao chép file ẩn không hoạt động đúng trên terminal đang dùng** — đổi sang công cụ sao chép khác xử lý được cả file ẩn.
+- **Một file cấu hình bị báo "đã có ai khác sửa"** trong lúc đang đọc, vì việc cài thêm gói cũng tự cập nhật file đó cùng lúc — đọc lại file mới nhất rồi mới ghi tiếp.
+
+### Câu hỏi còn mở
+- Có cần thêm hệ thống điều hướng nhiều trang ngay từ đầu không? Hiện một trang đã đủ, nhưng nếu backend sẽ có nhiều luồng (tìm kiếm, tổng hợp, phát hiện khoảng trống nghiên cứu, xuất file) thì làm sớm sẽ đỡ phải sửa lại sau.
+- Việc chuyển tiếp API chỉ hoạt động khi chạy ở máy cá nhân (dev) — khi lên môi trường thật cần backend phục vụ luôn giao diện hoặc cấu hình riêng. Để dành cho bước đóng gói triển khai sau.
+- Có cần dùng TypeScript không? Hiện đang quy ước dùng JavaScript thường, nhưng nếu nhóm khác trong dự án dùng TypeScript thì nên thống nhất sớm.
+
+### Tiếp theo
+- Viết phần gọi API thật để thay cho phần giả lập trong việc tìm kiếm.
+- Gửi phần khung giao diện này lên nhánh đang làm, chia làm 2 lần gửi riêng (1: dựng khung + cài gói, 2: tổ chức lại theo tính năng + phần quản lý trạng thái) để người review dễ xem từng phần.
 
 ---
 
 ## 2026-06-07 — Khởi tạo repo (tham khảo WORKLOG)
 
-Đã đọc qua 2 entry setup trong `WORKLOG.md` (Windows/Antigravity + macOS/Claude CLI) để hiểu context chung. Mọi quyết định chung của team ghi ở WORKLOG; journal này chỉ ghi việc cá nhân + bug mình gặp.
+Đã đọc qua hai mục ghi chú setup trong `WORKLOG.md` (máy Windows + máy macOS) để hiểu ngữ cảnh chung của nhóm. Mọi quyết định chung của nhóm được ghi ở `WORKLOG.md`; file ghi chú này chỉ ghi việc cá nhân và lỗi mình tự gặp.
 
 ---
 
-_Cập nhật journal mỗi khi có setup/fix cá nhân, học được gì mới, hoặc quyết định riêng trong ngày._
+_Cập nhật file này mỗi khi có việc setup/sửa lỗi cá nhân, học được điều gì mới, hoặc có quyết định riêng trong ngày. Viết sao cho người mới đọc vào cũng hiểu được đang làm gì, không cần biết trước code._
