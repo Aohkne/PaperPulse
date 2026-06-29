@@ -6,7 +6,7 @@ import SiteHeader from '@/shared/components/layout/SiteHeader';
 import SiteFooter from '@/shared/components/layout/SiteFooter';
 import { ROUTES } from '@/shared/constant/routes';
 
-// ── Animation helpers ─────────────────────────────────────────────────────────
+// Animation helpers
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 22 },
   animate: { opacity: 1, y: 0 },
@@ -20,7 +20,7 @@ const inView = (delay = 0) => ({
   transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1], delay },
 });
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+// Data
 const STEPS = [
   {
     num: '01',
@@ -129,7 +129,7 @@ const PLANS = [
   },
 ];
 
-// ── Small shared bits ─────────────────────────────────────────────────────────
+// Small shared bits
 const Eyebrow = ({ icon, children }) => (
   <div style={{
     display: 'inline-flex', alignItems: 'center', gap: 7,
@@ -191,7 +191,7 @@ const IconTile = ({ icon, size = 44 }) => (
   </div>
 );
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// Page
 const LandingPage = () => {
   const navigate = useNavigate();
   const howItWorksRef = useRef(null);
@@ -202,7 +202,7 @@ const LandingPage = () => {
 
       <div style={{ paddingTop: 57 }}>
 
-        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        {/* Hero */}
         <section style={{
           position: 'relative', overflow: 'hidden',
           minHeight: '84vh', display: 'flex', flexDirection: 'column',
@@ -264,7 +264,7 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* ── Demo Video ───────────────────────────────────────────────── */}
+        {/* Demo Video */}
         <section
           id="demo"
           style={{ background: 'var(--color-paper-surface)', padding: '88px 24px' }}
@@ -299,11 +299,11 @@ const LandingPage = () => {
           </motion.div>
         </section>
 
-        {/* ── How It Works ─────────────────────────────────────────────── */}
+        {/* How It Works */}
         <section
           ref={howItWorksRef}
           id="how-it-works"
-          style={{ background: 'var(--color-paper-surface)', padding: '88px 24px' }}
+          style={{ background: 'var(--color-paper-bg)', padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
@@ -356,10 +356,10 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* ── Features ─────────────────────────────────────────────────── */}
+        {/* Features */}
         <section
           id="features"
-          style={{ background: 'var(--color-paper-bg)', padding: '88px 24px' }}
+          style={{ background: 'var(--color-paper-surface)', padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
@@ -406,10 +406,10 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* ── Pricing ──────────────────────────────────────────────────── */}
+        {/* Pricing */}
         <section
           id="pricing"
-          style={{ background: 'var(--color-paper-surface)', padding: '88px 24px' }}
+          style={{ background: 'var(--color-paper-bg)', padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
@@ -528,7 +528,7 @@ const LandingPage = () => {
           </p>
         </section>
 
-        {/* ── Footer ───────────────────────────────────────────────────── */}
+        {/* Footer */}
         <SiteFooter />
 
       </div>
