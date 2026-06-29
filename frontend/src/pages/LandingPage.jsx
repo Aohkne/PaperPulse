@@ -282,6 +282,23 @@ const LandingPage = () => {
             </motion.h2>
           </div>
 
+          <motion.div {...inView(0.1)} style={{ maxWidth: 760, margin: '0 auto 56px' }}>
+            <div style={{
+              position: 'relative', width: '100%', paddingTop: '56.25%',
+              borderRadius: 16, overflow: 'hidden',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+            }}>
+              <iframe
+                src="https://www.youtube.com/embed/g7bTfmkbx7g"
+                title="PaperPulse demo"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+          </motion.div>
+
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: '32px 0', maxWidth: 900, margin: '0 auto',
