@@ -63,21 +63,6 @@ const ChatInput = () => {
             backgroundColor: 'var(--color-paper-bg)',
           }}
         >
-          <button
-            type="button"
-            onClick={() => window.Supademo?.open('cmqxx7bw404ymw60j7qcvkb48')}
-            title="How it works"
-            style={{
-              flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 28, height: 28, borderRadius: '50%', marginBottom: '4px',
-              border: '1px solid var(--color-paper-light)', background: 'var(--color-paper-bg)',
-              color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif",
-              fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-            }}
-          >
-            ?
-          </button>
-
           <textarea
             ref={textareaRef}
             value={value}
