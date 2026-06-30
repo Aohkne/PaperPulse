@@ -26,35 +26,48 @@
 
 /* Dark mode — warm amber gold palette */
 html.dark {
-  --color-paper-bg: #1F1F1E;
-  --color-paper-dark: #EDE8D4;
-  --color-paper-mid: #b7c48d;
-  --color-paper-light: #cab38c;
-  --color-paper-surface: #2D2218;
+  --color-paper-bg: #1A1A18;
+  /* Main bg */
+  --color-paper-dark: #E5E3DC;
+  /* Primary text */
+  --color-paper-mid: #B8C88D;
+  /* Secondary/muted text */
+  --color-paper-light: #BFBFBA;
+  /* Placeholder/subtle */
+  --color-paper-surface: #242422;
+  /* Elevated surface (cards, panels) */
 
-  --color-quality-medium: #cab38c;
-  --color-quality-low: #cab38c;
+  --color-quality-medium: #B8C88D;
+  /* Brand green mid */
+  --color-quality-low: #888885;
+  /* Muted gray */
 
-  /* Brand amber gold */
-  --color-brand-50: #241A08;
-  --color-brand-100: #3A2810;
-  --color-brand-500: #ebca91;
-  --color-brand-600: #cab38c;
-  --color-brand-700: #f6ca84;
+  /* Brand — olive green scale +25L */
+  --color-brand-50: #1A1F0D;
+  /* Brand tinted bg (rất tối) */
+  --color-brand-100: #2A3318;
+  /* Brand surface */
+  --color-brand-500: #9FB668;
+  /* Base brand */
+  --color-brand-600: #91AF55;
+  /* Darker brand */
+  --color-brand-700: #B8C88D;
+  /* Lighter brand */
 
-  /* Admin UI — dark mode, aligned with amber palette */
-  --color-admin-bg: #1F1F1E;
-  --color-admin-surface: #2D2218;
-  --color-admin-border: #5a4a37;
-  --color-admin-text: #EDE8D4;
-  --color-admin-mid: #8C9E52;
-  --color-admin-muted: #C09858;
-  --color-admin-input-bg: #1F1F1E;
-  --color-admin-accent: #ebca91;
-  --color-admin-accent-bg: #241A08;
-  --color-admin-accent-text: #E8B870;
-  --color-admin-role-bg: #2D2218;
-  --color-admin-role-border: #3A2810;
+  /* Admin UI */
+  --color-admin-bg: #1A1A18;
+  --color-admin-surface: #242422;
+  --color-admin-border: #3c3c38;
+  --color-admin-text: #E5E3DC;
+  --color-admin-mid: #B8C88D;
+  /* Brand green mid */
+  --color-admin-muted: #888885;
+  --color-admin-input-bg: #222220;
+  --color-admin-accent: #9FB668;
+  --color-admin-accent-bg: #667A33;
+  --color-admin-accent-text: #B8C88D;
+  --color-admin-role-bg: #242422;
+  --color-admin-role-border: #363634;
 }
 
 /* Admin UI — light mode, aligned with paper palette */
