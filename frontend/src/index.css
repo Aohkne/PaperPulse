@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inknut+Antiqua:wght@400;500;600&family=Calistoga&family=Lora:ital,wght@0,400;0,600;1,400&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inknut+Antiqua:wght@400;700&family=Calistoga&family=Lora:ital,wght@0,400;0,600;1,400&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 /* Enable class-based dark mode: dark: utilities apply inside .dark */
@@ -22,6 +22,7 @@
 
   --font-sans: "Inter", "Segoe UI", "Noto Sans", system-ui, -apple-system, Roboto, sans-serif;
   --font-inknut: 'Inknut Antiqua', 'Noto Serif', serif;
+  --font-noto-serif: 'Noto Serif', serif;
 }
 
 /* Dark mode — warm amber gold palette */

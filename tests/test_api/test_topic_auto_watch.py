@@ -105,7 +105,9 @@ def topic_db(monkeypatch):
     monkeypatch.setattr(
         topic_monitoring,
         "get_settings",
-        lambda: SimpleNamespace(supabase_url="https://example.supabase.co", supabase_service_key="service", max_auto_topics_per_user=3),
+        lambda: SimpleNamespace(
+            supabase_url="https://example.supabase.co", supabase_service_key="service", max_auto_topics_per_user=3
+        ),
     )
     return db
 

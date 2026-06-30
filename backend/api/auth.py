@@ -23,6 +23,7 @@ _bearer = HTTPBearer(auto_error=True)
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 async def _log_event(
     user_id: str,
     email: str,
@@ -52,6 +53,7 @@ async def _log_event(
 
 
 # ── models ────────────────────────────────────────────────────────────────────
+
 
 class RegisterRequest(BaseModel):
     email: str
@@ -87,6 +89,7 @@ class UserResponse(BaseModel):
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(
@@ -153,11 +156,13 @@ async def google_login(
     auth.users row on first sign-in, so this covers both login and signup.
     """
     try:
-        res = supabase.auth.sign_in_with_id_token({
-            "provider": "google",
-            "token": body.id_token,
-            "nonce": body.nonce,
-        })
+        res = supabase.auth.sign_in_with_id_token(
+            {
+                "provider": "google",
+                "token": body.id_token,
+                "nonce": body.nonce,
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -18,6 +18,7 @@ from datetime import datetime
 # Load .env.eval nếu có (judge model config, không ảnh hưởng backend)
 try:
     from dotenv import load_dotenv
+
     _env_file = pathlib.Path(__file__).parent.parent.parent / ".env.eval"
     if _env_file.exists():
         load_dotenv(_env_file, override=False)
@@ -25,12 +26,13 @@ try:
 except ImportError:
     pass  # python-dotenv not installed — rely on shell env vars
 
+# Set SKIP_LLM_JUDGE=true để chỉ chạy structural checks, bỏ qua LLM judge
+import os as _os
+
 from backend.agent.gap_detection.orchestrator import cold_start
 from backend.agent.gap_detection.schemas import GapItem, GapReport
 from tests.test_research_gap.structural_checks import check_empty_on_nonsense, check_gap_structural
 
-# Set SKIP_LLM_JUDGE=true để chỉ chạy structural checks, bỏ qua LLM judge
-import os as _os
 SKIP_LLM_JUDGE = _os.getenv("SKIP_LLM_JUDGE", "false").lower() == "true"
 
 if not SKIP_LLM_JUDGE:
@@ -64,23 +66,25 @@ async def _eval_topic(topic_entry: dict) -> dict:
 
     gap_results = []
     for i, gap in enumerate(gaps):
-        print(f"   Gap {i+1}/{len(gaps)}: structural...", end=" ", flush=True)
+        print(f"   Gap {i + 1}/{len(gaps)}: structural...", end=" ", flush=True)
         structural = await check_gap_structural(gap)
         structural_passed = all(r["passed"] for r in structural)
         print("✅" if structural_passed else "❌")
 
         judge_result = None
         if structural_passed and not expect_empty and not SKIP_LLM_JUDGE:
-            print(f"   Gap {i+1}/{len(gaps)}: LLM judge...", end=" ", flush=True)
+            print(f"   Gap {i + 1}/{len(gaps)}: LLM judge...", end=" ", flush=True)
             judge_result = await judge_gap(gap)
             print("⚠️  FLAGGED" if judge_result["flagged"] else "✅")
 
-        gap_results.append({
-            "statement": gap.statement[:120] + ("..." if len(gap.statement) > 120 else ""),
-            "structural": structural,
-            "structural_passed": structural_passed,
-            "judge": judge_result,
-        })
+        gap_results.append(
+            {
+                "statement": gap.statement[:120] + ("..." if len(gap.statement) > 120 else ""),
+                "structural": structural,
+                "structural_passed": structural_passed,
+                "judge": judge_result,
+            }
+        )
 
     return {
         "topic": topic,
@@ -98,12 +102,12 @@ def _print_report(results: list[dict]) -> tuple[int, int]:
     total_gaps = 0
     total_flagged = 0
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"EVAL REPORT — {now}")
     print("=" * 60)
 
     for res in results:
-        print(f"\n📌 Topic: \"{res['topic']}\" [{res['domain']}]")
+        print(f'\n📌 Topic: "{res["topic"]}" [{res["domain"]}]')
         print(f"   Papers analyzed: {res['papers_analyzed']} | Gaps: {res['gap_count']}")
 
         if res["expect_empty"]:
@@ -124,7 +128,7 @@ def _print_report(results: list[dict]) -> tuple[int, int]:
             else:
                 status = "✅ PASS"
 
-            print(f"\n   Gap {i+1}: {status}")
+            print(f"\n   Gap {i + 1}: {status}")
             print(f"   {gr['statement']}")
 
             for r in gr["structural"]:
@@ -140,8 +144,12 @@ def _print_report(results: list[dict]) -> tuple[int, int]:
                 if judge.get("judges"):
                     c = judge["judges"]["claude"]
                     d = judge["judges"]["deepseek"]
-                    print(f"     Claude:   G={c['grounded']} S={c['specific']} N={c['non_trivial']} A={c['method_actionable']}")
-                    print(f"     DeepSeek: G={d['grounded']} S={d['specific']} N={d['non_trivial']} A={d['method_actionable']}")
+                    print(
+                        f"     Claude:   G={c['grounded']} S={c['specific']} N={c['non_trivial']} A={c['method_actionable']}"
+                    )
+                    print(
+                        f"     DeepSeek: G={d['grounded']} S={d['specific']} N={d['non_trivial']} A={d['method_actionable']}"
+                    )
                 if judge.get("disagreements"):
                     print(f"   ⚡ Disagree on: {', '.join(judge['disagreements'])}")
                 if judge.get("flag"):
@@ -149,7 +157,7 @@ def _print_report(results: list[dict]) -> tuple[int, int]:
                 if judge.get("error"):
                     print(f"   ⚠️  Parse error: {judge['error']}")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"SUMMARY: {total_flagged} flagged / {total_gaps} total gaps.")
     print("=" * 60)
     return total_gaps, total_flagged
@@ -179,11 +187,13 @@ def _write_html(results: list[dict], total_gaps: int, total_flagged: int) -> Non
                         f"<br><small>DeepSeek: G={d['grounded']} S={d['specific']} N={d['non_trivial']} A={d['method_actionable']}</small>"
                     )
                     if judge.get("disagreements"):
-                        scores_detail += f"<br><small style='color:orange'>⚡ disagree: {', '.join(judge['disagreements'])}</small>"
+                        scores_detail += (
+                            f"<br><small style='color:orange'>⚡ disagree: {', '.join(judge['disagreements'])}</small>"
+                        )
             rows += (
                 f"<tr style='background:{bg}'>"
                 f"<td>{res['topic'][:50]}</td>"
-                f"<td>{i+1}</td>"
+                f"<td>{i + 1}</td>"
                 f"<td>{'❌' if not gr['structural_passed'] else '✅'}</td>"
                 f"<td>{scores_avg}{scores_detail}</td>"
                 f"<td>{'⚠️' if (judge and judge['flagged']) else ('✅' if judge else '—')}</td>"

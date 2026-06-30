@@ -1,17 +1,17 @@
-"""Tests for TIP-409 — density_readiness + coverage_estimate (Stage D b,c).
+"""Tests for TIP-409 â€” density_readiness + coverage_estimate (Stage D b,c).
 
 Acceptance criteria (from TIP):
-- AC1: method M in 2 papers (< 3) → cell containing M marked "not trusted"
-- AC2: method M in 4 papers, domain D in 3 papers → cell (M,D) trusted (both ≥ 3)
-- AC3: coverage_estimate → returns [0,1] saturation heuristic, fallback None safely
-- AC4: density signal feeds state → co-occurrence (406) can read which cells are trusted
+- AC1: method M in 2 papers (< 3) â†’ cell containing M marked "not trusted"
+- AC2: method M in 4 papers, domain D in 3 papers â†’ cell (M,D) trusted (both â‰¥ 3)
+- AC3: coverage_estimate â†’ returns [0,1] saturation heuristic, fallback None safely
+- AC4: density signal feeds state â†’ co-occurrence (406) can read which cells are trusted
 
 Also covers:
-- density_readiness: empty corpus → empty result, no crash
+- density_readiness: empty corpus â†’ empty result, no crash
 - density_readiness: works with both Paper and ExtractedPaperData (duck-typed)
 - density_readiness: cell_count / method_count / domain_count all correct
-- density_readiness: deterministic (same input → same output, sorted)
-- coverage_estimate: rounds=None → None (safe fallback)
+- density_readiness: deterministic (same input â†’ same output, sorted)
+- coverage_estimate: rounds=None â†’ None (safe fallback)
 - coverage_estimate: len/SATURATION_TARGET linear model, clamped to 1.0
 - check_coherence: includes density_signal and coverage in return dict
 """
@@ -21,8 +21,8 @@ from __future__ import annotations
 import pytest
 
 from backend.agent.gap_detection.nodes.coherence_check import (
-    DENSITY_MIN_PAPERS,
     _SATURATION_TARGET,
+    DENSITY_MIN_PAPERS,
     _paper_domain_key,
     _paper_method_key,
     check_coherence,
@@ -32,8 +32,7 @@ from backend.agent.gap_detection.nodes.coherence_check import (
 from backend.agent.gap_detection.schemas import ExtractedPaperData, PaperRef
 from backend.shared.models.paper import Paper
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def _paper(
@@ -58,11 +57,11 @@ def _extracted(
     )
 
 
-# ── AC1: method M in < 3 papers → cell not trusted ───────────────────────────
+# â”€â”€ AC1: method M in < 3 papers â†’ cell not trusted â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_density_method_below_threshold_not_trusted():
-    """AC1: method M appears in only 2 papers → cell containing M is untrusted."""
+    """AC1: method M appears in only 2 papers â†’ cell containing M is untrusted."""
     corpus = [
         _extracted("transformer", ["nlp"], pid="p1"),
         _extracted("transformer", ["nlp"], pid="p2"),
@@ -89,11 +88,11 @@ def test_density_method_below_threshold_method_count_correct():
             assert cell["trusted"] is False
 
 
-# ── AC2: method M ≥3, domain D ≥3 → cell (M,D) trusted ──────────────────────
+# â”€â”€ AC2: method M â‰¥3, domain D â‰¥3 â†’ cell (M,D) trusted â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_density_both_row_column_above_threshold_trusted():
-    """AC2: method M in 4 papers, domain D in 3 papers → cell (M,D) trusted."""
+    """AC2: method M in 4 papers, domain D in 3 papers â†’ cell (M,D) trusted."""
     corpus = [
         _extracted("transformer", ["nlp"], pid="p1"),
         _extracted("transformer", ["nlp"], pid="p2"),
@@ -112,7 +111,7 @@ def test_density_both_row_column_above_threshold_trusted():
 
 
 def test_density_mixed_trusted_and_untrusted_cells():
-    """corpus with one trusted and one untrusted cell → correctly partitioned."""
+    """corpus with one trusted and one untrusted cell â†’ correctly partitioned."""
     # transformer: 4 papers across nlp(3) and vision(1)
     # cnn: 2 papers in vision
     corpus = [
@@ -125,16 +124,16 @@ def test_density_mixed_trusted_and_untrusted_cells():
     ]
     result = density_readiness(corpus)
 
-    # transformer|nlp: method_count=4, domain_count=3 → trusted
+    # transformer|nlp: method_count=4, domain_count=3 â†’ trusted
     assert result["cells"]["transformer|nlp"]["trusted"] is True
-    # transformer|vision: method_count=4, domain_count=3 (vision has p4,p5,p6) → trusted
+    # transformer|vision: method_count=4, domain_count=3 (vision has p4,p5,p6) â†’ trusted
     assert result["cells"]["transformer|vision"]["trusted"] is True
-    # cnn|vision: method_count=2 (< 3) → not trusted
+    # cnn|vision: method_count=2 (< 3) â†’ not trusted
     assert result["cells"]["cnn|vision"]["trusted"] is False
 
 
 def test_density_domain_below_threshold_not_trusted():
-    """If domain count < 3, cell is not trusted even if method count ≥ 3."""
+    """If domain count < 3, cell is not trusted even if method count â‰¥ 3."""
     corpus = [
         _extracted("deep learning", ["rare_domain"], pid="p1"),
         _extracted("deep learning", ["rare_domain"], pid="p2"),
@@ -143,22 +142,22 @@ def test_density_domain_below_threshold_not_trusted():
     ]
     result = density_readiness(corpus)
 
-    # rare_domain: domain_count=2 → not trusted
+    # rare_domain: domain_count=2 â†’ not trusted
     assert result["cells"]["deep learning|rare_domain"]["domain_count"] == 2
     assert result["cells"]["deep learning|rare_domain"]["trusted"] is False
 
 
-# ── AC3: coverage_estimate → [0,1] or None ───────────────────────────────────
+# â”€â”€ AC3: coverage_estimate â†’ [0,1] or None â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_coverage_estimate_rounds_none_returns_none():
-    """AC3 fallback: rounds=None → returns None safely."""
+    """AC3 fallback: rounds=None â†’ returns None safely."""
     corpus = [_paper(pid=str(i)) for i in range(10)]
     assert coverage_estimate(corpus, rounds=None) is None
 
 
 def test_coverage_estimate_empty_corpus_returns_none():
-    """Empty corpus → returns None safely."""
+    """Empty corpus â†’ returns None safely."""
     assert coverage_estimate([], rounds=1) is None
 
 
@@ -171,48 +170,51 @@ def test_coverage_estimate_in_range():
 
 
 def test_coverage_estimate_saturates_at_target():
-    """corpus of SATURATION_TARGET papers → coverage == 1.0."""
+    """corpus of SATURATION_TARGET papers â†’ coverage == 1.0."""
     corpus = [_paper(pid=str(i)) for i in range(_SATURATION_TARGET)]
     result = coverage_estimate(corpus, rounds=1)
     assert result == 1.0
 
 
 def test_coverage_estimate_linear_proxy():
-    """Half of SATURATION_TARGET papers → coverage ≈ 0.5."""
+    """Half of SATURATION_TARGET papers â†’ coverage â‰ˆ 0.5."""
     corpus = [_paper(pid=str(i)) for i in range(_SATURATION_TARGET // 2)]
     result = coverage_estimate(corpus, rounds=1)
     assert result == pytest.approx(0.5, abs=0.01)
 
 
 def test_coverage_estimate_clamped_above_target():
-    """More than SATURATION_TARGET papers → coverage still 1.0 (clamped)."""
+    """More than SATURATION_TARGET papers â†’ coverage still 1.0 (clamped)."""
     corpus = [_paper(pid=str(i)) for i in range(_SATURATION_TARGET * 3)]
     result = coverage_estimate(corpus, rounds=1)
     assert result == 1.0
 
 
-# ── AC4: density signal in state ─────────────────────────────────────────────
+# â”€â”€ AC4: density signal in state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
-def test_check_coherence_returns_density_signal_key():
+@pytest.mark.asyncio
+async def test_check_coherence_returns_density_signal_key():
     """AC4: check_coherence() result always includes 'density_signal' key."""
     papers = [_paper(pid=str(i), year=2023) for i in range(3)]
-    result = check_coherence(papers)
+    result = await check_coherence(papers)
     assert "density_signal" in result
     assert isinstance(result["density_signal"], dict)
 
 
-def test_check_coherence_returns_coverage_key():
+@pytest.mark.asyncio
+async def test_check_coherence_returns_coverage_key():
     """check_coherence() result always includes 'coverage' key (None or float)."""
     papers = [_paper(pid=str(i), year=2023) for i in range(3)]
-    result = check_coherence(papers)
+    result = await check_coherence(papers)
     assert "coverage" in result
 
 
-def test_check_coherence_density_signal_has_expected_shape():
+@pytest.mark.asyncio
+async def test_check_coherence_density_signal_has_expected_shape():
     """density_signal from check_coherence has cells / trusted / untrusted keys."""
     papers = [_paper(pid=str(i), year=2023) for i in range(6)]
-    result = check_coherence(papers)
+    result = await check_coherence(papers)
     ds = result["density_signal"]
     assert "cells" in ds
     assert "trusted_cells" in ds
@@ -221,11 +223,11 @@ def test_check_coherence_density_signal_has_expected_shape():
     assert ds["min_papers"] == DENSITY_MIN_PAPERS
 
 
-# ── Edge cases ────────────────────────────────────────────────────────────────
+# â”€â”€ Edge cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def test_density_readiness_empty_corpus():
-    """Empty corpus → empty result, no crash."""
+    """Empty corpus â†’ empty result, no crash."""
     result = density_readiness([])
     assert result["cells"] == {}
     assert result["trusted_cells"] == []

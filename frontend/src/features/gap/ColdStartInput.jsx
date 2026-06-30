@@ -14,7 +14,7 @@ import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
  */
 const ColdStartInput = ({ onSubmit }) => {
   const [topic, setTopic] = useState('');
-  const { findGapsFromTopic, gapLoading } = useGapStore();
+  const { findGapsFromTopic, gapLoading, gapRejected } = useGapStore();
   const handleSubmitAction = onSubmit || findGapsFromTopic;
   const quotaExhausted = useQuotaExhausted('gap');
 
@@ -49,7 +49,7 @@ const ColdStartInput = ({ onSubmit }) => {
         <textarea
           id="gap-topic-input"
           value={topic}
-          onChange={(e) => setTopic(e.target.value)}
+          onChange={(e) => { setTopic(e.target.value); if (gapRejected) useGapStore.setState({ gapRejected: null }); }}
           onKeyDown={handleKeyDown}
           disabled={gapLoading || quotaExhausted}
           placeholder={quotaExhausted ? 'Quota used up for this period…' : 'Enter research topic... (e.g. transformer long-context NLP)'}
@@ -122,6 +122,29 @@ const ColdStartInput = ({ onSubmit }) => {
             }
           </button>
         </div>
+
+        {gapRejected && (
+          <div style={{
+            marginTop: '12px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            background: gapRejected.reason === 'injection'
+              ? 'rgba(139, 74, 47, 0.08)'
+              : 'rgba(181, 162, 63, 0.10)',
+            border: `1px solid ${gapRejected.reason === 'injection' ? 'rgba(139, 74, 47, 0.25)' : 'rgba(181, 162, 63, 0.30)'}`,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+          }}>
+            <Icon
+              icon={gapRejected.reason === 'injection' ? 'mdi:shield-alert-outline' : 'mdi:information-outline'}
+              style={{ fontSize: '16px', color: gapRejected.reason === 'injection' ? '#8B4A2F' : 'var(--color-paper-mid)', flexShrink: 0, marginTop: '1px' }}
+            />
+            <p style={{ margin: 0, fontFamily: "'Noto Serif', serif", fontSize: '13px', lineHeight: '1.6', color: 'var(--color-paper-dark)' }}>
+              {gapRejected.message}
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );

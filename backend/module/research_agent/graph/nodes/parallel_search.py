@@ -42,9 +42,7 @@ async def parallel_search_node(state: ResearchState) -> dict:
     sources = state.get("sources") or ["semantic_scholar", "arxiv"]
     per_source_limit = max(1, min(settings.max_papers_per_source, 100))
 
-    await narrate_step(
-        f"searching {len(sub_queries)} sub-queries across {', '.join(sources)} for {base_query}"
-    )
+    await narrate_step(f"searching {len(sub_queries)} sub-queries across {', '.join(sources)} for {base_query}")
 
     # Build the (sub_query, source) call plan, capped at max_search_calls.
     # Iterate source-major so every source gets at least one call before any

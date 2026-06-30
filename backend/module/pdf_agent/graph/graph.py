@@ -26,10 +26,10 @@ from backend.module.pdf_agent.graph.nodes.render_bundle import render_bundle_nod
 from backend.module.pdf_agent.graph.state import PDFAgentState
 
 _SEQUENCE = [
-    ("format_detect", format_detect_node),       # Step P0
-    ("parse_document", parse_document_node),     # Step P1
-    ("render_bundle", render_bundle_node),        # Step P2
-    ("batch_analysis", batch_analysis_node),      # Step P3
+    ("format_detect", format_detect_node),  # Step P0
+    ("parse_document", parse_document_node),  # Step P1
+    ("render_bundle", render_bundle_node),  # Step P2
+    ("batch_analysis", batch_analysis_node),  # Step P3
     ("build_annotations", build_annotations_node),  # Step P4
 ]
 

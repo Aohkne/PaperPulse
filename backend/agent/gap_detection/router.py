@@ -1,11 +1,11 @@
-"""Research-gap detection endpoint — gap-detection module router.
+"""Research-gap detection endpoint - gap-detection module router.
 
 Moved from backend/api/gap.py into the self-contained gap_detection folder.
 The baseline wires this in via api/__init__.py (2-line residual).
 
 TIP-G05: POST /gap now accepts {topic: str} and routes to cold_start().
 TIP-P2-02: GET /gap/stream added for SSE streaming (topic query param).
-The warm-start path ({papers: [...]}) is COMMENTED OUT — see below.
+The warm-start path ({papers: [...]}) is COMMENTED OUT - see below.
 """
 
 from __future__ import annotations
@@ -20,12 +20,14 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from backend.agent.gap_detection import retrieval
+from backend.agent.gap_detection.nodes.query_analyzer import analyze_query
 from backend.agent.gap_detection.orchestrator import _papers_to_refs, cold_start
 from backend.agent.gap_detection.query_cleaner import clean_query
-from backend.agent.gap_detection.schemas import GapReport
+from backend.agent.gap_detection.schemas import GapReport, QueryRejectedError
 from backend.agent.gap_detection.settings import (
     get_max_papers_for_gap,
     get_min_papers_cold_start,
+    is_query_analyzer_enabled,
 )
 from backend.agent.gap_detection.streaming import stream_gap_detection
 from backend.auth.dependencies import get_current_user
@@ -37,7 +39,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ── Cold-start request model ─────────────────────────────────────────────────
+# -- Cold-start request model -----------------------------------------------
+
 
 class GapColdStartRequest(BaseModel):
     """Request body for POST /gap (cold-start flow, TIP-G05).
@@ -54,7 +57,8 @@ class GapColdStartRequest(BaseModel):
     )
 
 
-# ── Cold-start endpoint ──────────────────────────────────────────────────────
+# -- Cold-start endpoint ----------------------------------------------------
+
 
 @router.post("/gap", response_model=GapReport)
 async def detect_gaps_cold_start(
@@ -63,15 +67,15 @@ async def detect_gaps_cold_start(
 ) -> GapReport:
     """Run cold-start gap detection from a topic string.
 
-    1. Translates/cleans *topic* (VN→EN).
+    1. Translates/cleans *topic* (VN->EN).
     2. Searches Semantic Scholar, snowballs, ranks top-N papers.
     3. Runs the full LangGraph gap-detection pipeline.
     4. Returns a :class:`~backend.agent.gap_detection.schemas.GapReport`.
 
     If fewer than MIN_PAPERS_COLD_START papers are found, returns a valid
-    ``GapReport`` with ``gaps=[]`` and a Vietnamese narrative — never 500.
+    ``GapReport`` with ``gaps=[]`` and a Vietnamese narrative - never 500.
     Deducts 1 Research Gap unit per call (same convention as Literature
-    Review's "lr" feature) — refunded only on a true pipeline failure.
+    Review's "lr" feature) - refunded only on a true pipeline failure.
     """
     topic = request.topic.strip()
     if not topic:
@@ -81,11 +85,14 @@ async def detect_gaps_cold_start(
     try:
         await billing_db.start_session(str(user.id), "gap", session_id)
     except QuotaExceededError as exc:
-        raise HTTPException(402, "Research Gap quota exhausted — please upgrade your plan or top up.") from exc
+        raise HTTPException(402, "Research Gap quota exhausted - please upgrade your plan or top up.") from exc
 
     logger.info("detect_gaps_cold_start: topic=%r", topic[:80])
     try:
         report = await cold_start(topic)
+    except QueryRejectedError as exc:
+        await billing_db.refund_session(str(user.id), "gap", session_id)
+        raise HTTPException(status_code=400, detail=f"query_rejected:{exc.reason}") from exc
     except Exception:
         logger.warning("detect_gaps_cold_start: pipeline failed", exc_info=True)
         await billing_db.refund_session(str(user.id), "gap", session_id)
@@ -96,7 +103,7 @@ async def detect_gaps_cold_start(
     return report
 
 
-# ── SSE streaming endpoint (TIP-P2-02) ─────────────────────────────────────
+# -- SSE streaming endpoint (TIP-P2-02) ------------------------------------
 
 
 async def _refund_gap_on_error(stream, user_id: str, session_id: str):
@@ -137,39 +144,73 @@ async def gap_stream(
     """
     topic = topic.strip()
     if not topic:
-        raise HTTPException(status_code=422, detail="Ch\u1ee7 \u0111\u1ec1 kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u1ec3 tr\u1ed1ng.")
+        raise HTTPException(
+            status_code=422, detail="Ch\u1ee7 \u0111\u1ec1 kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u1ec3 tr\u1ed1ng."
+        )
 
     session_id = str(uuid.uuid4())
     try:
         await billing_db.start_session(str(user.id), "gap", session_id)
     except QuotaExceededError as exc:
-        raise HTTPException(402, "H\u1ebft quota Research Gap \u2014 vui l\u00f2ng n\u00e2ng c\u1ea5p g\u00f3i ho\u1eb7c mua th\u00eam.") from exc
+        raise HTTPException(
+            402, "H\u1ebft quota Research Gap \u2014 vui l\u00f2ng n\u00e2ng c\u1ea5p g\u00f3i ho\u1eb7c mua th\u00eam."
+        ) from exc
 
     logger.info("gap_stream: topic=%r", topic[:80])
 
+    # Stage A guardrail - validate before any expensive search/LLM work
+    if is_query_analyzer_enabled():
+        try:
+            _gq = await analyze_query(topic)
+        except Exception:
+            _gq = None  # fail-open: network/parse error -> let pipeline proceed
+        if _gq is not None and not _gq.is_research_topic:
+            _reason = _gq.reject_reason or "off_topic"
+            logger.info("gap_stream: Stage A guardrail rejected — reason=%s", _reason)
+            await billing_db.refund_session(str(user.id), "gap", session_id)
+            _msg = (
+                "This query cannot be processed. Please enter a research topic."
+                if _reason == "injection"
+                else (
+                    "This doesn't look like a research topic. "
+                    "Please describe an academic field or area, "
+                    "for example: 'RAG in healthcare' or 'long-context transformers'."
+                )
+            )
+
+            async def _rejected_stream():
+                yield f"data: {json.dumps({'type': 'rejected', 'reason': _reason, 'message': _msg}, ensure_ascii=False)}\n\n"
+
+            return StreamingResponse(
+                _rejected_stream(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache"},
+            )
+
     try:
-        # ① Clean query
+        # Step 1: Clean query
         clean = await clean_query(topic)
 
-        # ② Search + ②b fallback
+        # Step 2: Search + fallback
         pool = await retrieval.search(clean, limit=100)
-        _FALLBACK_THRESHOLD = 3
-        if len(pool) < _FALLBACK_THRESHOLD and clean.lower() != topic.lower():
+        fallback_threshold = 3
+        if len(pool) < fallback_threshold and clean.lower() != topic.lower():
             pool = await retrieval.search(topic, limit=100)
 
-        # ③ Snowball
+        # Step 3: Snowball
         merged = await retrieval.snowball(pool)
 
-        # ④ Rank
+        # Step 4: Rank
         top = await retrieval.rank(clean or topic, merged, top_k=get_max_papers_for_gap())
 
-        # ⑤ Insufficient gate — return an SSE stream with a single event
+        # Step 5: Insufficient gate - return an SSE stream with a single event
         if len(top) < get_min_papers_cold_start():
+
             async def _insufficient():
                 payload = {
                     "type": "insufficient",
                     "narrative": "Not enough literature was found for this topic. "
-                                 "Please try again with a broader topic.",
+                    "Please try again with a broader topic.",
                 }
                 yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
@@ -179,13 +220,11 @@ async def gap_stream(
                 headers={"Cache-Control": "no-cache"},
             )
 
-        # ⑥ Build PaperRefs and stream
+        # Step 6: Build PaperRefs and stream
         session_papers = _papers_to_refs(top)
 
         return StreamingResponse(
-            _refund_gap_on_error(
-                stream_gap_detection(session_papers, topic), str(user.id), session_id
-            ),
+            _refund_gap_on_error(stream_gap_detection(session_papers, topic), str(user.id), session_id),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
@@ -201,7 +240,7 @@ async def gap_stream(
         )
 
 
-# ── warm-start disabled (Lưu ý 2) — re-enable later ────────────────────────
+# -- warm-start disabled (Lưu ý 2) - re-enable later -------------------
 #
 # from backend.agent.gap_detection.graph import run_gap_detection
 # from backend.agent.gap_detection.nodes.paper_check import MIN_SESSION_PAPERS
@@ -235,7 +274,7 @@ async def gap_stream(
 #     ``MIN_SESSION_PAPERS`` papers, returns an early report (no baseline
 #     search).  Otherwise runs the full pipeline.
 #     """
-#     # Map → PaperRef, dedup by paper_id (preserve first-seen order).
+#     # Map -> PaperRef, dedup by paper_id (preserve first-seen order).
 #     refs: list[PaperRef] = []
 #     seen: set[str] = set()
 #     for item in request.papers:
@@ -246,7 +285,7 @@ async def gap_stream(
 #             )
 #
 #     if len(refs) < MIN_SESSION_PAPERS:
-#         logger.info("detect_gaps: %d paper(s) < %d — returning early", len(refs), MIN_SESSION_PAPERS)
+#         logger.info("detect_gaps: %d paper(s) < %d - returning early", len(refs), MIN_SESSION_PAPERS)
 #         return GapReport(
 #             papers_analyzed=len(refs),
 #             gaps=[],
@@ -264,7 +303,7 @@ async def gap_stream(
 #             f"Đã phân tích {len(refs)}/{total} papers (giới hạn để đảm bảo tốc độ). "
 #             "Thu hẹp tập tài liệu để kết quả tập trung hơn."
 #         )
-#         logger.info("detect_gaps: capped %d → %d papers", total, len(refs))
+#         logger.info("detect_gaps: capped %d -> %d papers", total, len(refs))
 #
 #     try:
 #         report = await run_gap_detection(refs)

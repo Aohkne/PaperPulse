@@ -14,8 +14,8 @@ import logging
 import re
 
 from backend.config import get_llm, get_settings
-from backend.module.pdf_agent.services.llm_timeout import ainvoke_with_timeout
 from backend.module.pdf_agent.graph.state import Section
+from backend.module.pdf_agent.services.llm_timeout import ainvoke_with_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +47,13 @@ async def critique_section(section: Section) -> list[dict]:
     settings = get_settings()
     llm = get_llm(temperature=settings.critic_temperature, streaming=False)
     try:
-        response = await ainvoke_with_timeout(llm, [
-            {"role": "system", "content": _CRITIC_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Section: {section['title']}\n\n{section['raw_latex']}"},
-        ])
+        response = await ainvoke_with_timeout(
+            llm,
+            [
+                {"role": "system", "content": _CRITIC_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Section: {section['title']}\n\n{section['raw_latex']}"},
+            ],
+        )
         content = response.content if hasattr(response, "content") else str(response)
         match = re.search(r"\[.*\]", content, re.DOTALL)
         issues = json.loads(match.group(0)) if match else []

@@ -8,7 +8,7 @@ const STEP_LABELS = {
   5: 'Outline', 6: 'Write', 7: 'Claims', 8: 'Verify', 9: 'Route', 10: 'Export',
 };
 
-// ── Step progress strip — derived from "step" events seen so far ────────────
+// â”€â”€ Step progress strip â€” derived from "step" events seen so far â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const StepStrip = ({ timeline }) => {
   const reached = useMemo(() => {
     const set = new Set();
@@ -29,7 +29,7 @@ const StepStrip = ({ timeline }) => {
         return (
           <div
             key={n}
-            title={`Step ${n} — ${label}`}
+            title={`Step ${n} â€” ${label}`}
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '4px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600,
@@ -72,7 +72,7 @@ const RawDetails = ({ data }) => (
   </details>
 );
 
-// ── One timeline block, rendered differently per `kind` ──────────────────────
+// â”€â”€ One timeline block, rendered differently per `kind` â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TimelineEntry = ({ entry, isLastStreaming }) => {
   const time = new Date(entry.ts).toLocaleTimeString([], { hour12: false });
 
@@ -109,14 +109,14 @@ const TimelineEntry = ({ entry, isLastStreaming }) => {
       );
 
     case 'thinking_token':
-      return shell('Thinking — intent_router', 'mdi:brain', 'var(--color-admin-accent)', 'var(--color-admin-accent-bg)', (
+      return shell('Thinking â€” intent_router', 'mdi:brain', 'var(--color-admin-accent)', 'var(--color-admin-accent-bg)', (
         <p style={{ margin: 0, fontSize: 13, fontStyle: 'italic', color: 'var(--color-admin-text)', whiteSpace: 'pre-wrap' }}>
           {entry.text}{isLastStreaming && <Blink />}
         </p>
       ));
 
     case 'reply_token':
-      return shell('Reply — reply_generator', 'mdi:message-text-outline', '#4f86c6', 'rgba(79,134,198,0.1)', (
+      return shell('Reply â€” reply_generator', 'mdi:message-text-outline', '#4f86c6', 'rgba(79,134,198,0.1)', (
         <p style={{ margin: 0, fontSize: 13, color: 'var(--color-admin-text)', whiteSpace: 'pre-wrap' }}>
           {entry.text}{isLastStreaming && <Blink />}
         </p>
@@ -161,7 +161,7 @@ const TimelineEntry = ({ entry, isLastStreaming }) => {
       ));
 
     case 'interrupt':
-      return shell('Interrupt — pipeline paused', 'mdi:pause-circle-outline', '#d97706', 'rgba(217,119,6,0.1)', (
+      return shell('Interrupt â€” pipeline paused', 'mdi:pause-circle-outline', '#d97706', 'rgba(217,119,6,0.1)', (
         <RawDetails data={entry.data} />
       ));
 
@@ -169,7 +169,7 @@ const TimelineEntry = ({ entry, isLastStreaming }) => {
       return shell('Pipeline complete', 'mdi:flag-checkered', '#16a34a', 'rgba(22,163,74,0.12)', (
         <>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--color-admin-mid)', fontFamily: 'monospace' }}>
-            literature_review.tex: {entry.data.content?.length ?? 0} chars · references.bib: {entry.data.bib?.length ?? 0} chars
+            literature_review.tex: {entry.data.content?.length ?? 0} chars Â· references.bib: {entry.data.bib?.length ?? 0} chars
           </p>
           <RawDetails data={entry.data} />
         </>
@@ -194,7 +194,7 @@ const TimelineEntry = ({ entry, isLastStreaming }) => {
   }
 };
 
-// ── Pending interrupt — approve or send a custom resume value ────────────────
+// â”€â”€ Pending interrupt â€” approve or send a custom resume value â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const InterruptPanel = ({ data, onResume }) => {
   const [customJson, setCustomJson] = useState('true');
   const [customError, setCustomError] = useState(null);
@@ -216,7 +216,7 @@ const InterruptPanel = ({ data, onResume }) => {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <Icon icon="mdi:pause-circle" style={{ fontSize: 16, color: '#d97706' }} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#d97706' }}>Graph paused — waiting for resume</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#d97706' }}>Graph paused â€” waiting for resume</span>
       </div>
       <pre style={{
         margin: '0 0 10px', fontSize: 11, maxHeight: 160, overflowY: 'auto',
@@ -265,7 +265,7 @@ const InterruptPanel = ({ data, onResume }) => {
 
 const LiteratureReviewTestingPage = () => {
   const {
-    query, setQuery, running, threadId, timeline, error,
+    running, threadId, timeline, error,
     pendingInterrupt, conversationHistory, submit, resume, reset,
   } = useAdminTestStore();
 
@@ -291,11 +291,11 @@ const LiteratureReviewTestingPage = () => {
       {/* Header */}
       <div>
         <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--color-admin-text)' }}>
-          Literature Review — Pipeline Testing
+          Literature Review â€” Pipeline Testing
         </h1>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-admin-mid)' }}>
-          Runs the real <code>/api/research/stream</code> pipeline (research-agent_SPEC_2.0.md Step 0→⑩) and
-          shows every SSE event — thinking tokens, reply tokens, step narration, and step completions — live.
+          Runs the real <code>/api/research/stream</code> pipeline (research-agent_SPEC_2.0.md Step 0â†’â‘©) and
+          shows every SSE event â€” thinking tokens, reply tokens, step narration, and step completions â€” live.
         </p>
       </div>
 
@@ -304,7 +304,7 @@ const LiteratureReviewTestingPage = () => {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={isFollowUp ? 'Follow-up answer (continues the same thread)…' : 'Type a query — e.g. "hello", "RAG", "RAG optimization techniques"'}
+          placeholder={isFollowUp ? 'Follow-up answer (continues the same thread)â€¦' : 'Type a query â€” e.g. "hello", "RAG", "RAG optimization techniques"'}
           disabled={running}
           style={{
             flex: 1, padding: '10px 14px', fontSize: 14,
@@ -351,7 +351,7 @@ const LiteratureReviewTestingPage = () => {
             fontSize: 11, fontFamily: 'monospace', color: 'var(--color-admin-mid)',
             padding: '3px 8px', borderRadius: 20, border: '1px solid var(--color-admin-border)',
           }}>
-            thread: {threadId.slice(0, 12)}…
+            thread: {threadId.slice(0, 12)}â€¦
           </span>
         )}
       </div>
@@ -378,7 +378,7 @@ const LiteratureReviewTestingPage = () => {
             flex: 1, color: 'var(--color-admin-mid)', gap: 8,
           }}>
             <Icon icon="mdi:flask-empty-outline" style={{ fontSize: 28 }} />
-            <p style={{ fontSize: 13, margin: 0 }}>No events yet — run a query to see the pipeline stream.</p>
+            <p style={{ fontSize: 13, margin: 0 }}>No events yet â€” run a query to see the pipeline stream.</p>
           </div>
         )}
         <AnimatePresence initial={false}>

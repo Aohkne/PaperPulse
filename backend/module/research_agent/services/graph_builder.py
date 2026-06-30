@@ -115,7 +115,8 @@ def build_knowledge_graph(
         src, tgt = f"paper:{edge.get('source')}", f"paper:{edge.get('target')}"
         if g.has_node(src) and g.has_node(tgt):
             g.add_edge(
-                src, tgt,
+                src,
+                tgt,
                 type="cites",
                 is_influential=bool(edge.get("isInfluential")),
                 intent=edge.get("intent") or "background",
@@ -157,10 +158,7 @@ def build_knowledge_graph(
         data = nx.node_link_data(g)
 
     nodes = data["nodes"]
-    edges_out = [
-        {k: v for k, v in e.items() if k != "key"}
-        for e in data.get("links", data.get("edges", []))
-    ]
+    edges_out = [{k: v for k, v in e.items() if k != "key"} for e in data.get("links", data.get("edges", []))]
 
     stats = {
         "papers": sum(1 for n in nodes if n.get("type") == "paper"),
@@ -191,11 +189,13 @@ def _enforce_guardrails(g: nx.MultiDiGraph) -> None:
             g.remove_node(n)
         log.warning(
             "Knowledge graph exceeded %d nodes — dropped %d lowest-confidence claim nodes",
-            max_nodes, min(overflow, len(claim_nodes)),
+            max_nodes,
+            min(overflow, len(claim_nodes)),
         )
 
     if g.number_of_edges() > max_edges:
         log.warning(
             "Knowledge graph has %d edges (> %d guardrail) — rendering may be slow",
-            g.number_of_edges(), max_edges,
+            g.number_of_edges(),
+            max_edges,
         )

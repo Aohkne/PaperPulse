@@ -127,7 +127,6 @@ def _valid_papers(papers: list[Paper], stage: str = "") -> list[Paper]:
     return valid
 
 
-
 async def search(query: str, limit: int = 100) -> list[Paper]:
     """Stage A — Keyword search via Semantic Scholar + arXiv supplement (TIP-405).
 
@@ -169,23 +168,25 @@ async def search(query: str, limit: int = 100) -> list[Paper]:
     # Only run resolution when arXiv actually returned results (no overhead otherwise).
     if arxiv_papers:
         records: list[RawRecord] = [
-            RawRecord(paper=p, corpus_role=CorpusRole.USER, source_name="s2")
-            for p in s2_papers
-        ] + [
-            RawRecord(paper=p, corpus_role=CorpusRole.USER, source_name="arxiv")
-            for p in arxiv_papers
-        ]
+            RawRecord(paper=p, corpus_role=CorpusRole.USER, source_name="s2") for p in s2_papers
+        ] + [RawRecord(paper=p, corpus_role=CorpusRole.USER, source_name="arxiv") for p in arxiv_papers]
         canonical = resolve_papers(records)
         papers = [_canonical_to_paper(cp) for cp in canonical]
         logger.info(
             "retrieval.search: raw='%s' cleaned='%s' → s2=%d arxiv=%d merged=%d",
-            query[:60], cleaned[:60], len(s2_papers), len(arxiv_papers), len(papers),
+            query[:60],
+            cleaned[:60],
+            len(s2_papers),
+            len(arxiv_papers),
+            len(papers),
         )
     else:
         papers = s2_papers
         logger.info(
             "retrieval.search: raw='%s' cleaned='%s' → s2=%d (arXiv disabled/empty)",
-            query[:60], cleaned[:60], len(papers),
+            query[:60],
+            cleaned[:60],
+            len(papers),
         )
 
     return _valid_papers(papers, stage="search")
@@ -378,7 +379,7 @@ async def rank(clean_query: str, papers: list[Paper], top_k: int) -> list[Paper]
             -combined,
             -_citation_score(p),
             -_recency_score(p),
-            p.paper_id or "",        # deterministic tiebreaker
+            p.paper_id or "",  # deterministic tiebreaker
         )
 
     ranked = sorted(valid, key=_key)
@@ -413,7 +414,7 @@ def _term_score(query_tokens: frozenset[str], paper: Paper) -> float:
     if not query_tokens:
         return 0.0
     title: str = paper.title or ""
-    abstract: str = paper.abstract or ""          # None → ""
+    abstract: str = paper.abstract or ""  # None → ""
     doc_tokens: frozenset[str] = _tokenize(title + " " + abstract)
     if not doc_tokens:
         return 0.0

@@ -62,7 +62,9 @@ async def upsert_papers(papers: list[Paper]) -> int:
         logging.warning(
             "upsert_papers: skipped %d/%d papers with embedding dim != %d "
             "(mixed embedding models — not comparable in the same pgvector column)",
-            skipped, len(to_store), _TARGET_DIM,
+            skipped,
+            len(to_store),
+            _TARGET_DIM,
         )
     if not matching:
         return 0

@@ -207,9 +207,9 @@ async def test_synthesizer_populates_gap_analysis():
     gaps = [enriched, plain]
     state = {"verified_gaps": gaps, "session_papers": [], "baseline_triggered": False}
 
-    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=gaps), \
-         patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
+    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=gaps), patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
         from backend.agent.gap_detection.nodes.synthesizer import synthesizer_node
+
         result = await synthesizer_node(state)
 
     report = result["final_report"]
@@ -226,11 +226,14 @@ async def test_synthesizer_narrative_is_template_not_llm():
     gaps = [_make_gap(f"Gap {i}") for i in range(3)]
     state = {"verified_gaps": gaps, "session_papers": [], "baseline_triggered": False}
 
-    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=gaps), \
-         patch(f"{_SYNTH}.get_top_k_gaps", return_value=7), \
-         patch(f"{_SYNTH}.chat_completion", new_callable=AsyncMock) as mock_llm:
+    with (
+        patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=gaps),
+        patch(f"{_SYNTH}.get_top_k_gaps", return_value=7),
+        patch(f"{_SYNTH}.chat_completion", new_callable=AsyncMock) as mock_llm,
+    ):
         mock_llm.return_value = "SHOULD NOT APPEAR"
         from backend.agent.gap_detection.nodes.synthesizer import synthesizer_node
+
         result = await synthesizer_node(state)
 
     narrative = result["final_report"].narrative
@@ -244,9 +247,9 @@ async def test_synthesizer_narrative_summary_when_top_k_equals_total():
     gaps = [_make_gap(f"Gap {i}") for i in range(3)]
     state = {"verified_gaps": gaps, "session_papers": [], "baseline_triggered": False}
 
-    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=gaps), \
-         patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
+    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=gaps), patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
         from backend.agent.gap_detection.nodes.synthesizer import synthesizer_node
+
         result = await synthesizer_node(state)
 
     narrative = result["final_report"].narrative
@@ -271,9 +274,12 @@ async def test_synthesizer_narrative_prefix_when_more_than_top_k():
     top_gaps = all_gaps[:7]
     state = {"verified_gaps": all_gaps, "session_papers": [], "baseline_triggered": False}
 
-    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=top_gaps), \
-         patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
+    with (
+        patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=top_gaps),
+        patch(f"{_SYNTH}.get_top_k_gaps", return_value=7),
+    ):
         from backend.agent.gap_detection.nodes.synthesizer import synthesizer_node
+
         result = await synthesizer_node(state)
 
     narrative = result["final_report"].narrative
@@ -286,9 +292,9 @@ async def test_synthesizer_narrative_empty_when_no_gaps():
     """When no verified gaps → narrative is _EMPTY_MESSAGE."""
     state = {"verified_gaps": [], "session_papers": [], "baseline_triggered": False}
 
-    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=[]), \
-         patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
+    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=[]), patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
         from backend.agent.gap_detection.nodes.synthesizer import synthesizer_node
+
         result = await synthesizer_node(state)
 
     narrative = result["final_report"].narrative
@@ -304,9 +310,9 @@ async def test_synthesizer_analysis_is_nfc_normalized():
     gap = _make_gap("gap", suggested_method=nfd_method)
     state = {"verified_gaps": [gap], "session_papers": [], "baseline_triggered": False}
 
-    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=[gap]), \
-         patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
+    with patch(f"{_SYNTH}.rank_gaps_by_quality", return_value=[gap]), patch(f"{_SYNTH}.get_top_k_gaps", return_value=7):
         from backend.agent.gap_detection.nodes.synthesizer import synthesizer_node
+
         result = await synthesizer_node(state)
 
     analysis = result["final_report"].gaps[0].analysis

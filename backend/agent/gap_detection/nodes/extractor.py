@@ -227,14 +227,18 @@ async def _process_one_paper(
                 vectors = await get_embeddings_batch([paper_ref.paper_id])
                 vec = vectors.get(paper_ref.paper_id)
                 if vec:
-                    await upsert_papers([{
-                        "paper_id": paper_ref.paper_id,
-                        "title": paper_ref.title,
-                        "year": paper_ref.year,
-                        "vector": vec,
-                    }])
+                    await upsert_papers(
+                        [
+                            {
+                                "paper_id": paper_ref.paper_id,
+                                "title": paper_ref.title,
+                                "year": paper_ref.year,
+                                "vector": vec,
+                            }
+                        ]
+                    )
             except Exception:
-                pass   # fire-and-forget, do not block extraction
+                pass  # fire-and-forget, do not block extraction
 
             try:
                 await upsert_paper_to_nim_store(

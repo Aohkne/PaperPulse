@@ -20,6 +20,7 @@ class Paper(BaseModel):
     intents: list[str] = []
     # Which API this paper came from (SPEC 2.0 §Step ①) — set by the search service
     source: str | None = None
+    venue: str | None = None
 
 
 class PaperSearchRequest(BaseModel):

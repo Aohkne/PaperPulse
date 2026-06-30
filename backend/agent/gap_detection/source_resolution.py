@@ -68,9 +68,7 @@ try:
     _HAS_RAPIDFUZZ = True
 except ImportError:
     _HAS_RAPIDFUZZ = False
-    logger.warning(
-        "rapidfuzz not installed — fuzzy title fallback disabled; install with: uv add rapidfuzz"
-    )
+    logger.warning("rapidfuzz not installed — fuzzy title fallback disabled; install with: uv add rapidfuzz")
 
 
 # ── Input type ───────────────────────────────────────────────────────────────
@@ -109,7 +107,7 @@ def _normalize_doi(raw: str) -> str:
     doi = raw.strip().lower()
     for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
         if doi.startswith(prefix):
-            doi = doi[len(prefix):]
+            doi = doi[len(prefix) :]
             break
     return doi
 
@@ -125,7 +123,7 @@ def _normalize_title(raw: str) -> str:
         return ""
     norm = unicodedata.normalize("NFC", raw)
     norm = norm.lower()
-    norm = re.sub(r"[^\w\s]", "", norm)       # drop punctuation
+    norm = re.sub(r"[^\w\s]", "", norm)  # drop punctuation
     norm = re.sub(r"\s+", " ", norm).strip()  # collapse whitespace
     return norm
 
@@ -213,11 +211,7 @@ def _merge_group(key: str, group: list[RawRecord]) -> CanonicalPaper:
 
     sources = sorted({r.source_name for r in group})
 
-    corpus_role = (
-        CorpusRole.USER
-        if any(r.corpus_role == CorpusRole.USER for r in group)
-        else CorpusRole.BACKGROUND
-    )
+    corpus_role = CorpusRole.USER if any(r.corpus_role == CorpusRole.USER for r in group) else CorpusRole.BACKGROUND
 
     fulltext = next((r.fulltext for r in sorted_group if r.fulltext), None)
 
@@ -228,9 +222,7 @@ def _merge_group(key: str, group: list[RawRecord]) -> CanonicalPaper:
         candidates = [r.paper.abstract for r in sorted_group if r.paper.abstract]
         abstract = max(candidates, key=len) if candidates else None
 
-    s2_paper_id = next(
-        (r.paper.paper_id for r in group if r.paper.paper_id), None
-    )
+    s2_paper_id = next((r.paper.paper_id for r in group if r.paper.paper_id), None)
 
     return CanonicalPaper(
         id=key,
@@ -248,6 +240,7 @@ def _merge_group(key: str, group: list[RawRecord]) -> CanonicalPaper:
         external_ids=dict(primary.paper.external_ids or {}),
         s2_paper_id=s2_paper_id,
         is_influential=any(r.paper.is_influential for r in group),
+        venue=getattr(primary.paper, "venue", None),
     )
 
 
@@ -328,7 +321,9 @@ def resolve_papers(records: list[RawRecord]) -> list[CanonicalPaper]:
         norm_i, _, _ = title_groups[i]
         for j in range(i + 1, len(title_groups)):
             norm_j, _, _ = title_groups[j]
-            if _title_similarity(norm_i, norm_j) >= TITLE_FUZZY_THRESHOLD and not _has_version_suffix_guard(norm_i, norm_j):
+            if _title_similarity(norm_i, norm_j) >= TITLE_FUZZY_THRESHOLD and not _has_version_suffix_guard(
+                norm_i, norm_j
+            ):
                 union(i, j)
 
     clusters: dict[int, list[tuple[str, list[RawRecord]]]] = defaultdict(list)

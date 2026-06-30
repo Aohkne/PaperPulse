@@ -1,8 +1,8 @@
-"""⑧ 3-tier citation verification pipeline (SPEC_1.0.1).
+"""3-tier citation verification pipeline (SPEC_1.0.1).
 
-Case A (~30% papers): Semantic Scholar /snippet/search → direct full-text snippet
+Case A (~30% papers): Semantic Scholar /snippet/search -> direct full-text snippet
 Case B (~80% CS/AI): arXiv full text via ar5iv HTML
-Case C (fallback):   Abstract conservative — NEVER return Supported
+Case C (fallback): Abstract conservative -> NEVER return Supported
 
 Contrasting-intent claims are prioritised (returned first) for human review.
 """
@@ -12,14 +12,13 @@ import logging
 import re
 from typing import Literal
 
-# Limit concurrent LLM calls to avoid 429 from the NVIDIA/OpenAI API
-_VERIFY_SEM = asyncio.Semaphore(4)
-
 from backend.shared.models.claim import Claim
 from backend.shared.services.arxiv_fetcher import fetch_arxiv_text
 from backend.shared.services.llm_client import chat_completion
 from backend.shared.services.semantic_scholar import search_snippet
 
+# Limit concurrent LLM calls to avoid 429 from the NVIDIA/OpenAI API
+_VERIFY_SEM = asyncio.Semaphore(4)
 _VERIFY_SYSTEM = (
     "You are a fact-checker for academic citations. "
     "Given a source text and a claim, classify strictly as one of: "
@@ -45,7 +44,7 @@ Return ONLY one classification label."""
 
 _ABSTRACT_CONSERVATIVE_NOTE = (
     "[ABSTRACT-ONLY MODE: You are reading an abstract, not the full paper. "
-    "If not explicitly confirmed by the abstract → classify as Uncertain, NEVER Supported.]"
+    "If not explicitly confirmed by the abstract -> classify as Uncertain, NEVER Supported.]"
 )
 
 _STATUS_MAP: dict[str, Literal["supported", "partial", "unsupported", "uncertain"]] = {
@@ -57,7 +56,9 @@ _STATUS_MAP: dict[str, Literal["supported", "partial", "unsupported", "uncertain
 }
 
 
-async def _llm_classify(source_text: str, claim_text: str, paper_id: str, conservative: bool = False) -> tuple[str, str | None]:
+async def _llm_classify(
+    source_text: str, claim_text: str, paper_id: str, conservative: bool = False
+) -> tuple[str, str | None]:
     """Call LLM to classify the claim. Returns (status, quote_or_None)."""
     note = _ABSTRACT_CONSERVATIVE_NOTE if conservative else ""
     prompt = _VERIFY_TMPL.format(
@@ -66,10 +67,12 @@ async def _llm_classify(source_text: str, claim_text: str, paper_id: str, conser
         claim_text=claim_text,
         conservative_note=note,
     )
-    verdict = await chat_completion([
-        {"role": "system", "content": _VERIFY_SYSTEM},
-        {"role": "user", "content": prompt},
-    ])
+    verdict = await chat_completion(
+        [
+            {"role": "system", "content": _VERIFY_SYSTEM},
+            {"role": "user", "content": prompt},
+        ]
+    )
     normalized = verdict.strip().lower()
     status = _STATUS_MAP.get(normalized, "uncertain")
     # Extract a short quote from the first 200 chars of source if supported
@@ -80,7 +83,7 @@ async def _llm_classify(source_text: str, claim_text: str, paper_id: str, conser
 async def _verify_one(claim: Claim, paper_abstracts: dict[str, str]) -> Claim:
     """Run 3-tier verification for a single claim (rate-limited via semaphore)."""
     async with _VERIFY_SEM:
-        # ── Case A: Semantic Scholar /snippet/search ──────────────────────────
+        # -- Case A: Semantic Scholar /snippet/search --------------------------
         # Strip markdown formatting before sending to S2 API to avoid 400 errors
         clean_query = re.sub(r"\*+|_+|#+|`+", "", claim.text).strip()[:200]
         try:
@@ -95,10 +98,10 @@ async def _verify_one(claim: Claim, paper_abstracts: dict[str, str]) -> Claim:
             claim.snippet = quote
             if status in ("partial", "uncertain"):
                 claim.human_review = True
-            logging.debug("Claim %s: Case A → %s", claim.id[:8], status)
+            logging.debug("Claim %s: Case A -> %s", claim.id[:8], status)
             return claim
 
-        # ── Case B: arXiv full text via ar5iv ────────────────────────────────
+        # -- Case B: arXiv full text via ar5iv ---------------------------------
         arxiv_id = None
         if hasattr(claim, "arxiv_id") and claim.arxiv_id:  # type: ignore[attr-defined]
             arxiv_id = claim.arxiv_id  # type: ignore[attr-defined]
@@ -112,10 +115,10 @@ async def _verify_one(claim: Claim, paper_abstracts: dict[str, str]) -> Claim:
                 claim.snippet = quote
                 if status in ("partial", "uncertain"):
                     claim.human_review = True
-                logging.debug("Claim %s: Case B → %s", claim.id[:8], status)
+                logging.debug("Claim %s: Case B -> %s", claim.id[:8], status)
                 return claim
 
-        # ── Case C: Abstract conservative (NEVER return Supported) ───────────
+        # -- Case C: Abstract conservative (NEVER return Supported) ------------
         abstract = paper_abstracts.get(claim.paper_id)
         if abstract:
             status, quote = await _llm_classify(abstract, claim.text, claim.paper_id, conservative=True)
@@ -126,7 +129,7 @@ async def _verify_one(claim: Claim, paper_abstracts: dict[str, str]) -> Claim:
             claim.low_confidence = True
             claim.human_review = True
             claim.snippet = quote
-            logging.debug("Claim %s: Case C (abstract conservative) → %s", claim.id[:8], status)
+            logging.debug("Claim %s: Case C (abstract conservative) -> %s", claim.id[:8], status)
             return claim
 
     # No source at all
@@ -138,11 +141,11 @@ async def _verify_one(claim: Claim, paper_abstracts: dict[str, str]) -> Claim:
 
 
 async def verify_claims(claims: list[Claim], paper_abstracts: dict[str, str] | None = None) -> list[Claim]:
-    """⑧ Verify all claims concurrently using 3-tier pipeline.
+    """Verify all claims concurrently using the 3-tier pipeline.
 
     Args:
         claims: Claims to verify.
-        paper_abstracts: dict[paperId → abstract] used as Case C fallback.
+        paper_abstracts: dict[paperId -> abstract] used as Case C fallback.
     """
     abstracts = paper_abstracts or {}
 

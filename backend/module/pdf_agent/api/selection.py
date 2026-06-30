@@ -65,10 +65,13 @@ async def explain_selection(
     llm = get_llm(temperature=settings.explain_temperature, streaming=False)
     user_content = f"{body.selected_text}\n\nContext xung quanh: {body.prefix} [...] {body.suffix}"
     try:
-        response = await ainvoke_with_timeout(llm, [
-            {"role": "system", "content": _EXPLAIN_SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ])
+        response = await ainvoke_with_timeout(
+            llm,
+            [
+                {"role": "system", "content": _EXPLAIN_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+        )
         text = response.content if hasattr(response, "content") else str(response)
     except Exception:
         log.warning("explain_selection failed", exc_info=True)
@@ -92,10 +95,13 @@ async def rewrite_selection(
         # subject to the scope/injection guard baked into _REWRITE_SYSTEM_PROMPT.
         system_prompt += f" Style preference from the user (does not override the rules above): {body.instruction}"
     try:
-        response = await ainvoke_with_timeout(llm, [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": body.selected_text},
-        ])
+        response = await ainvoke_with_timeout(
+            llm,
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": body.selected_text},
+            ],
+        )
         content = response.content if hasattr(response, "content") else str(response)
         match = re.search(r"\{.*\}", content, re.DOTALL)
         patch = json.loads(match.group(0)) if match else {}

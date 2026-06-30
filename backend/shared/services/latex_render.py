@@ -1,6 +1,6 @@
-"""Best-effort LaTeX → PDF/Markdown rendering, shared by Reviews export and PDF Agent
+"""Best-effort LaTeX -> PDF/Markdown rendering, shared by Reviews export and PDF Agent
 export so both features stay on one renderer instead of duplicating ~300 lines of
-LaTeX parsing (not a full TeX engine — good enough for our generated/edited content)."""
+LaTeX parsing (not a full TeX engine - good enough for our generated/edited content)."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from pathlib import Path
 from backend.shared.services.latex_utils import unescape_latex
 
 # DejaVu Sans is a Unicode TTF (bundled under backend/shared/assets/fonts, see
-# LICENSE_DEJAVU.txt there) so the PDF export can render any Unicode text —
-# curly quotes, em-dashes, math symbols, Vietnamese diacritics, etc. — instead
+# LICENSE_DEJAVU.txt there) so the PDF export can render any Unicode text -
+# curly quotes, em-dashes, math symbols, Vietnamese diacritics, etc. - instead
 # of being limited to fpdf2's built-in Latin-1-only core fonts (Helvetica/Courier).
 _FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 _SANS_REGULAR = _FONTS_DIR / "DejaVuSans.ttf"
@@ -21,7 +21,7 @@ _MONO_REGULAR = _FONTS_DIR / "DejaVuSansMono.ttf"
 
 # fpdf2's multi_cell raises FPDFException ("Not enough horizontal space to render
 # a single character") when one unbroken run of non-space characters is wider than
-# the page — common with bare DOI/arXiv URLs in citations. fpdf2 honors the
+# the page - common with bare DOI/arXiv URLs in citations. fpdf2 honors the
 # soft-hyphen character (U+00AD) as a word-break hint, so sprinkle one into any
 # long unbroken token to give it somewhere to wrap instead of crashing the export.
 _LONG_TOKEN_RE = re.compile(r"\S{61,}")
@@ -35,16 +35,16 @@ def _break_long_token(match: re.Match) -> str:
 def _sanitize(text: str) -> str:
     """Break up unbroken long tokens (e.g. DOI/arXiv URLs) so fpdf2 can wrap them.
 
-    No longer transliterates/drops Unicode characters — the PDF renders with a
+    No longer transliterates/drops Unicode characters - the PDF renders with a
     Unicode TTF font (DejaVu Sans), so curly quotes, em-dashes, math symbols,
     and non-Latin scripts render natively instead of being replaced with '?'.
     """
     return _LONG_TOKEN_RE.sub(_break_long_token, text)
 
 
-# ── LaTeX parsing (best-effort — not a full TeX engine) ──────────────────────
+# -- LaTeX parsing (best-effort - not a full TeX engine) ----------------------
 
-_INLINE_RE = re.compile(
+_Inext_lineINE_RE = re.compile(
     r"\\href\{(?P<href_url>[^{}]*)\}\{(?P<href_text>[^{}]*)\}"
     r"|\\url\{(?P<url>[^{}]*)\}"
     r"|\\cite[tp]?\{(?P<cite>[^{}]*)\}"
@@ -75,6 +75,7 @@ def _build_bib_key_map(content: str) -> dict[str, str]:
 
 def _inline_to_plain(text: str, bib_map: dict[str, str] | None = None) -> str:
     """Render inline LaTeX markup as plain text (for the fpdf2 PDF renderer)."""
+
     def repl(m: re.Match) -> str:
         if m.lastgroup == "href_text":
             return f"{m.group('href_text')} ({m.group('href_url')})"
@@ -90,11 +91,12 @@ def _inline_to_plain(text: str, bib_map: dict[str, str] | None = None) -> str:
             return m.group(m.lastgroup)
         return " "  # \\ line break
 
-    return unescape_latex(_INLINE_RE.sub(repl, text))
+    return unescape_latex(_Inext_lineINE_RE.sub(repl, text))
 
 
 def _inline_to_markdown(text: str, bib_map: dict[str, str] | None = None) -> str:
     """Render inline LaTeX markup as Markdown."""
+
     def repl(m: re.Match) -> str:
         if m.lastgroup == "href_text":
             return f"[{m.group('href_text')}]({m.group('href_url')})"
@@ -116,7 +118,7 @@ def _inline_to_markdown(text: str, bib_map: dict[str, str] | None = None) -> str
             return f"${m.group(m.lastgroup)}$"
         return "  \n"  # \\ line break
 
-    return unescape_latex(_INLINE_RE.sub(repl, text))
+    return unescape_latex(_Inext_lineINE_RE.sub(repl, text))
 
 
 def _parse_latex_body(content: str, bib_map: dict[str, str] | None = None) -> list[tuple[str, object]]:
@@ -265,10 +267,10 @@ def latex_to_pdf(title: str, content: str) -> bytes:
     pdf.add_font("DejaVu", "I", str(_SANS_ITALIC))
     pdf.add_font("DejaVuMono", "", str(_MONO_REGULAR))
 
-    NL = {"new_x": "LMARGIN", "new_y": "NEXT"}  # reset cursor to left margin after each cell
+    next_line = {"new_x": "LMARGIN", "new_y": "NEXT"}  # reset cursor to left margin after each cell
 
     pdf.set_font("DejaVu", "B", 18)
-    pdf.multi_cell(0, 10, _sanitize(title), align="L", **NL)
+    pdf.multi_cell(0, 10, _sanitize(title), align="L", **next_line)
     pdf.ln(4)
     pdf.set_draw_color(180, 180, 180)
     pdf.line(20, pdf.get_y(), 190, pdf.get_y())
@@ -280,17 +282,17 @@ def latex_to_pdf(title: str, content: str) -> bytes:
         if kind == "h1":
             pdf.ln(3)
             pdf.set_font("DejaVu", "B", 16)
-            pdf.multi_cell(0, 9, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 9, _sanitize(_inline_to_plain(data, bib_map)), align="L", **next_line)
             pdf.ln(1)
         elif kind == "h2":
             pdf.ln(2)
             pdf.set_font("DejaVu", "B", 14)
-            pdf.multi_cell(0, 8, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 8, _sanitize(_inline_to_plain(data, bib_map)), align="L", **next_line)
             pdf.ln(1)
         elif kind == "h3":
             pdf.ln(1)
             pdf.set_font("DejaVu", "B", 12)
-            pdf.multi_cell(0, 7, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 7, _sanitize(_inline_to_plain(data, bib_map)), align="L", **next_line)
         elif kind == "hr":
             pdf.ln(2)
             pdf.line(20, pdf.get_y(), 190, pdf.get_y())
@@ -300,29 +302,29 @@ def latex_to_pdf(title: str, content: str) -> bytes:
         elif kind == "mdquote":
             pdf.set_font("DejaVu", "I", 10)
             pdf.set_text_color(100, 100, 100)
-            pdf.multi_cell(0, 6, "  " + _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 6, "  " + _sanitize(_inline_to_plain(data, bib_map)), align="L", **next_line)
             pdf.set_text_color(0, 0, 0)
         elif kind == "item":
             pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 6, _sanitize("  * " + _inline_to_plain(data, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 6, _sanitize("  * " + _inline_to_plain(data, bib_map)), align="L", **next_line)
         elif kind == "item_num":
             num, text = data
             pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 6, _sanitize(f"  {num}. " + _inline_to_plain(text, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 6, _sanitize(f"  {num}. " + _inline_to_plain(text, bib_map)), align="L", **next_line)
         elif kind == "bibitem":
             num, text = data
             pdf.set_font("DejaVu", "", 10)
-            pdf.multi_cell(0, 6, _sanitize(f"[{num}] " + _inline_to_plain(text, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 6, _sanitize(f"[{num}] " + _inline_to_plain(text, bib_map)), align="L", **next_line)
         elif kind == "verbatim":
             pdf.set_font("DejaVuMono", "", 9)
             pdf.set_text_color(60, 60, 60)
-            pdf.multi_cell(0, 5, _sanitize(data) or " ", align="L", **NL)
+            pdf.multi_cell(0, 5, _sanitize(data) or " ", align="L", **next_line)
             pdf.set_text_color(0, 0, 0)
         elif kind == "blank":
             pdf.ln(3)
         else:  # para
             pdf.set_font("DejaVu", "", 11)
-            pdf.multi_cell(0, 6, _sanitize(_inline_to_plain(data, bib_map)), align="L", **NL)
+            pdf.multi_cell(0, 6, _sanitize(_inline_to_plain(data, bib_map)), align="L", **next_line)
 
     return bytes(pdf.output())
 

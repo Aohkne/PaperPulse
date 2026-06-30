@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from backend.agent.gap_detection.graph import build_gap_detection_graph
 from backend.agent.gap_detection.schemas import GapReport, PaperRef
@@ -27,13 +27,13 @@ logger = logging.getLogger(__name__)
 
 # Human-readable labels for each pipeline node (user-facing, English).
 _NODE_LABELS: dict[str, str] = {
-    "extractor":              "Extracting paper content...",
-    "topical_detector":       "Detecting topical gaps...",
-    "method_detector":        "Detecting methodological gaps...",
+    "extractor": "Extracting paper content...",
+    "topical_detector": "Detecting topical gaps...",
+    "method_detector": "Detecting methodological gaps...",
     "contradiction_detector": "Checking for contradictions...",
-    "verifier":               "Verifying gaps...",
-    "counter_search":         "Searching for counter-evidence...",
-    "synthesizer":            "Synthesizing results...",
+    "verifier": "Verifying gaps...",
+    "counter_search": "Searching for counter-evidence...",
+    "synthesizer": "Synthesizing results...",
 }
 
 
@@ -78,17 +78,17 @@ async def stream_gap_detection(
 
                 if report is None:
                     # Defensive: should not happen, but avoid silent failure.
-                    logger.warning(
-                        "stream_gap_detection: synthesizer on_chain_end has no final_report"
+                    logger.warning("stream_gap_detection: synthesizer on_chain_end has no final_report")
+                    yield _sse(
+                        {
+                            "type": "done",
+                            "report": GapReport(
+                                papers_analyzed=len(session_papers),
+                                gaps=[],
+                                narrative="Could not synthesize results. Please try again.",
+                            ).model_dump(),
+                        }
                     )
-                    yield _sse({
-                        "type": "done",
-                        "report": GapReport(
-                            papers_analyzed=len(session_papers),
-                            gaps=[],
-                            narrative="Could not synthesize results. Please try again.",
-                        ).model_dump(),
-                    })
                 else:
                     yield _sse({"type": "done", "report": report.model_dump()})
 
@@ -97,10 +97,12 @@ async def stream_gap_detection(
             "stream_gap_detection: unhandled exception in astream_events loop",
             exc_info=True,
         )
-        yield _sse({
-            "type": "error",
-            "message": "Internal error during streaming. Please try again.",
-        })
+        yield _sse(
+            {
+                "type": "error",
+                "message": "Internal error during streaming. Please try again.",
+            }
+        )
 
 
 def _sse(data: dict) -> str:

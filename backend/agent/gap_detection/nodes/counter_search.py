@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from backend.agent.gap_detection import retrieval
 from backend.agent.gap_detection.nodes.extractor import _ensure_list, _parse_llm_json
 from backend.agent.gap_detection.schemas import (
     GapDetectionState,
@@ -26,7 +27,6 @@ from backend.agent.gap_detection.schemas import (
     GapStatus,
     PaperRef,
 )
-from backend.agent.gap_detection import retrieval
 from backend.shared.models.paper import Paper
 from backend.shared.services.llm_client import chat_completion
 

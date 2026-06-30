@@ -23,6 +23,7 @@ _MAX_CHARS = 10_000  # truncate to avoid overwhelming LLM context
 
 try:
     from bs4 import BeautifulSoup
+
     _HAS_BS4 = True
 except ImportError:
     _HAS_BS4 = False
@@ -32,6 +33,7 @@ except ImportError:
 def _strip_html(html: str) -> str:
     """Minimal HTML → text without bs4: strip tags, collapse whitespace."""
     import re
+
     text = re.sub(r"<[^>]+>", " ", html)
     text = re.sub(r"&[a-z]+;", " ", text)
     text = re.sub(r"\s+", " ", text)
@@ -70,6 +72,7 @@ async def fetch_arxiv_text(arxiv_id: str) -> str | None:
 def _has_lxml() -> bool:
     try:
         import lxml  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -152,17 +155,19 @@ def _parse_arxiv_feed(xml_text: str) -> list[Paper]:
             if doi:
                 ext["DOI"] = doi
 
-            papers.append(Paper(
-                paperId=f"arxiv:{arxiv_id}",
-                title=title,
-                abstract=abstract,
-                year=year,
-                authors=authors,
-                url=url,
-                openAccessPdf=open_access_pdf,
-                externalIds=ext,
-                source="arxiv",
-            ))
+            papers.append(
+                Paper(
+                    paperId=f"arxiv:{arxiv_id}",
+                    title=title,
+                    abstract=abstract,
+                    year=year,
+                    authors=authors,
+                    url=url,
+                    openAccessPdf=open_access_pdf,
+                    externalIds=ext,
+                    source="arxiv",
+                )
+            )
         except Exception:
             logging.warning("arxiv_fetcher: failed to parse entry — skipping", exc_info=True)
 
@@ -189,9 +194,7 @@ async def arxiv_search(query: str, limit: int = 20) -> list[Paper]:
         async with httpx.AsyncClient(timeout=_ARXIV_SEARCH_TIMEOUT, follow_redirects=True) as client:
             resp = await client.get(_ARXIV_API_BASE, params=params)
         if resp.status_code != 200:
-            logging.warning(
-                "arxiv_search: HTTP %d for query=%r", resp.status_code, query[:60]
-            )
+            logging.warning("arxiv_search: HTTP %d for query=%r", resp.status_code, query[:60])
             return []
         papers = _parse_arxiv_feed(resp.text)
         logging.info("arxiv_search: query=%r → %d papers", query[:60], len(papers))

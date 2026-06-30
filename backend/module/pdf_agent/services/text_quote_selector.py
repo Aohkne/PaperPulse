@@ -16,8 +16,8 @@ def build_anchor(full_text: str, start: int, end: int, context_chars: int | None
     n = context_chars if context_chars is not None else get_settings().pdf_agent_anchor_context_chars
     return {
         "exact": full_text[start:end],
-        "prefix": full_text[max(0, start - n):start],
-        "suffix": full_text[end:end + n],
+        "prefix": full_text[max(0, start - n) : start],
+        "suffix": full_text[end : end + n],
     }
 
 
@@ -41,9 +41,9 @@ def refind_anchor(current_text: str, anchor: TextQuoteSelector) -> int | None:
     prefix = anchor.get("prefix", "")
     suffix = anchor.get("suffix", "")
     for pos in candidates:
-        prefix_ok = current_text[max(0, pos - len(prefix)):pos].endswith(prefix[-32:]) if prefix else True
+        prefix_ok = current_text[max(0, pos - len(prefix)) : pos].endswith(prefix[-32:]) if prefix else True
         end = pos + len(exact)
-        suffix_ok = current_text[end:end + len(suffix)].startswith(suffix[:32]) if suffix else True
+        suffix_ok = current_text[end : end + len(suffix)].startswith(suffix[:32]) if suffix else True
         if prefix_ok and suffix_ok:
             return pos
 

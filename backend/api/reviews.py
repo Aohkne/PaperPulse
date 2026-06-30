@@ -24,6 +24,7 @@ _bearer = HTTPBearer(auto_error=True)
 
 # ── Supabase client authenticated with user JWT (for RLS) ────────────────────
 
+
 def _authed_client(token: str) -> Client:
     """Create a Supabase client for server-side DB access.
 
@@ -45,6 +46,7 @@ def _authed_client(token: str) -> Client:
 # source_type/content_format/pending_annotations: added for PDF Agent Step P6 — 'uploaded'
 # reviews (from PDF Agent) have no original research `query` and may carry unresolved
 # annotations so the editor can resume where the user left off.
+
 
 class ReviewCreate(BaseModel):
     title: str
@@ -99,6 +101,7 @@ class DuplicateRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _slug(title: str) -> str:
     """Slugify a title for use as a filename."""
     slug = re.sub(r"[^\w\s-]", "", title.lower())
@@ -149,15 +152,17 @@ def insert_review_row(
     """
     res = (
         db.table("reviews")
-        .insert({
-            "user_id": user_id,
-            "title": title,
-            "query": query,
-            "markdown_content": markdown_content,
-            "source_type": source_type,
-            "content_format": content_format,
-            "pending_annotations": pending_annotations,
-        })
+        .insert(
+            {
+                "user_id": user_id,
+                "title": title,
+                "query": query,
+                "markdown_content": markdown_content,
+                "source_type": source_type,
+                "content_format": content_format,
+                "pending_annotations": pending_annotations,
+            }
+        )
         .execute()
     )
     if not res.data:
@@ -166,6 +171,7 @@ def insert_review_row(
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("", response_model=ReviewCreated, status_code=201)
 async def create_review(
@@ -235,14 +241,7 @@ async def get_review(
 ):
     """Fetch a single review with full markdown content."""
     db = _authed_client(credentials.credentials)
-    res = (
-        db.table("reviews")
-        .select("*")
-        .eq("id", review_id)
-        .eq("user_id", str(user.id))
-        .single()
-        .execute()
-    )
+    res = db.table("reviews").select("*").eq("id", review_id).eq("user_id", str(user.id)).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Review not found")
     return _row_to_full(res.data)
@@ -266,13 +265,7 @@ async def update_review(
     if body.markdown_content is not None:
         patch["markdown_content"] = body.markdown_content
 
-    res = (
-        db.table("reviews")
-        .update(patch)
-        .eq("id", review_id)
-        .eq("user_id", str(user.id))
-        .execute()
-    )
+    res = db.table("reviews").update(patch).eq("id", review_id).eq("user_id", str(user.id)).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Review not found")
     return _row_to_full(res.data[0])
@@ -286,13 +279,7 @@ async def delete_review(
 ):
     """Delete a saved review."""
     db = _authed_client(credentials.credentials)
-    res = (
-        db.table("reviews")
-        .delete()
-        .eq("id", review_id)
-        .eq("user_id", str(user.id))
-        .execute()
-    )
+    res = db.table("reviews").delete().eq("id", review_id).eq("user_id", str(user.id)).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Review not found")
 

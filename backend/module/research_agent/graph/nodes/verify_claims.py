@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import logging
 
-from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
+from backend.module.research_agent.graph.state import ResearchState
 from backend.shared.services.citation_verifier import verify_claims
 
 log = logging.getLogger(__name__)
@@ -21,7 +21,9 @@ log = logging.getLogger(__name__)
 
 async def verify_claims_node(state: ResearchState) -> dict:
     claims = state.get("claims", [])
-    await narrate_step(f"verifying {len(claims)} extracted claims against Semantic Scholar snippets and arXiv source text")
+    await narrate_step(
+        f"verifying {len(claims)} extracted claims against Semantic Scholar snippets and arXiv source text"
+    )
     papers = state.get("papers", [])
 
     if not claims:

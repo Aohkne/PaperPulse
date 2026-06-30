@@ -28,11 +28,13 @@ async def plan_review_node(state: ResearchState) -> dict:
     sources = state.get("sources", ["semantic_scholar"])
     plan_description = state.get("plan_description", "")
 
-    resume_value = interrupt({
-        "sub_queries": sub_queries,
-        "sources": sources,
-        "plan_description": plan_description,
-    })
+    resume_value = interrupt(
+        {
+            "sub_queries": sub_queries,
+            "sources": sources,
+            "plan_description": plan_description,
+        }
+    )
 
     update: dict = {"plan_approved": True}
 

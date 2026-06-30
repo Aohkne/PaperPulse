@@ -62,12 +62,12 @@ _PARTIAL_STATUSES = {"partial"}
 PARTIAL_CONFIDENCE_PENALTY = 0.6
 
 # TIP-414: Evidence-based confidence constants — grounding axis no longer flat 1.0.
-_CONF_EXPLICIT = 1.0               # Author explicitly stated this gap
+_CONF_EXPLICIT = 1.0  # Author explicitly stated this gap
 _CONF_LIMITATION_CONFIRMED = 0.85  # NLI confirmed limitation statement
-_CONF_LIMITATION_PARTIAL = 0.50    # NLI only partially supports limitation
-_CONF_FALLBACK = 0.60              # NLI system error — cautious, not 1.0
-_CONF_INFERRED_BASE = 0.40         # Base confidence when NLI is unavailable
-_CONF_INFERRED_MAX = 0.85          # INFERRED never as certain as EXPLICIT
+_CONF_LIMITATION_PARTIAL = 0.50  # NLI only partially supports limitation
+_CONF_FALLBACK = 0.60  # NLI system error — cautious, not 1.0
+_CONF_INFERRED_BASE = 0.40  # Base confidence when NLI is unavailable
+_CONF_INFERRED_MAX = 0.85  # INFERRED never as certain as EXPLICIT
 
 # Outcomes of attempting to ground a LIMITATION gap.
 _CONFIRMED = "confirmed"  # ≥1 supporting paper → "supported"
@@ -226,19 +226,14 @@ async def _verify_limitation(gap: GapItem, paper_abstracts: dict[str, str]) -> s
 
     # Build per-gap abstracts subset (only supporting paper IDs).
     gap_abstracts = {
-        ref.paper_id: paper_abstracts[ref.paper_id]
-        for ref in gap.supporting_papers
-        if ref.paper_id in paper_abstracts
+        ref.paper_id: paper_abstracts[ref.paper_id] for ref in gap.supporting_papers if ref.paper_id in paper_abstracts
     }
 
     # Verify each (sub-claim, supporting paper) pair.
     all_statuses: list[str] = []
     try:
         for sc_text in sub_claim_texts:
-            claims = [
-                Claim(text=sc_text, paper_id=ref.paper_id)
-                for ref in gap.supporting_papers
-            ]
+            claims = [Claim(text=sc_text, paper_id=ref.paper_id) for ref in gap.supporting_papers]
             results = await verify_claims(claims, paper_abstracts=gap_abstracts or None)
             all_statuses.extend(c.status for c in results)
     except Exception:
@@ -250,9 +245,7 @@ async def _verify_limitation(gap: GapItem, paper_abstracts: dict[str, str]) -> s
         return _ERROR
 
     # Map most-restrictive sub-claim status to outcome.
-    worst = _most_restrictive_status(
-        [s for s in all_statuses if s not in ("pending",)]
-    )
+    worst = _most_restrictive_status([s for s in all_statuses if s not in ("pending",)])
     if worst in _CONFIRMING_STATUSES:
         return _CONFIRMED
     if worst in _PARTIAL_STATUSES:

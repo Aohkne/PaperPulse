@@ -74,7 +74,7 @@ class NotificationDBStub:
                 "id": "note-other",
                 "user_id": "user-2",
                 "type": "new_paper",
-                "content": 'Other user notice',
+                "content": "Other user notice",
                 "paper_ref": {"id": "paper-3", "title": "Paper Three"},
                 "is_read": False,
                 "created_at": "2026-06-25T10:00:00Z",
@@ -135,7 +135,9 @@ async def test_list_notifications_is_owner_scoped_and_triggers_monitor_then_lazy
 
     monkeypatch.setattr(notifications_api, "_db_client", lambda _token: NotificationDBStub())
     monkeypatch.setattr(notifications_api.topic_monitoring, "run_topic_monitor", fake_run_topic_monitor)
-    monkeypatch.setattr(notifications_api.topic_monitoring, "deliver_in_app_notifications", fake_deliver_in_app_notifications)
+    monkeypatch.setattr(
+        notifications_api.topic_monitoring, "deliver_in_app_notifications", fake_deliver_in_app_notifications
+    )
     app.dependency_overrides[get_current_user] = _override_user
 
     response = await client.get("/api/notifications", headers={"Authorization": "Bearer test-token"})
@@ -165,7 +167,9 @@ async def test_list_notifications_degrades_safely_when_monitor_trigger_fails(cli
 
     monkeypatch.setattr(notifications_api, "_db_client", lambda _token: NotificationDBStub())
     monkeypatch.setattr(notifications_api.topic_monitoring, "run_topic_monitor", fake_run_topic_monitor)
-    monkeypatch.setattr(notifications_api.topic_monitoring, "deliver_in_app_notifications", fake_deliver_in_app_notifications)
+    monkeypatch.setattr(
+        notifications_api.topic_monitoring, "deliver_in_app_notifications", fake_deliver_in_app_notifications
+    )
     app.dependency_overrides[get_current_user] = _override_user
 
     response = await client.get("/api/notifications", headers={"Authorization": "Bearer test-token"})

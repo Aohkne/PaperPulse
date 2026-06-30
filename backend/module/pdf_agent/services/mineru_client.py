@@ -88,11 +88,13 @@ async def run_mineru(pdf_path: str, output_dir: str) -> str:
         cmd += ["-b", "pipeline"]  # CPU-only backend — see module docstring
 
     proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     try:
         _stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=settings.mineru_timeout_s)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
         await proc.wait()
         raise MinerUTimeoutError(f"MinerU exceeded {settings.mineru_timeout_s}s — the PDF may be too long/complex")
@@ -248,14 +250,16 @@ def parse_content_list(content_list: list[dict], content_dir: str, figures_dir: 
         start, end = offsets[i]
         anchor = build_anchor(full_text, start, end) if end > start else None
 
-        figures.append({
-            "image_path": str(dest),
-            "caption": caption,
-            "label": None,  # PDF has no \label{} source — Identified Gap, same as pdf_parser.py
-            "anchor": anchor,
-            "page_number": block.get("page_idx", 0) + 1,
-            "missing": False,
-        })
+        figures.append(
+            {
+                "image_path": str(dest),
+                "caption": caption,
+                "label": None,  # PDF has no \label{} source — Identified Gap, same as pdf_parser.py
+                "anchor": anchor,
+                "page_number": block.get("page_idx", 0) + 1,
+                "missing": False,
+            }
+        )
 
     return {"sections": sections, "figures": figures}
 

@@ -33,9 +33,7 @@ def extract_urls(sections: list[Section]) -> dict[str, str]:
 async def check_url(url: str) -> dict:
     settings = get_settings()
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True, timeout=settings.pdf_agent_link_check_timeout_s
-        ) as client:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=settings.pdf_agent_link_check_timeout_s) as client:
             resp = await client.head(url)
             if resp.status_code >= 400:
                 # Some servers reject HEAD outright — a lightweight GET before declaring it dead.

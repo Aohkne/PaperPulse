@@ -1,34 +1,40 @@
-"""Tests for TIP-P2-02 — streaming.py + GET /gap/stream.
-
-Verifies:
-- stream_gap_detection() yields node_start + done SSE events
-- GET /gap/stream returns text/event-stream Content-Type
-- GET /gap/stream?topic=ab → 422
-- Insufficient papers → SSE insufficient event
-- POST /gap regression (unchanged)
-"""
+"""Tests for streaming.py and GET /gap/stream."""
 
 from __future__ import annotations
 
 import json
 from collections.abc import AsyncGenerator
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+from backend.agent.gap_detection import router as gap_router
+from backend.auth.dependencies import get_current_user
+from backend.main import app
 
 _STREAM = "backend.agent.gap_detection.streaming"
 _ROUTER_STREAM = "backend.agent.gap_detection.router"
 _ORCHESTRATOR = "backend.agent.gap_detection.orchestrator"
 
 
+async def _override_user():
+    return SimpleNamespace(id="00000000-0000-0000-0000-000000000001", email="test@example.com")
+
+
+@pytest.fixture(autouse=True)
+def _override_gap_dependencies(monkeypatch):
+    app.dependency_overrides[get_current_user] = _override_user
+    monkeypatch.setattr(gap_router.billing_db, "start_session", AsyncMock(return_value={}))
+    monkeypatch.setattr(gap_router.billing_db, "refund_session", AsyncMock(return_value={}))
+    yield
+    app.dependency_overrides.clear()
+
+
 def _make_report_dict(narrative: str = "narrative") -> dict:
     from backend.agent.gap_detection.schemas import GapReport
+
     return GapReport(papers_analyzed=5, gaps=[], narrative=narrative).model_dump()
-
-
-# ── Part 1: stream_gap_detection() unit tests ──────────────────────────────
 
 
 @pytest.mark.asyncio
@@ -37,9 +43,6 @@ async def test_stream_emits_node_start_events() -> None:
     from backend.agent.gap_detection.schemas import PaperRef
     from backend.agent.gap_detection.streaming import stream_gap_detection
 
-    report_dict = _make_report_dict("ok")
-
-    # Simulate on_chain_start for extractor and synthesizer + on_chain_end for synthesizer
     mock_events = [
         {"event": "on_chain_start", "metadata": {"langgraph_node": "extractor"}, "data": {}},
         {"event": "on_chain_start", "metadata": {"langgraph_node": "synthesizer"}, "data": {}},
@@ -64,7 +67,7 @@ async def test_stream_emits_node_start_events() -> None:
         async for chunk in stream_gap_detection(papers, "test topic"):
             assert chunk.startswith("data: ")
             assert chunk.endswith("\n\n")
-            events.append(json.loads(chunk[len("data: "):].strip()))
+            events.append(json.loads(chunk[len("data: ") :].strip()))
 
     types = [e["type"] for e in events]
     assert "node_start" in types
@@ -98,7 +101,7 @@ async def test_stream_done_event_has_report() -> None:
 
         events = []
         async for chunk in stream_gap_detection(papers, "topic"):
-            events.append(json.loads(chunk[len("data: "):].strip()))
+            events.append(json.loads(chunk[len("data: ") :].strip()))
 
     done_events = [e for e in events if e["type"] == "done"]
     assert len(done_events) == 1
@@ -113,7 +116,7 @@ async def test_stream_error_does_not_raise() -> None:
 
     async def _boom(*args, **kwargs):
         raise RuntimeError("S2 exploded")
-        yield  # make it an async generator
+        yield
 
     papers = [PaperRef(paper_id="p2", title="T2")]
     with patch(f"{_STREAM}.build_gap_detection_graph") as mock_build:
@@ -123,7 +126,7 @@ async def test_stream_error_does_not_raise() -> None:
 
         events = []
         async for chunk in stream_gap_detection(papers, "topic"):
-            events.append(json.loads(chunk[len("data: "):].strip()))
+            events.append(json.loads(chunk[len("data: ") :].strip()))
 
     assert len(events) == 1
     assert events[0]["type"] == "error"
@@ -131,7 +134,7 @@ async def test_stream_error_does_not_raise() -> None:
 
 @pytest.mark.asyncio
 async def test_stream_unknown_nodes_not_emitted() -> None:
-    """Events for unknown nodes (not in _NODE_LABELS) are silently skipped."""
+    """Events for unknown nodes are silently skipped."""
     from backend.agent.gap_detection.schemas import PaperRef
     from backend.agent.gap_detection.streaming import stream_gap_detection
 
@@ -151,29 +154,26 @@ async def test_stream_unknown_nodes_not_emitted() -> None:
 
         events = []
         async for chunk in stream_gap_detection(papers, "topic"):
-            events.append(json.loads(chunk[len("data: "):].strip()))
+            events.append(json.loads(chunk[len("data: ") :].strip()))
 
     node_starts = [e for e in events if e["type"] == "node_start"]
     assert all(e["node"] != "unknown_node" for e in node_starts)
 
 
-# ── Part 2: GET /gap/stream endpoint tests ─────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_gap_stream_short_topic_422(client) -> None:
-    """GET /gap/stream?topic=ab → 422 (min_length=3)."""
+    """GET /gap/stream?topic=ab -> 422 (min_length=3)."""
     resp = await client.get("/api/gap/stream?topic=ab")
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_gap_stream_returns_sse_content_type(client) -> None:
-    """GET /gap/stream with valid topic → Content-Type: text/event-stream."""
+    """GET /gap/stream with valid topic -> Content-Type: text/event-stream."""
 
     async def _fake_stream(*args, **kwargs) -> AsyncGenerator[str, None]:
         yield 'data: {"type":"node_start","node":"extractor","label":"test"}\n\n'
-        yield f'data: {json.dumps({"type":"done","report":_make_report_dict()})}\n\n'
+        yield f"data: {json.dumps({'type': 'done', 'report': _make_report_dict()})}\n\n"
 
     with (
         patch(f"{_ROUTER_STREAM}.clean_query", new=AsyncMock(return_value="transformer attention")),
@@ -190,9 +190,13 @@ async def test_gap_stream_returns_sse_content_type(client) -> None:
 
 @pytest.mark.asyncio
 async def test_gap_stream_insufficient_papers(client) -> None:
-    """Thin corpus → SSE event type=insufficient, no crash."""
+    """Thin corpus -> SSE event type=insufficient, no crash."""
 
     with (
+        patch(
+            f"{_ROUTER_STREAM}.analyze_query",
+            new=AsyncMock(return_value=SimpleNamespace(is_research_topic=True, reject_reason=None)),
+        ),
         patch(f"{_ROUTER_STREAM}.clean_query", new=AsyncMock(return_value="q")),
         patch(f"{_ROUTER_STREAM}.retrieval.search", new=AsyncMock(return_value=[])),
         patch(f"{_ROUTER_STREAM}.retrieval.snowball", new=AsyncMock(return_value=[])),
@@ -221,15 +225,13 @@ async def test_post_gap_not_regressed(client) -> None:
     assert "gaps" in data
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-
 def _make_report_pydantic(narrative: str = "narrative"):
     from backend.agent.gap_detection.schemas import GapReport
+
     return GapReport(papers_analyzed=5, gaps=[], narrative=narrative)
 
 
 def _fake_papers(n: int):
-    """Return n Paper-like objects for mock returns."""
     from backend.shared.models.paper import Paper
+
     return [Paper(paperId=f"p{i}", title=f"Paper {i}", year=2020) for i in range(n)]

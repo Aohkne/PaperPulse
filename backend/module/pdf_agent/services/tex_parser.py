@@ -34,11 +34,9 @@ def _context_db():
     db.add_context_category(
         "pdfagent",
         prepend=True,
-        macros=[
-            MacroSpec(name, "{") for name in _CITE_MACROS
-        ] + [
-            MacroSpec(name, "*{") for name in _SECTION_MACROS
-        ] + [
+        macros=[MacroSpec(name, "{") for name in _CITE_MACROS]
+        + [MacroSpec(name, "*{") for name in _SECTION_MACROS]
+        + [
             MacroSpec("includegraphics", "[{"),
             MacroSpec("caption", "{"),
             MacroSpec("label", "{"),
@@ -53,7 +51,7 @@ def _arg_text(content: str, arg_node) -> str | None:
     if arg_node is None:
         return None
     try:
-        verbatim = content[arg_node.pos:arg_node.pos + arg_node.len]
+        verbatim = content[arg_node.pos : arg_node.pos + arg_node.len]
     except (AttributeError, TypeError):
         return None
     if verbatim.startswith("{") and verbatim.endswith("}"):
@@ -93,7 +91,7 @@ def _walk_recursive(nodelist):
                 if arg is None:
                     continue
                 yield arg
-                if isinstance(arg, (LatexGroupNode, LatexEnvironmentNode)):
+                if isinstance(arg, LatexGroupNode | LatexEnvironmentNode):
                     yield from _walk_recursive(arg.nodelist)
 
 
@@ -176,7 +174,7 @@ def _find_field(entry_body: str, field: str) -> str | None:
             elif entry_body[i] == "}":
                 depth -= 1
             i += 1
-        return re.sub(r"\s+", " ", entry_body[start:i - 1]).strip()
+        return re.sub(r"\s+", " ", entry_body[start : i - 1]).strip()
     end = entry_body.find(closer, start)
     if end == -1:
         return None
@@ -254,16 +252,22 @@ def extract_citations(content: str, bib_entries: dict[str, dict] | None = None) 
         if key not in seen:
             enrich = bib_entries.get(key) or {}
             seen[key] = {
-                "key": key, "raw_text": text,
-                "guessed_title": enrich.get("guessed_title"), "guessed_authors": enrich.get("guessed_authors"),
-                "guessed_year": enrich.get("guessed_year"), "guessed_doi_or_url": enrich.get("guessed_doi_or_url"),
+                "key": key,
+                "raw_text": text,
+                "guessed_title": enrich.get("guessed_title"),
+                "guessed_authors": enrich.get("guessed_authors"),
+                "guessed_year": enrich.get("guessed_year"),
+                "guessed_doi_or_url": enrich.get("guessed_doi_or_url"),
             }
     for key, enrich in bib_entries.items():
         if key not in seen:
             seen[key] = {
-                "key": key, "raw_text": enrich.get("guessed_title") or key,
-                "guessed_title": enrich.get("guessed_title"), "guessed_authors": enrich.get("guessed_authors"),
-                "guessed_year": enrich.get("guessed_year"), "guessed_doi_or_url": enrich.get("guessed_doi_or_url"),
+                "key": key,
+                "raw_text": enrich.get("guessed_title") or key,
+                "guessed_title": enrich.get("guessed_title"),
+                "guessed_authors": enrich.get("guessed_authors"),
+                "guessed_year": enrich.get("guessed_year"),
+                "guessed_doi_or_url": enrich.get("guessed_doi_or_url"),
             }
 
     return list(seen.values())
@@ -319,14 +323,16 @@ def extract_figures(content: str) -> list[Figure]:
                                 sargs = sib.nodeargd.argnlist if sib.nodeargd else []
                                 label = _arg_text(body, sargs[-1]) if sargs else None
                     anchor = build_anchor(body, anchor_start, anchor_end)
-                    figures.append({
-                        "image_path": raw_path,
-                        "caption": caption,
-                        "label": label,
-                        "anchor": anchor,
-                        "page_number": None,
-                        "missing": True,  # default — resolved by caller
-                    })
+                    figures.append(
+                        {
+                            "image_path": raw_path,
+                            "caption": caption,
+                            "label": label,
+                            "anchor": anchor,
+                            "page_number": None,
+                            "missing": True,  # default — resolved by caller
+                        }
+                    )
 
     _scan(nodelist, None)
     return figures

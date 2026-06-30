@@ -2,31 +2,30 @@
 Stage B+C — Multi-facet Recall + Multi-layer Filter.
 Dùng GapQuery để build pool papers rộng rồi filter/rank xuống ~20–25 papers.
 """
+
 from __future__ import annotations
 
 import asyncio
 import json as json_lib
 import logging
 
+from backend.agent.gap_detection import retrieval
+from backend.agent.gap_detection.schemas import GapQuery
 from backend.shared.models.paper import Paper
 from backend.shared.services.llm_client import chat_completion
-from backend.agent.gap_detection.schemas import GapQuery
-from backend.agent.gap_detection import retrieval
 
 logger = logging.getLogger(__name__)
 
 
 # ── Stage B: Multi-facet Recall ──────────────────────────────────────────────
 
+
 async def broad_recall(gap_query: GapQuery, per_facet_limit: int = 20) -> list[Paper]:
     """
     Search S2 cho TỪNG facet song song, dedup theo paper_id, trả pool.
     1 facet fail → log warning, facets còn lại vẫn chạy.
     """
-    tasks = [
-        retrieval.search(facet, limit=per_facet_limit)
-        for facet in gap_query.facets
-    ]
+    tasks = [retrieval.search(facet, limit=per_facet_limit) for facet in gap_query.facets]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     seen_ids: set[str] = set()
@@ -46,6 +45,7 @@ async def broad_recall(gap_query: GapQuery, per_facet_limit: int = 20) -> list[P
 
 
 # ── Stage C-T1: Metadata Filter ──────────────────────────────────────────────
+
 
 def metadata_filter(papers: list[Paper], gap_query: GapQuery) -> list[Paper]:
     """
@@ -103,16 +103,18 @@ async def llm_relevance_judge(
     all_scored: list[tuple[Paper, float, str]] = []
 
     for i in range(0, len(papers), batch_size):
-        batch = papers[i:i + batch_size]
+        batch = papers[i : i + batch_size]
         batch_data = []
         for p in batch:
             pid = p.paper_id
             paper_map[pid] = p
-            batch_data.append({
-                "paper_id": pid,
-                "title": p.title or "",
-                "abstract": (p.abstract or "")[:300],
-            })
+            batch_data.append(
+                {
+                    "paper_id": pid,
+                    "title": p.title or "",
+                    "abstract": (p.abstract or "")[:300],
+                }
+            )
 
         prompt = _JUDGE_PROMPT.format(
             core_topic=gap_query.core_topic,
@@ -139,6 +141,7 @@ async def llm_relevance_judge(
 
 
 # ── Full Stage B+C Pipeline ──────────────────────────────────────────────────
+
 
 async def run_relevance_gate(
     gap_query: GapQuery,
@@ -173,7 +176,9 @@ async def run_relevance_gate(
         result = [p for p, score, _ in judged if score >= min_score][:max_output]
         logger.info(
             "Stage C-T3: %d judged → %d papers (score >= %s)",
-            len(to_judge), len(result), min_score,
+            len(to_judge),
+            len(result),
+            min_score,
         )
         return result
     except Exception as e:

@@ -13,6 +13,7 @@ const useGapStore = create((set) => ({
   gapNarrative: null,    // backward-compat alias (GapResultPanel reads this)
   gapLoading: false,
   gapError: null,
+  gapRejected: null,     // { reason, message } when guardrail rejects query; null otherwise
   streamEvents: [],      // SSE events for progress UI
 
   // ── Cold-start action (TIP-G07) ────────────────────────────────────────
@@ -27,7 +28,7 @@ const useGapStore = create((set) => ({
       return;
     }
 
-    set({ gapLoading: true, gapError: null, gapReport: null, gapNarrative: null });
+    set({ gapLoading: true, gapError: null, gapRejected: null, gapReport: null, gapNarrative: null });
 
     try {
       const res = await fetch(API_ENDPOINTS.GAP.BASE, {
@@ -60,7 +61,7 @@ const useGapStore = create((set) => ({
       return;
     }
 
-    set({ gapLoading: true, gapError: null, gapReport: null, gapNarrative: null, streamEvents: [] });
+    set({ gapLoading: true, gapError: null, gapRejected: null, gapReport: null, gapNarrative: null, streamEvents: [] });
 
     try {
       const res = await fetch(`${API_ENDPOINTS.GAP.STREAM}?topic=${encodeURIComponent(trimmed)}`, {
@@ -102,6 +103,8 @@ const useGapStore = create((set) => ({
               }));
             } else if (event.type === 'insufficient') {
               set({ gapNarrative: event.narrative, gapLoading: false });
+            } else if (event.type === 'rejected') {
+              set({ gapRejected: { reason: event.reason, message: event.message }, gapLoading: false });
             } else if (event.type === 'error') {
               set({ gapError: event.message, gapLoading: false });
             }
@@ -143,7 +146,7 @@ const useGapStore = create((set) => ({
   //   }
   // },
 
-  reset: () => set({ gapReport: null, gapNarrative: null, gapLoading: false, gapError: null, streamEvents: [] }),
+  reset: () => set({ gapReport: null, gapNarrative: null, gapLoading: false, gapError: null, gapRejected: null, streamEvents: [] }),
 }));
 
 export default useGapStore;

@@ -9,13 +9,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from backend.agent.gap_detection.intent_classifier import is_gap_detection_intent
 from backend.agent.gap_detection.nodes.paper_check import (
     MIN_SESSION_PAPERS,
     collect_session_papers,
     paper_check_node,
 )
 from backend.agent.gap_detection.schemas import GapReport, PaperRef
-from backend.agent.gap_detection.intent_classifier import is_gap_detection_intent
 from backend.shared.models.paper import Paper
 
 _INTENT_LLM = "backend.agent.gap_detection.intent_classifier.chat_completion"

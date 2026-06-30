@@ -8,11 +8,9 @@ import json
 import logging
 import time
 import uuid
-
-import httpx
-
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -85,18 +83,20 @@ def _format_clarify_content(questions: list[str]) -> str:
 
 
 def _deleted_chat_sse(chat_id: str) -> str:
-    return _sse({
-        "type": "error",
-        "code": "chat_deleted",
-        "chat_id": chat_id,
-        "message": "Chat deleted while research was running.",
-    })
+    return _sse(
+        {
+            "type": "error",
+            "code": "chat_deleted",
+            "chat_id": chat_id,
+            "message": "Chat deleted while research was running.",
+        }
+    )
 
 
 _DELETED_POLL_INTERVAL_SECONDS = 0.5
 
 
-class _DeletedChatTermination(Exception):
+class _DeletedChatTerminationError(Exception):
     pass
 
 
@@ -199,11 +199,7 @@ async def _node_to_step_event(node_name: str, state_update: dict) -> str:
         by_status: dict[str, int] = {}
         for claim in verified_claims:
             by_status[claim.status] = by_status.get(claim.status, 0) + 1
-        stat = (
-            f"S:{by_status.get('supported', 0)} "
-            f"P:{by_status.get('partial', 0)} "
-            f"U:{by_status.get('unsupported', 0)}"
-        )
+        stat = f"S:{by_status.get('supported', 0)} P:{by_status.get('partial', 0)} U:{by_status.get('unsupported', 0)}"
         content = f"{len(verified_claims)} claims verified."
     elif node_name == "route_claims":
         stat = (
@@ -228,13 +224,15 @@ async def _node_to_step_event(node_name: str, state_update: dict) -> str:
         stat = ""
         content = f"{node_name} done."
 
-    return _sse({
-        "type": "step",
-        "step_type": "observation",
-        "stepNum": step_num,
-        "content": content,
-        "stat": stat,
-    })
+    return _sse(
+        {
+            "type": "step",
+            "step_type": "observation",
+            "stepNum": step_num,
+            "content": content,
+            "stat": stat,
+        }
+    )
 
 
 async def _iterate_stream_graph(graph, input_or_command, config: dict, thread_id: str, stop_requested=None):
@@ -275,7 +273,7 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str, s
 
     async def _raise_if_stop_requested() -> None:
         if await _should_stop():
-            raise _DeletedChatTermination
+            raise _DeletedChatTerminationError
 
     producer_task = asyncio.create_task(_produce())
 
@@ -284,7 +282,7 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str, s
             await _raise_if_stop_requested()
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_SECONDS)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await _raise_if_stop_requested()
                 yield _sse({"type": "heartbeat"})
                 continue
@@ -316,11 +314,13 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str, s
                     yield _sse({"type": "reply_token", "content": token})
                 elif node in _SEARCH_NODES:
                     await _raise_if_stop_requested()
-                    yield _sse({
-                        "type": "step_token",
-                        "stepNum": _NODE_STEP_NUM.get(node, ""),
-                        "content": token,
-                    })
+                    yield _sse(
+                        {
+                            "type": "step_token",
+                            "stepNum": _NODE_STEP_NUM.get(node, ""),
+                            "content": token,
+                        }
+                    )
                 continue
 
             if kind != "on_chain_end":
@@ -335,15 +335,17 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str, s
                 intent = output.get("intent", "search")
                 if intent == "search":
                     plan_description = output.get("plan_description", "")
-                    yield _sse({
-                        "type": "step",
-                        "step_type": "observation",
-                        "stepNum": "0",
-                        "content": plan_description or "Research plan ready.",
-                        "stat": f"{len(output.get('sub_queries', []))} sub-queries",
-                        "refined_query": output.get("refined_query", ""),
-                        "plan_description": plan_description,
-                    })
+                    yield _sse(
+                        {
+                            "type": "step",
+                            "step_type": "observation",
+                            "stepNum": "0",
+                            "content": plan_description or "Research plan ready.",
+                            "stat": f"{len(output.get('sub_queries', []))} sub-queries",
+                            "refined_query": output.get("refined_query", ""),
+                            "plan_description": plan_description,
+                        }
+                    )
                 continue
 
             if name == "reply_generator":
@@ -358,12 +360,14 @@ async def _stream_graph(graph, input_or_command, config: dict, thread_id: str, s
                 yield await _node_to_step_event(name, output)
                 if name == "export":
                     export_reached = True
-                    yield _sse({
-                        "type": "done",
-                        "content": output.get("latex_doc", ""),
-                        "bib": output.get("bib_content", ""),
-                    })
-    except _DeletedChatTermination:
+                    yield _sse(
+                        {
+                            "type": "done",
+                            "content": output.get("latex_doc", ""),
+                            "bib": output.get("bib_content", ""),
+                        }
+                    )
+    except _DeletedChatTerminationError:
         raise
     except Exception as exc:
         log.exception("astream_events error: %s", exc)
@@ -471,7 +475,9 @@ async def research_stream(
         )
     except HTTPException as exc:
         if exc.status_code >= 500:
-            log.warning("topic scoring failed for research stream chat_id=%s user_id=%s: %s", chat_id, user.id, exc.detail)
+            log.warning(
+                "topic scoring failed for research stream chat_id=%s user_id=%s: %s", chat_id, user.id, exc.detail
+            )
     except Exception as exc:
         log.warning("topic scoring failed for research stream chat_id=%s user_id=%s: %s", chat_id, user.id, exc)
 
@@ -482,12 +488,14 @@ async def research_stream(
         final_bib: str | None = None
         event_counts: dict[str, int] = {}
 
-        yield _sse({
-            "type": "thread_id",
-            "thread_id": thread_id,
-            "chat_id": chat_id,
-            "assistant_message_id": assistant_message_id,
-        })
+        yield _sse(
+            {
+                "type": "thread_id",
+                "thread_id": thread_id,
+                "chat_id": chat_id,
+                "assistant_message_id": assistant_message_id,
+            }
+        )
 
         async def _chat_deleted() -> bool:
             return await chat_persistence.is_chat_deleted(token, str(user.id), chat_id)
@@ -495,7 +503,9 @@ async def research_stream(
         deleted_poller = _build_deleted_chat_poller(poll_deleted=_chat_deleted, chat_id=chat_id)
 
         try:
-            async for raw_event in _iterate_stream_graph(graph, initial_state, config, thread_id, stop_requested=deleted_poller):
+            async for raw_event in _iterate_stream_graph(
+                graph, initial_state, config, thread_id, stop_requested=deleted_poller
+            ):
                 payload = _parse_sse(raw_event) or {}
                 event_type = payload.get("type")
                 if event_type:
@@ -507,14 +517,18 @@ async def research_stream(
                         return
 
                     if event_type == "thread_id":
-                        await chat_persistence.update_chat(token, str(user.id), chat_id, thread_id=thread_id, status="running")
+                        await chat_persistence.update_chat(
+                            token, str(user.id), chat_id, thread_id=thread_id, status="running"
+                        )
                     elif event_type == "step":
-                        steps.append({
-                            "stepNum": payload.get("stepNum"),
-                            "type": payload.get("step_type"),
-                            "content": payload.get("content"),
-                            "stat": payload.get("stat"),
-                        })
+                        steps.append(
+                            {
+                                "stepNum": payload.get("stepNum"),
+                                "type": payload.get("step_type"),
+                                "content": payload.get("content"),
+                                "stat": payload.get("stat"),
+                            }
+                        )
                         await _record_assistant_state(
                             token,
                             str(user.id),
@@ -552,7 +566,9 @@ async def research_stream(
                             last_message_at=chat_persistence._now_iso(),
                         )
                     elif event_type == "done":
-                        final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                        final_content = (
+                            payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                        )
                         final_bib = payload.get("bib")
                         await _record_assistant_state(
                             token,
@@ -648,7 +664,7 @@ async def research_stream(
                     return
 
                 yield raw_event
-        except _DeletedChatTermination:
+        except _DeletedChatTerminationError:
             yield _deleted_chat_sse(chat_id)
             return
 
@@ -680,9 +696,16 @@ async def research_resume(
         )
     except HTTPException as exc:
         if exc.status_code >= 500:
-            log.warning("topic scoring failed for research resume chat_id=%s user_id=%s: %s", turn["chat"]["id"], user.id, exc.detail)
+            log.warning(
+                "topic scoring failed for research resume chat_id=%s user_id=%s: %s",
+                turn["chat"]["id"],
+                user.id,
+                exc.detail,
+            )
     except Exception as exc:
-        log.warning("topic scoring failed for research resume chat_id=%s user_id=%s: %s", turn["chat"]["id"], user.id, exc)
+        log.warning(
+            "topic scoring failed for research resume chat_id=%s user_id=%s: %s", turn["chat"]["id"], user.id, exc
+        )
 
     graph = await get_research_graph()
     config = {"configurable": {"thread_id": body.thread_id}}
@@ -691,10 +714,10 @@ async def research_resume(
 
     async def generator():
         steps = ((turn["assistant_message"].get("metadata") or {}).get("steps")) or []
-        pending_plan = ((turn["assistant_message"].get("metadata") or {}).get("pending_plan"))
+        pending_plan = (turn["assistant_message"].get("metadata") or {}).get("pending_plan")
         resume_from_pending_plan = pending_plan is not None
         final_content = "" if resume_from_pending_plan else (turn["assistant_message"].get("content") or "")
-        final_bib = ((turn["assistant_message"].get("metadata") or {}).get("bib"))
+        final_bib = (turn["assistant_message"].get("metadata") or {}).get("bib")
         event_counts: dict[str, int] = {}
 
         if resume_from_pending_plan:
@@ -723,12 +746,14 @@ async def research_resume(
             )
             resume_from_pending_plan = False
 
-        yield _sse({
-            "type": "thread_id",
-            "thread_id": body.thread_id,
-            "chat_id": chat_id,
-            "assistant_message_id": assistant_message_id,
-        })
+        yield _sse(
+            {
+                "type": "thread_id",
+                "thread_id": body.thread_id,
+                "chat_id": chat_id,
+                "assistant_message_id": assistant_message_id,
+            }
+        )
 
         async def _chat_deleted() -> bool:
             return await chat_persistence.is_chat_deleted(token, str(user.id), chat_id)
@@ -754,12 +779,14 @@ async def research_resume(
                         return
 
                     if event_type == "step":
-                        steps.append({
-                            "stepNum": payload.get("stepNum"),
-                            "type": payload.get("step_type"),
-                            "content": payload.get("content"),
-                            "stat": payload.get("stat"),
-                        })
+                        steps.append(
+                            {
+                                "stepNum": payload.get("stepNum"),
+                                "type": payload.get("step_type"),
+                                "content": payload.get("content"),
+                                "stat": payload.get("stat"),
+                            }
+                        )
                         await _record_assistant_state(
                             token,
                             str(user.id),
@@ -799,7 +826,9 @@ async def research_resume(
                             last_message_at=chat_persistence._now_iso(),
                         )
                     elif event_type == "done":
-                        final_content = payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                        final_content = (
+                            payload.get("content") or final_content or "*(Pipeline complete - no content returned)*"
+                        )
                         final_bib = payload.get("bib")
                         await _record_assistant_state(
                             token,
@@ -896,7 +925,7 @@ async def research_resume(
                     return
 
                 yield raw_event
-        except _DeletedChatTermination:
+        except _DeletedChatTerminationError:
             yield _deleted_chat_sse(chat_id)
             return
 

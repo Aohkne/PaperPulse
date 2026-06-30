@@ -1,8 +1,8 @@
-"""POST /api/pdf-agent/upload — Step P0→P4, SSE stream (PLAN §4, §6).
+"""POST /api/pdf-agent/upload - Step P0->P4, SSE stream (PLAN Sec. 4, Sec. 6).
 
 Mirrors the SSE pattern in `research_agent/api/research.py` (background
 producer task draining `astream_events()` into a queue, consumer only ever
-times out on `queue.get()` — never on the event iterator itself, which
+times out on `queue.get()` - never on the event iterator itself, which
 would cancel a node mid-execution). No interrupts here, so the generator is
 much simpler: just map `on_chain_start`/`on_chain_end` per node to step events.
 """
@@ -72,16 +72,16 @@ def _stats_for_node(name: str, output: dict) -> dict:
 
 async def _stream_pdf_graph(graph, initial_state: dict, config: dict):
     queue: asyncio.Queue = asyncio.Queue()
-    _DONE = object()
+    done_marker = object()
 
     async def _produce() -> None:
         try:
             async for event in graph.astream_events(initial_state, config, version="v2"):
                 await queue.put(event)
-        except Exception as exc:  # noqa: BLE001 — forwarded to the consumer below
+        except Exception as exc:  # noqa: BLE001 - forwarded to the consumer below
             await queue.put(exc)
         finally:
-            await queue.put(_DONE)
+            await queue.put(done_marker)
 
     producer_task = asyncio.create_task(_produce())
     try:
@@ -92,7 +92,7 @@ async def _stream_pdf_graph(graph, initial_state: dict, config: dict):
                 yield _sse({"type": "heartbeat"})
                 continue
 
-            if item is _DONE:
+            if item is done_marker:
                 break
             if isinstance(item, Exception):
                 raise item
@@ -118,7 +118,7 @@ async def _stream_pdf_graph(graph, initial_state: dict, config: dict):
             producer_task.cancel()
 
 
-# Per-instance in-flight counter (optimize_Plan.html §2.2) — each PDF upload
+# Per-instance in-flight counter (optimize_Plan.html Sec. 2.2) - each PDF upload
 # holds a PyMuPDF ThreadPoolExecutor slot + LLM calls for the whole SSE
 # stream lifetime, so unbounded concurrent uploads can starve the pool/OOM
 # the Cloud Run instance. Returns 429 fast instead of queuing silently.
@@ -135,23 +135,23 @@ async def upload_document(
     settings = get_settings()
 
     if _inflight_uploads >= settings.pdf_agent_upload_concurrency:
-        raise HTTPException(429, "Server is processing too many PDFs at once — please try again in a few seconds.")
+        raise HTTPException(429, "Server is processing too many PDFs at once - please try again in a few seconds.")
     _inflight_uploads += 1
 
     try:
         raw_bytes = await file.read()
         max_bytes = settings.pdf_agent_max_file_size_mb * 1024 * 1024
         if len(raw_bytes) > max_bytes:
-            raise HTTPException(413, f"File too large — {settings.pdf_agent_max_file_size_mb}MB max")
+            raise HTTPException(413, f"File too large - {settings.pdf_agent_max_file_size_mb}MB max")
 
         doc_id = str(uuid4())
 
         # Deduct 1 PDF Agent unit at session start, before any file I/O/graph work
-        # (payment_SPEC_2.0.md §Logic deduction — "trừ ngay khi session bắt đầu").
+        # (payment_SPEC_2.0.md Logic deduction - "trừ ngay khi session bắt đầu").
         try:
             await billing_db.start_session(str(user.id), "pdf", doc_id)
         except QuotaExceededError as exc:
-            raise HTTPException(402, "PDF Agent quota exhausted — please upgrade your plan or top up.") from exc
+            raise HTTPException(402, "PDF Agent quota exhausted - please upgrade your plan or top up.") from exc
 
         doc_dir = Path(settings.pdf_agent_output_dir) / doc_id
         doc_dir.mkdir(parents=True, exist_ok=True)
@@ -171,10 +171,10 @@ async def upload_document(
             yield _sse({"type": "doc_id", "doc_id": doc_id})
             error_occurred = False
             async for raw in _stream_pdf_graph(graph, initial_state, config):
-                if '"type": "error"' in raw:  # cheap check — avoids re-parsing every event's JSON
+                if '"type": "error"' in raw:  # cheap check - avoids re-parsing every event's JSON
                     error_occurred = True
                 yield raw
-            # Only signal completion if the pipeline actually reached build_annotations —
+            # Only signal completion if the pipeline actually reached build_annotations -
             # an error mid-pipeline (e.g. parse_document fails on a malformed PDF) means
             # main_tex_path/annotations were never set, so a "done" here would make the
             # frontend call GET /content on a state that doesn't have it yet (KeyError 500).
@@ -182,7 +182,7 @@ async def upload_document(
                 yield _sse({"type": "done", "doc_id": doc_id})
             else:
                 # System pipeline error (no interrupts in PDF Agent, so this is the
-                # only refund path needed — payment_SPEC_2.0.md §refund table).
+                # only refund path needed - payment_SPEC_2.0.md refund table).
                 await billing_db.refund_session(str(user.id), "pdf", doc_id)
         finally:
             _inflight_uploads -= 1

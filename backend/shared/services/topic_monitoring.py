@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from typing import Any
 
 from fastapi import HTTPException
-from supabase import Client, create_client
 
 from backend.config import get_settings
 from backend.module.research_agent.services.openalex import search_openalex
 from backend.module.research_agent.services.pubmed_search import search_pubmed
 from backend.shared.models.paper import Paper
 from backend.shared.services import arxiv_fetcher, semantic_scholar
+from supabase import Client, create_client
 
 log = logging.getLogger(__name__)
 
@@ -57,19 +57,19 @@ def _strip_edge_punctuation(value: str) -> str:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _to_iso(dt: datetime | None = None) -> str:
     base = dt or _utcnow()
-    return base.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return base.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _parse_timestamp(value: Any) -> datetime | None:
     if not value:
         return None
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     text = str(value).strip()
     if not text:
         return None
@@ -79,7 +79,7 @@ def _parse_timestamp(value: Any) -> datetime | None:
         parsed = datetime.fromisoformat(text)
     except ValueError:
         return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def normalize_topic_identity(raw_query: str, label: str | None = None) -> tuple[str, str]:
@@ -139,9 +139,7 @@ def _match_select(db: Client):
 
 
 def _event_select(db: Client):
-    return db.table("notification_events").select(
-        "id,user_id,topic_id,paper_id,channel,status,created_at,updated_at"
-    )
+    return db.table("notification_events").select("id,user_id,topic_id,paper_id,channel,status,created_at,updated_at")
 
 
 def _notification_select(db: Client):
@@ -151,9 +149,7 @@ def _notification_select(db: Client):
 
 
 def _settings_select(db: Client):
-    return db.table("notification_settings").select(
-        "user_id,pause_all_in_app,created_at,updated_at"
-    )
+    return db.table("notification_settings").select("user_id,pause_all_in_app,created_at,updated_at")
 
 
 def _score(value: Any) -> float:
@@ -291,7 +287,12 @@ async def get_notification_settings(user_id: str) -> dict[str, Any]:
 async def update_notification_settings(user_id: str, *, pause_all_in_app: bool) -> dict[str, Any]:
     await get_notification_settings(user_id)
     db = _service_db_client()
-    updated = db.table("notification_settings").update({"pause_all_in_app": pause_all_in_app}).eq("user_id", user_id).execute()
+    updated = (
+        db.table("notification_settings")
+        .update({"pause_all_in_app": pause_all_in_app})
+        .eq("user_id", user_id)
+        .execute()
+    )
     if not updated.data:
         raise HTTPException(status_code=500, detail="Failed to update notification settings")
     return updated.data[0]
@@ -321,10 +322,12 @@ async def rebalance_auto_watch_topics(
         if row.get("state") == desired_state and row.get("auto_watch_reason") == desired_reason:
             continue
 
-        db.table("user_topic_interests").update({
-            "state": desired_state,
-            "auto_watch_reason": desired_reason,
-        }).eq("id", row["id"]).execute()
+        db.table("user_topic_interests").update(
+            {
+                "state": desired_state,
+                "auto_watch_reason": desired_reason,
+            }
+        ).eq("id", row["id"]).execute()
 
     return _interest_select(db).eq("user_id", user_id).execute().data or []
 
@@ -340,17 +343,19 @@ async def list_user_topic_interests(user_id: str) -> list[dict[str, Any]]:
         topic = topics.get(interest.get("topic_id"))
         if not topic:
             continue
-        visible.append({
-            "topic_id": topic["id"],
-            "label": topic.get("label"),
-            "normalized_query": topic.get("normalized_query"),
-            "state": interest.get("state"),
-            "interest_score": _score(interest.get("interest_score")),
-            "auto_watch_reason": interest.get("auto_watch_reason"),
-            "last_checked_at": interest.get("last_checked_at"),
-            "last_notified_at": interest.get("last_notified_at"),
-            "updated_at": interest.get("updated_at"),
-        })
+        visible.append(
+            {
+                "topic_id": topic["id"],
+                "label": topic.get("label"),
+                "normalized_query": topic.get("normalized_query"),
+                "state": interest.get("state"),
+                "interest_score": _score(interest.get("interest_score")),
+                "auto_watch_reason": interest.get("auto_watch_reason"),
+                "last_checked_at": interest.get("last_checked_at"),
+                "last_notified_at": interest.get("last_notified_at"),
+                "updated_at": interest.get("updated_at"),
+            }
+        )
     return _sort_visible_topic_rows(visible)
 
 
@@ -368,10 +373,17 @@ async def update_user_topic_state(user_id: str, topic_id: str, *, state: str) ->
     if state == "candidate" and current_state != "muted":
         raise HTTPException(status_code=400, detail="Only muted topics can be restored to candidate")
 
-    updated = db.table("user_topic_interests").update({
-        "state": state,
-        "auto_watch_reason": None if state != "auto_watching" else existing.get("auto_watch_reason"),
-    }).eq("id", existing["id"]).execute()
+    updated = (
+        db.table("user_topic_interests")
+        .update(
+            {
+                "state": state,
+                "auto_watch_reason": None if state != "auto_watching" else existing.get("auto_watch_reason"),
+            }
+        )
+        .eq("id", existing["id"])
+        .execute()
+    )
     if not updated.data:
         raise HTTPException(status_code=500, detail="Failed to update topic interest")
     await rebalance_auto_watch_topics(user_id)
@@ -398,10 +410,17 @@ async def delete_user_topic_interest(user_id: str, topic_id: str) -> None:
     existing_rows = _interest_select(db).eq("user_id", user_id).eq("topic_id", topic_id).limit(1).execute().data or []
     if not existing_rows:
         raise HTTPException(status_code=404, detail="Topic interest not found")
-    updated = db.table("user_topic_interests").update({
-        "state": "deleted",
-        "auto_watch_reason": None,
-    }).eq("id", existing_rows[0]["id"]).execute()
+    updated = (
+        db.table("user_topic_interests")
+        .update(
+            {
+                "state": "deleted",
+                "auto_watch_reason": None,
+            }
+        )
+        .eq("id", existing_rows[0]["id"])
+        .execute()
+    )
     if not updated.data:
         raise HTTPException(status_code=500, detail="Failed to delete topic interest")
     await rebalance_auto_watch_topics(user_id)
@@ -422,11 +441,17 @@ async def upsert_user_topic_interest(
 
     topic = await get_or_create_research_topic(raw_query, label=label, keywords=keywords)
     db = _service_db_client()
-    existing_rows = _interest_select(db).eq("user_id", user_id).eq("topic_id", topic["id"]).limit(1).execute().data or []
+    existing_rows = (
+        _interest_select(db).eq("user_id", user_id).eq("topic_id", topic["id"]).limit(1).execute().data or []
+    )
 
     if existing_rows:
         existing = existing_rows[0]
-        next_score = float(interest_score) if interest_score is not None else _score(existing.get("interest_score")) + float(score_delta)
+        next_score = (
+            float(interest_score)
+            if interest_score is not None
+            else _score(existing.get("interest_score")) + float(score_delta)
+        )
         payload = {"interest_score": next_score}
         if existing.get("state") == "deleted":
             payload["state"] = "candidate"
@@ -435,13 +460,19 @@ async def upsert_user_topic_interest(
         interest = updated.data[0] if updated.data else {**existing, **payload}
     else:
         next_score = float(interest_score) if interest_score is not None else float(score_delta)
-        created = db.table("user_topic_interests").insert({
-            "user_id": user_id,
-            "topic_id": topic["id"],
-            "interest_score": next_score,
-            "state": "candidate",
-            "auto_watch_reason": None,
-        }).execute()
+        created = (
+            db.table("user_topic_interests")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "topic_id": topic["id"],
+                    "interest_score": next_score,
+                    "state": "candidate",
+                    "auto_watch_reason": None,
+                }
+            )
+            .execute()
+        )
         if not created.data:
             raise HTTPException(status_code=500, detail="Failed to create user topic interest")
         interest = created.data[0]
@@ -471,7 +502,7 @@ def extract_topic_candidate(query: str) -> dict[str, str] | None:
         "show me papers on ",
     ):
         if lowered.startswith(prefix):
-            trimmed = trimmed[len(prefix):].strip()
+            trimmed = trimmed[len(prefix) :].strip()
             break
 
     trimmed = _strip_edge_punctuation(_collapse_spaces(trimmed))
@@ -564,7 +595,11 @@ def _score_vector(topic: dict[str, Any], paper: Paper) -> float:
     title = _normalized_title(paper.title)
     abstract = _normalized_title(paper.abstract)
     title_similarity = SequenceMatcher(None, normalized_topic, title).ratio() if title else 0.0
-    abstract_similarity = SequenceMatcher(None, normalized_topic, abstract[: max(len(normalized_topic) * 4, 1)]).ratio() if abstract else 0.0
+    abstract_similarity = (
+        SequenceMatcher(None, normalized_topic, abstract[: max(len(normalized_topic) * 4, 1)]).ratio()
+        if abstract
+        else 0.0
+    )
     lexical = _score_lexical(topic, paper)
     return min(1.0, title_similarity * 0.55 + abstract_similarity * 0.15 + lexical * 0.30)
 
@@ -607,12 +642,7 @@ def compute_topic_paper_scores(topic: dict[str, Any], paper: Paper) -> dict[str,
     lexical_score = _score_lexical(topic, paper)
     recency_score = _score_recency(paper)
     authority_score = _score_authority(paper)
-    hybrid_score = (
-        0.45 * vector_score
-        + 0.25 * lexical_score
-        + 0.20 * recency_score
-        + 0.10 * authority_score
-    )
+    hybrid_score = 0.45 * vector_score + 0.25 * lexical_score + 0.20 * recency_score + 0.10 * authority_score
 
     reason_parts: list[str] = []
     if lexical_score >= 0.55:
@@ -639,10 +669,7 @@ def paper_passes_in_app_threshold(scores: dict[str, Any]) -> bool:
     return (
         float(scores.get("hybrid_score") or 0) >= settings.topic_monitor_in_app_threshold
         and float(scores.get("recency_score") or 0) >= 0.35
-        and (
-            float(scores.get("vector_score") or 0) >= 0.70
-            or float(scores.get("lexical_score") or 0) >= 0.55
-        )
+        and (float(scores.get("vector_score") or 0) >= 0.70 or float(scores.get("lexical_score") or 0) >= 0.55)
     )
 
 
@@ -666,7 +693,15 @@ async def fetch_topic_candidate_papers(topic: dict[str, Any], *, limit: int | No
             identities = _paper_identity_fields(paper)
             dedup_key = (
                 "doi",
-                str(identities.get("doi") or identities.get("arxiv_id") or identities.get("s2_paper_id") or identities.get("openalex_id") or identities.get("pubmed_id") or identities.get("normalized_title") or paper.paper_id),
+                str(
+                    identities.get("doi")
+                    or identities.get("arxiv_id")
+                    or identities.get("s2_paper_id")
+                    or identities.get("openalex_id")
+                    or identities.get("pubmed_id")
+                    or identities.get("normalized_title")
+                    or paper.paper_id
+                ),
             )
             if dedup_key in seen_keys:
                 continue
@@ -758,11 +793,17 @@ async def upsert_topic_paper_match(topic_id: str, paper_id: str, scores: dict[st
         updated = db.table("topic_paper_matches").update(payload).eq("id", existing[0]["id"]).execute()
         return updated.data[0] if updated.data else {**existing[0], **payload}
 
-    created = db.table("topic_paper_matches").insert({
-        "topic_id": topic_id,
-        "paper_id": paper_id,
-        **payload,
-    }).execute()
+    created = (
+        db.table("topic_paper_matches")
+        .insert(
+            {
+                "topic_id": topic_id,
+                "paper_id": paper_id,
+                **payload,
+            }
+        )
+        .execute()
+    )
     if not created.data:
         raise TopicMonitorError("Failed to create topic-paper match")
     return created.data[0]
@@ -788,17 +829,33 @@ async def create_notification_event_if_needed(
     if interest_rows[0].get("state") in _BLOCKED_STATES:
         return None
 
-    existing = _event_select(db).eq("user_id", user_id).eq("topic_id", topic_id).eq("paper_id", paper_id).eq("channel", channel).limit(1).execute().data or []
+    existing = (
+        _event_select(db)
+        .eq("user_id", user_id)
+        .eq("topic_id", topic_id)
+        .eq("paper_id", paper_id)
+        .eq("channel", channel)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
     if existing:
         return existing[0]
 
-    created = db.table("notification_events").insert({
-        "user_id": user_id,
-        "topic_id": topic_id,
-        "paper_id": paper_id,
-        "channel": channel,
-        "status": "created",
-    }).execute()
+    created = (
+        db.table("notification_events")
+        .insert(
+            {
+                "user_id": user_id,
+                "topic_id": topic_id,
+                "paper_id": paper_id,
+                "channel": channel,
+                "status": "created",
+            }
+        )
+        .execute()
+    )
     if not created.data:
         raise TopicMonitorError("Failed to create notification event")
     return created.data[0]
@@ -853,7 +910,8 @@ async def deliver_in_app_notifications(*, user_id: str | None = None) -> dict[st
 
             duplicate = next(
                 (
-                    row for row in existing_notifications
+                    row
+                    for row in existing_notifications
                     if row.get("user_id") == event.get("user_id")
                     and row.get("type") == "new_paper"
                     and row.get("topic_id") == event.get("topic_id")

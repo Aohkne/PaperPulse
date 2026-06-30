@@ -139,7 +139,14 @@ class DBStub:
                     rows = [row for row in rows if row.get(key) is None]
                 else:
                     rows = [row for row in rows if row.get(key) == value]
-            rows.sort(key=lambda row: ((row.get("last_message_at") is None), row.get("last_message_at") or "", row["created_at"]), reverse=False)
+            rows.sort(
+                key=lambda row: (
+                    (row.get("last_message_at") is None),
+                    row.get("last_message_at") or "",
+                    row["created_at"],
+                ),
+                reverse=False,
+            )
             return SimpleNamespace(data=rows)
 
         if query.table_name == "messages" and query.method == "select":
@@ -224,6 +231,7 @@ async def test_get_chat_detail_returns_ordered_messages(client, monkeypatch):
     assert data["chat"]["id"] == "chat-a"
     assert [item["id"] for item in data["messages"]] == ["msg-1", "msg-2"]
 
+
 @pytest.mark.asyncio
 async def test_get_chat_detail_schedules_reopen_topic_signal_without_blocking_response(client, monkeypatch):
     from backend.api import chat as chat_api
@@ -274,8 +282,6 @@ async def test_delete_chat_soft_deletes_owned_chat(client, monkeypatch):
     assert len([row for row in db.messages if row["chat_id"] == "chat-a"]) == 2
 
 
-
-
 @pytest.mark.asyncio
 async def test_update_chat_rejects_deleted_chat(monkeypatch):
     db = DBStub()
@@ -297,7 +303,9 @@ def test_update_assistant_message_requires_service_role(monkeypatch):
     monkeypatch.setattr(
         chat_persistence,
         "get_settings",
-        lambda: SimpleNamespace(supabase_url="https://example.supabase.co", supabase_key="anon", supabase_service_key=""),
+        lambda: SimpleNamespace(
+            supabase_url="https://example.supabase.co", supabase_key="anon", supabase_service_key=""
+        ),
     )
 
     with pytest.raises(HTTPException) as exc_info:

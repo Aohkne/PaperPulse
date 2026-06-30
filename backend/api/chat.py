@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-from supabase import Client, create_client
 
 from backend.auth.dependencies import get_current_user
 from backend.config import get_settings
 from backend.shared.services import topic_monitoring
 from backend.shared.services.llm_client import chat_completion
+from supabase import Client, create_client
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -161,7 +161,9 @@ def _schedule_chat_reopen_signal(*, user_id: str, chat_id: str, token: str) -> N
 async def chat(request: ChatRequest) -> ChatResponse:
     """Send conversation history to LLM and return assistant reply."""
     try:
-        history = _merge_consecutive([{"role": message.role, "content": message.content} for message in request.messages])
+        history = _merge_consecutive(
+            [{"role": message.role, "content": message.content} for message in request.messages]
+        )
         messages = [{"role": "system", "content": _SYSTEM}] + history
         reply = await chat_completion(messages)
         return ChatResponse(reply=reply)
@@ -193,14 +195,20 @@ async def create_chat(
     user: Any = Depends(get_current_user),
 ) -> PersistedChatSummary:
     db = _db_client(credentials.credentials)
-    res = db.table("chats").insert({
-        "user_id": str(user.id),
-        "title": body.title.strip() or "New chat",
-        "feature": body.feature,
-        "status": body.status,
-        "summary": body.summary,
-        "thread_id": body.thread_id,
-    }).execute()
+    res = (
+        db.table("chats")
+        .insert(
+            {
+                "user_id": str(user.id),
+                "title": body.title.strip() or "New chat",
+                "feature": body.feature,
+                "status": body.status,
+                "summary": body.summary,
+                "thread_id": body.thread_id,
+            }
+        )
+        .execute()
+    )
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to create chat")
     return _map_chat(res.data[0])
@@ -260,7 +268,7 @@ async def delete_chat(
     db = _db_client(credentials.credentials)
     res = (
         db.table("chats")
-        .update({"deleted_at": datetime.now(timezone.utc).isoformat()})
+        .update({"deleted_at": datetime.now(UTC).isoformat()})
         .eq("id", chat_id)
         .eq("user_id", str(user.id))
         .is_("deleted_at", "null")
@@ -268,5 +276,3 @@ async def delete_chat(
     )
     if not res.data:
         raise HTTPException(status_code=404, detail="Chat not found")
-
-

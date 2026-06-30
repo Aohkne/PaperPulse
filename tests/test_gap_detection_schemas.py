@@ -210,4 +210,3 @@ def test_package_import() -> None:
     assert expected.issubset(set(pkg.__all__))
     for name in expected:
         assert hasattr(pkg, name), f"{name} missing from package"
-

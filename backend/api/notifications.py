@@ -6,11 +6,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-from supabase import Client, create_client
 
 from backend.auth.dependencies import get_current_user
 from backend.config import get_settings
 from backend.shared.services import topic_monitoring
+from supabase import Client, create_client
 
 router = APIRouter(tags=["notifications"])
 _bearer = HTTPBearer(auto_error=True)
@@ -145,13 +145,7 @@ async def mark_all_notifications_read(
     user: Any = Depends(get_current_user),
 ) -> MarkAllReadResponse:
     db = _db_client(credentials.credentials)
-    unread = (
-        db.table("notifications")
-        .select("id")
-        .eq("user_id", str(user.id))
-        .eq("is_read", False)
-        .execute()
-    )
+    unread = db.table("notifications").select("id").eq("user_id", str(user.id)).eq("is_read", False).execute()
     unread_ids = [row["id"] for row in (unread.data or [])]
     if not unread_ids:
         return MarkAllReadResponse(updated=0)
@@ -188,5 +182,3 @@ async def update_notification_settings(
 ) -> NotificationSettingsResponse:
     row = await topic_monitoring.update_notification_settings(str(user.id), pause_all_in_app=body.pause_all_in_app)
     return NotificationSettingsResponse(pause_all_in_app=bool(row.get("pause_all_in_app")))
-
-

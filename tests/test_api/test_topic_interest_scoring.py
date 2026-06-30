@@ -196,13 +196,9 @@ async def test_resume_and_reopen_reinforce_existing_chat_topic(topic_signal_db):
         "user-1", signal="plan_approval", chat_id="chat-1", token="token"
     )
     resumed_score = resumed["interest"]["interest_score"]
-    reopened = await topic_monitoring.score_topic_signal(
-        "user-1", signal="reopen", chat_id="chat-1", token="token"
-    )
+    reopened = await topic_monitoring.score_topic_signal("user-1", signal="reopen", chat_id="chat-1", token="token")
 
-    assert resumed_score == (
-        topic_monitoring.TOPIC_SCORE_NEW_SESSION + topic_monitoring.TOPIC_SCORE_PLAN_APPROVAL
-    )
+    assert resumed_score == (topic_monitoring.TOPIC_SCORE_NEW_SESSION + topic_monitoring.TOPIC_SCORE_PLAN_APPROVAL)
     assert reopened["interest"]["interest_score"] == (
         topic_monitoring.TOPIC_SCORE_NEW_SESSION
         + topic_monitoring.TOPIC_SCORE_PLAN_APPROVAL

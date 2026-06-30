@@ -59,16 +59,16 @@ async def update_annotation(
     if body.action == "accept":
         offset = refind_anchor(tex_content, target["anchor"])
         if offset is None:
-            raise HTTPException(409, "This passage was edited and its position couldn't be found — please dismiss and edit it manually")
+            raise HTTPException(
+                409, "This passage was edited and its position couldn't be found — please dismiss and edit it manually"
+            )
         exact = target["anchor"]["exact"]
-        tex_content = tex_content[:offset] + (target["suggested_fix"] or "") + tex_content[offset + len(exact):]
+        tex_content = tex_content[:offset] + (target["suggested_fix"] or "") + tex_content[offset + len(exact) :]
         main_tex_path.write_text(tex_content, encoding="utf-8")
         bundle_exporter.rezip_bundle(str(main_tex_path), str(main_tex_path.parent / "figures"), state["bundle_path"])
 
     new_status = _ACTION_TO_STATUS[body.action]
-    new_annotations = [
-        {**a, "status": new_status} if a["id"] == annotation_id else a for a in annotations
-    ]
+    new_annotations = [{**a, "status": new_status} if a["id"] == annotation_id else a for a in annotations]
     graph = await get_pdf_agent_graph()
     await graph.aupdate_state(pdf_agent_config(doc_id), {"annotations": new_annotations})
     return {"id": annotation_id, "status": new_status, "tex_content": tex_content}

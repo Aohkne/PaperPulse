@@ -36,7 +36,9 @@ async def test_patch_notification_settings_updates_pause_all(client, monkeypatch
         assert (user_id, pause_all_in_app) == ("user-1", True)
         return {"pause_all_in_app": True}
 
-    monkeypatch.setattr(notifications_api.topic_monitoring, "update_notification_settings", fake_update_notification_settings)
+    monkeypatch.setattr(
+        notifications_api.topic_monitoring, "update_notification_settings", fake_update_notification_settings
+    )
     app.dependency_overrides[get_current_user] = _override_user
 
     response = await client.patch(
@@ -48,4 +50,3 @@ async def test_patch_notification_settings_updates_pause_all(client, monkeypatch
     app.dependency_overrides.clear()
     assert response.status_code == 200
     assert response.json() == {"pause_all_in_app": True}
-

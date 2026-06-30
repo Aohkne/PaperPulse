@@ -9,22 +9,23 @@ vote. No comment threads — vote-only, per the spec's own non-goals.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from supabase import Client, create_client
 
 from backend.api.reviews import Pagination
 from backend.auth.dependencies import get_current_user, optional_user, require_admin
 from backend.config import get_settings
+from supabase import Client, create_client
 
 router = APIRouter(tags=["community"])
 admin_router = APIRouter(prefix="/admin/contributions", tags=["admin", "community"])
 
 
 # ── DB client ─────────────────────────────────────────────────────────────────
+
 
 def _db_client(token: str | None = None) -> Client:
     """Supabase client for server-side access.
@@ -54,6 +55,7 @@ def _is_banned(db: Client, user_id: str) -> bool:
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
+
 
 class ContributionCreate(BaseModel):
     title: str
@@ -105,6 +107,7 @@ class RejectRequest(BaseModel):
 
 # ── Shared row-hydration helper ───────────────────────────────────────────────
 
+
 def _hydrate(db: Client, rows: list[dict], caller_id: str | None) -> list[ContributionOut]:
     """Attach author_name + total_votes + voted_by_me to raw contribution rows."""
     if not rows:
@@ -116,7 +119,10 @@ def _hydrate(db: Client, rows: list[dict], caller_id: str | None) -> list[Contri
     profiles = db.table("profiles").select("id,full_name").in_("id", user_ids).execute().data or []
     names = {p["id"]: p.get("full_name") for p in profiles}
 
-    votes = db.table("contribution_votes").select("contribution_id,user_id").in_("contribution_id", ids).execute().data or []
+    votes = (
+        db.table("contribution_votes").select("contribution_id,user_id").in_("contribution_id", ids).execute().data
+        or []
+    )
     counts: dict[str, int] = {}
     my_votes: set[str] = set()
     for v in votes:
@@ -145,6 +151,7 @@ def _hydrate(db: Client, rows: list[dict], caller_id: str | None) -> list[Contri
 
 
 # ── Public endpoints ──────────────────────────────────────────────────────────
+
 
 @router.get("/contributions", response_model=ContributionListResponse)
 async def list_contributions(
@@ -182,12 +189,14 @@ async def create_contribution(
 
     res = (
         db.table("contributions")
-        .insert({
-            "user_id": str(user.id),
-            "title": body.title,
-            "content": body.content,
-            "review_id": body.review_id,
-        })
+        .insert(
+            {
+                "user_id": str(user.id),
+                "title": body.title,
+                "content": body.content,
+                "review_id": body.review_id,
+            }
+        )
         .execute()
     )
     if not res.data:
@@ -298,10 +307,7 @@ async def toggle_vote(
         voted = True
 
     count_res = (
-        db.table("contribution_votes")
-        .select("id", count="exact")
-        .eq("contribution_id", contribution_id)
-        .execute()
+        db.table("contribution_votes").select("id", count="exact").eq("contribution_id", contribution_id).execute()
     )
     return VoteResponse(voted=voted, total_votes=count_res.count or 0)
 
@@ -310,19 +316,12 @@ async def toggle_vote(
 async def get_leaderboard(limit: int = Query(default=20, ge=1, le=100)):
     """Top contributors ranked by total votes received (all-time)."""
     db = _db_client()
-    rows = (
-        db.table("leaderboard")
-        .select("*")
-        .order("total_votes", desc=True)
-        .limit(limit)
-        .execute()
-        .data
-        or []
-    )
+    rows = db.table("leaderboard").select("*").order("total_votes", desc=True).limit(limit).execute().data or []
     return [LeaderboardRow(**r) for r in rows]
 
 
 # ── Admin moderation endpoints ────────────────────────────────────────────────
+
 
 @admin_router.get("", response_model=ContributionListResponse)
 async def admin_list_contributions(
@@ -357,11 +356,13 @@ async def approve_contribution(
     db = _db_client()
     res = (
         db.table("contributions")
-        .update({
-            "status": "approved",
-            "reviewed_by": str(admin.id),
-            "reviewed_at": datetime.now(timezone.utc).isoformat(),
-        })
+        .update(
+            {
+                "status": "approved",
+                "reviewed_by": str(admin.id),
+                "reviewed_at": datetime.now(UTC).isoformat(),
+            }
+        )
         .eq("id", contribution_id)
         .execute()
     )
@@ -379,12 +380,14 @@ async def reject_contribution(
     db = _db_client()
     res = (
         db.table("contributions")
-        .update({
-            "status": "rejected",
-            "rejection_reason": body.reason,
-            "reviewed_by": str(admin.id),
-            "reviewed_at": datetime.now(timezone.utc).isoformat(),
-        })
+        .update(
+            {
+                "status": "rejected",
+                "rejection_reason": body.reason,
+                "reviewed_by": str(admin.id),
+                "reviewed_at": datetime.now(UTC).isoformat(),
+            }
+        )
         .eq("id", contribution_id)
         .execute()
     )

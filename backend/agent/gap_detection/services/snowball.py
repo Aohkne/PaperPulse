@@ -10,6 +10,7 @@ Key difference from research_agent/services/snowball.py:
   - Uses named logger (not module-level logging).
   - research_agent/services/snowball.py is NOT touched (it still serves the KG pipeline).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,6 +26,7 @@ _CURRENT_YEAR = datetime.now().year
 
 
 # ── Seed selection: dual-pool (SPEC_1.0.1) ───────────────────────────────────
+
 
 def select_seeds(papers: list[Paper], pool_size: int = 5) -> list[str]:
     """Dual-pool seed selection per SPEC_1.0.1:
@@ -53,6 +55,7 @@ def select_seeds(papers: list[Paper], pool_size: int = 5) -> list[str]:
 
 # ── Backward/forward filters (SPEC_1.0.1) ────────────────────────────────────
 
+
 def _backward_keep(paper: Paper, is_influential: bool) -> bool:
     if is_influential:
         return True
@@ -74,6 +77,7 @@ def _forward_keep(paper: Paper, is_influential: bool) -> bool:
 
 
 # ── Main snowball ─────────────────────────────────────────────────────────────
+
 
 async def run_snowball(seed_ids: list[str], depth: int = 1) -> list[Paper]:
     """Expand seed papers via backward (references) + forward (citations) snowballing.

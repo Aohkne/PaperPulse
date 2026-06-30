@@ -60,7 +60,7 @@ const GapProgressPanel = ({ events = [], loading }) => {
           <h3 style={{ fontFamily: 'var(--font-inknut)', fontSize: '14px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: 0 }}>
             Analysis progress
           </h3>
-          <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-inknut)', fontSize: '12px', color: 'var(--color-paper-light)' }}>
+          <p className="gap-pipeline-subtitle" style={{ margin: '2px 0 0', fontSize: '12px' }}>
             The pipeline updates as evidence is checked and gaps are synthesized.
           </p>
         </div>
@@ -98,7 +98,11 @@ const GapProgressPanel = ({ events = [], loading }) => {
           </div>
         </div>
       )}
-      <style>{'@keyframes spin { 100% { transform: rotate(360deg); } }'}</style>
+      <style>{`
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .gap-pipeline-subtitle { font-family: var(--font-noto-serif); font-weight: 700; color: #5a4a37; }
+        html.dark .gap-pipeline-subtitle { color: var(--color-paper-light); }
+      `}</style>
     </section>
   );
 };

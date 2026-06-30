@@ -5,11 +5,11 @@ import logging
 
 import httpx
 
+from backend.agent.gap_detection.settings import get_nim_backoff_base, get_nim_retry_max
 from backend.config import get_settings
+from backend.module.research_agent.services.vector_store import upsert_papers
 from backend.shared.models.paper import EmbedResponse
 from backend.shared.services.semantic_scholar import get_embeddings_batch
-from backend.module.research_agent.services.vector_store import upsert_papers
-from backend.agent.gap_detection.settings import get_nim_backoff_base, get_nim_retry_max
 
 
 async def embed_text(text: str, input_type: str = "query") -> list[float] | None:

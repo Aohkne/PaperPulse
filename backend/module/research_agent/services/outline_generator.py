@@ -16,7 +16,11 @@ from backend.config import get_settings
 from backend.module.research_agent.services import outline_agent
 from backend.module.research_agent.services.embedding import embed_text
 from backend.module.research_agent.services.mmr import mmr_select
-from backend.module.research_agent.services.vector_store import get_all_papers_metadata, get_papers_by_ids, query_by_vector
+from backend.module.research_agent.services.vector_store import (
+    get_all_papers_metadata,
+    get_papers_by_ids,
+    query_by_vector,
+)
 from backend.shared.models.paper import Paper
 from backend.shared.models.review import Theme
 
@@ -52,7 +56,8 @@ async def generate_outline(query: str, top_k: int = 20, papers: list[Paper] | No
                 if query_vec:
                     logging.warning(
                         "generate_outline: no papers share the query's embedding dimension (%d) — falling back to first %d papers",
-                        len(query_vec), top_k,
+                        len(query_vec),
+                        top_k,
                     )
                 else:
                     logging.warning("generate_outline: query embedding failed — falling back to first %d papers", top_k)

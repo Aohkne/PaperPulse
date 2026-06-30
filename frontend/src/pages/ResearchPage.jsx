@@ -2,9 +2,10 @@ import { Icon } from '@iconify/react';
 import GapSection from '@/features/gap/GapSection';
 
 const ResearchPage = () => (
-  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-    {/* ── Toolbar ───────────────────────────────────────────────────── */}
+  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
+    {/* Toolbar */}
     <div style={{
+      position: 'sticky', top: 0, zIndex: 10,
       flexShrink: 0, borderBottom: '1px solid var(--color-paper-light)',
       padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px',
       background: 'var(--color-paper-bg)',
@@ -27,8 +28,8 @@ const ResearchPage = () => (
       </button>
     </div>
 
-    {/* ── Body ──────────────────────────────────────────────────────── */}
-    <div style={{ flex: 1, minHeight: 0, padding: '20px' }}>
+    {/* Body */}
+    <div style={{ flexShrink: 0, padding: '20px' }}>
       <GapSection />
     </div>
   </div>

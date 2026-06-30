@@ -50,8 +50,9 @@ Topic coverage map:
 
 Identify research areas or sub-topics that are CLOSELY RELATED to what
 these papers cover but are NOT themselves studied in this set (topical
-gaps). For each gap, cite the papers whose neighbouring topics make the
-gap evident, using ONLY the paper ids listed above.
+gaps). For each gap, list the relevant paper ids in "supporting_paper_ids"
+using ONLY the ids above.
+In the "statement" field, write a natural narrative describing the gap — do NOT include raw paper ids in the statement text.
 
 Return a JSON object with EXACTLY this shape:
 {{

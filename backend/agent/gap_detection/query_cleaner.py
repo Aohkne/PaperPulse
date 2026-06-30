@@ -30,9 +30,9 @@ _SYSTEM = (
     "1. Output ONLY the search phrase — no preamble, no explanation, no markdown.\n"
     "2. Translate to English if the input is in another language.\n"
     "3. Remove meta-words that are not part of the research topic itself, such as: "
-    "\"tìm\", \"tìm kiếm\", \"research gap\", \"khoảng trống\", \"về\", "
-    "\"nghiên cứu về\", \"find papers on\", \"survey of\", \"literature review on\", "
-    "\"tổng quan về\", \"gap in\", \"explore\".\n"
+    '"tìm", "tìm kiếm", "research gap", "khoảng trống", "về", '
+    '"nghiên cứu về", "find papers on", "survey of", "literature review on", '
+    '"tổng quan về", "gap in", "explore".\n'
     "4. Keep domain-specific terms intact (model names, acronyms, methods).\n"
     "5. Output a keyword phrase of 3–12 words, not a full sentence.\n"
     "6. Do NOT wrap the output in quotes or backticks."

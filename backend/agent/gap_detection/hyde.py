@@ -41,12 +41,10 @@ from backend.shared.services.llm_client import chat_completion
 
 logger = logging.getLogger(__name__)
 
-_HYDE_SYSTEM = (
-    "You are a scientific abstract writer. "
-    "Write concise, information-dense research paper abstracts."
-)
+_HYDE_SYSTEM = "You are a scientific abstract writer. Write concise, information-dense research paper abstracts."
 
 # ── Prompt builder ────────────────────────────────────────────────────────────
+
 
 def _build_hyde_prompt(clean_query: str) -> str:
     words = get_hyde_abstract_words()
@@ -58,6 +56,7 @@ def _build_hyde_prompt(clean_query: str) -> str:
 
 
 # ── Core LLM call (shared) ────────────────────────────────────────────────────
+
 
 async def _generate_abstract(clean_query: str) -> str | None:
     """Ask LLM for a hypothetical abstract. Returns None on any failure."""
@@ -83,6 +82,7 @@ async def _generate_abstract(clean_query: str) -> str | None:
 
 
 # ── Primary: NIM 4096d (TIP-P2-06-FIX) ──────────────────────────────────────
+
 
 async def generate_hyde_vector_nim(clean_query: str) -> list[float] | None:
     """Generate a HyDE query vector using NIM embedding (4096d).
@@ -111,8 +111,7 @@ async def generate_hyde_vector_nim(clean_query: str) -> list[float] | None:
 
     if not vector:
         logger.debug(
-            "generate_hyde_vector_nim: embed_text returned None "
-            "(EMBEDDING_BASE_URL may be unset) — BM25 fallback"
+            "generate_hyde_vector_nim: embed_text returned None (EMBEDDING_BASE_URL may be unset) — BM25 fallback"
         )
         return None
 
@@ -131,6 +130,7 @@ async def generate_hyde_vector(clean_query: str) -> list[float] | None:
 
 
 # ── Paper embedding helper ────────────────────────────────────────────────────
+
 
 async def upsert_paper_to_nim_store(
     paper_id: str,
@@ -155,12 +155,16 @@ async def upsert_paper_to_nim_store(
     try:
         vector = await embed_text(abstract.strip(), input_type="passage")
         if vector:
-            await upsert_papers_nim([{
-                "paper_id": paper_id,
-                "title": title,
-                "year": year,
-                "vector": vector,
-            }])
+            await upsert_papers_nim(
+                [
+                    {
+                        "paper_id": paper_id,
+                        "title": title,
+                        "year": year,
+                        "vector": vector,
+                    }
+                ]
+            )
             logger.debug("upsert_paper_to_nim_store: upserted %s (dim=%d)", paper_id, len(vector))
     except Exception:
         logger.debug(

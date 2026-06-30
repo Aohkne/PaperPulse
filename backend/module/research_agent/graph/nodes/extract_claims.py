@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import logging
 
-from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
+from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.services.claim_extractor import extract_claims
 
 log = logging.getLogger(__name__)
@@ -19,7 +19,9 @@ log = logging.getLogger(__name__)
 
 async def extract_claims_node(state: ResearchState) -> dict:
     theme_contents = state.get("theme_contents", [])
-    await narrate_step(f"extracting factual claims from {len(theme_contents)} written sections to verify against sources")
+    await narrate_step(
+        f"extracting factual claims from {len(theme_contents)} written sections to verify against sources"
+    )
     papers = state.get("papers", [])
     paper_map = {p.paper_id: p for p in papers}
 

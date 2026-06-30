@@ -24,6 +24,7 @@ async def narrate_step(context: str) -> None:
     callback system and are captured by astream_events automatically.
     """
     from langchain_core.messages import HumanMessage, SystemMessage
+
     llm = get_llm(temperature=0.4, streaming=True)
     messages = [
         SystemMessage(content=_SYSTEM),

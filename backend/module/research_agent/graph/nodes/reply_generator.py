@@ -98,11 +98,11 @@ _OFF_TOPIC_REFUSAL = (
 def _parse_questions(text: str) -> list[str]:
     """Extract numbered/bulleted questions from the LLM response."""
     questions = []
-    for line in text.strip().split('\n'):
+    for line in text.strip().split("\n"):
         line = line.strip()
         if not line:
             continue
-        cleaned = re.sub(r'^(\d+[\.\)]\s*|-\s*•\s*|\*\s*)', '', line).strip()
+        cleaned = re.sub(r"^(\d+[\.\)]\s*|-\s*•\s*|\*\s*)", "", line).strip()
         if cleaned:
             questions.append(cleaned)
     return [q for q in questions if q][:5]
@@ -114,10 +114,13 @@ async def reply_generator_node(state: ResearchState) -> dict:
 
     if intent == "clarify":
         llm = get_llm(temperature=0, streaming=True)
-        response = await ainvoke_with_timeout(llm, [
-            SystemMessage(content=_CLARIFY_SYSTEM),
-            HumanMessage(content=query),
-        ])
+        response = await ainvoke_with_timeout(
+            llm,
+            [
+                SystemMessage(content=_CLARIFY_SYSTEM),
+                HumanMessage(content=query),
+            ],
+        )
         text = response.content.strip()
         questions = _parse_questions(text)
         if not questions:
@@ -131,10 +134,13 @@ async def reply_generator_node(state: ResearchState) -> dict:
 
     else:  # greeting (or any non-search, non-clarify intent)
         llm = get_llm(temperature=0.7, streaming=True)
-        response = await ainvoke_with_timeout(llm, [
-            SystemMessage(content=_GREETING_SYSTEM),
-            HumanMessage(content=query),
-        ])
+        response = await ainvoke_with_timeout(
+            llm,
+            [
+                SystemMessage(content=_GREETING_SYSTEM),
+                HumanMessage(content=query),
+            ],
+        )
         reply = response.content.strip()
         if _CODE_DUMP_RE.search(reply):
             log.warning("reply_generator: blocked off-topic code/HTML dump in greeting reply")

@@ -11,6 +11,25 @@ function normalizeVi(text) {
   return text.normalize('NFC');
 }
 
+function formatApaAuthor(name) {
+  if (!name) return '';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  const last = parts[parts.length - 1];
+  const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ');
+  return `${last}, ${initials}`;
+}
+
+function formatApaAuthors(authors) {
+  if (!authors || authors.length === 0) return null;
+  const fmt = authors.map(formatApaAuthor);
+  if (authors.length === 1) return fmt[0];
+  if (authors.length > 20) {
+    return fmt.slice(0, 19).join(', ') + ', … ' + fmt[fmt.length - 1];
+  }
+  return fmt.slice(0, -1).join(', ') + ', & ' + fmt[fmt.length - 1];
+}
+
 function stripGapSummary(text) {
   if (!text) return text;
   return text
@@ -37,7 +56,7 @@ const mdComponents = {
 const Centered = ({ icon, children }) => (
   <div style={{
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    height: '100%', minHeight: '320px', gap: '16px', fontFamily: 'var(--font-inknut)',
+    minHeight: '320px', gap: '16px', fontFamily: 'var(--font-inknut)',
     background: 'var(--color-paper-surface)', border: '1px dashed var(--color-paper-light)',
     borderRadius: '14px', padding: '40px 24px',
   }}>
@@ -164,13 +183,13 @@ function GapCard({ gap }) {
           {detailsOpen && (
             <div style={{ display: 'grid', gap: '8px', margin: '8px 0 0', padding: '10px 12px', background: 'var(--color-paper-surface)', borderRadius: '8px' }}>
               {gap.suggested_method && (
-                <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '13px', color: 'var(--color-paper-dark)', lineHeight: '1.6' }}>
+                <div style={{ fontFamily: 'var(--font-noto-serif)', fontSize: '13px', color: 'var(--color-paper-dark)', lineHeight: '1.6' }}>
                   <strong>Suggested method:</strong> {normalizeVi(gap.suggested_method)}
                 </div>
               )}
 
               {gap.falsifiability_condition && (
-                <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '13px', color: 'var(--color-paper-mid)', lineHeight: '1.6' }}>
+                <div style={{ fontFamily: 'var(--font-noto-serif)', fontSize: '13px', color: 'var(--color-paper-mid)', lineHeight: '1.6' }}>
                   <strong>Falsifiable when:</strong> {normalizeVi(gap.falsifiability_condition)}
                 </div>
               )}
@@ -182,12 +201,32 @@ function GapCard({ gap }) {
       {gap.supporting_papers?.length > 0 && (
         <div style={{ borderTop: '1px solid var(--color-paper-surface)', paddingTop: '10px' }}>
           <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-paper-light)', marginBottom: '6px' }}>
-            Source papers
+            References
           </div>
-          <ul style={{ margin: '0', paddingLeft: '16px', fontFamily: 'var(--font-inknut)', fontSize: '12px', color: 'var(--color-paper-mid)' }}>
-            {gap.supporting_papers.map(p => (
-              <li key={p.paper_id}>{normalizeVi(p.title)} ({p.year})</li>
-            ))}
+          <ul style={{ margin: '0', padding: '0', listStyle: 'none', fontFamily: 'var(--font-noto-serif)', fontWeight: 400, fontSize: '12px', color: 'var(--color-paper-mid)' }}>
+            {gap.supporting_papers.map((p, idx) => {
+              const n = p.citation_index ?? (idx + 1);
+              const year = p.year != null ? `(${p.year})` : '(n.d.)';
+              const title = normalizeVi(p.title) || '';
+              const authorStr = formatApaAuthors(p.authors);
+              const body = authorStr
+                ? `${authorStr} ${year}. ${title}.`
+                : `${title}. ${year}.`;
+              const linkHref = p.url || (p.doi ? `https://doi.org/${p.doi}` : null);
+              return (
+                <li key={p.paper_id} style={{ marginBottom: '4px', lineHeight: '1.5' }}>
+                  [{n}] {body}{p.venue ? <> <em>{normalizeVi(p.venue)}.</em></> : null}
+                  {linkHref && (
+                    <> <a
+                      href={linkHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--color-paper-light)', fontFamily: 'var(--font-noto-serif)', fontWeight: 400, textDecoration: 'none', marginLeft: '4px' }}
+                    >↗</a></>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -205,7 +244,7 @@ const GapResultPanel = ({ narrative, gapReport, loading, error }) => {
   if (!narrative) return <Centered icon="mdi:lightbulb-search-outline">Enter a topic to begin analysis.</Centered>
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <style>{`
         .gap-list {
           display: grid;
@@ -220,7 +259,7 @@ const GapResultPanel = ({ narrative, gapReport, loading, error }) => {
       <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '0 0 14px', fontFamily: 'var(--font-inknut)', flexShrink: 0 }}>
         Research Gaps
       </h2>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px', background: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '14px', fontFamily: 'var(--font-inknut)', boxShadow: '0 10px 28px rgba(41, 17, 0, 0.04)' }}>
+      <div style={{ padding: '18px', background: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '14px', fontFamily: 'var(--font-inknut)', boxShadow: '0 10px 28px rgba(41, 17, 0, 0.04)' }}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
           {normalizeVi(stripGapSummary(narrative))}
         </ReactMarkdown>

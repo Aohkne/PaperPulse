@@ -1,4 +1,5 @@
 """Tests for TIP-P3-03: clean_query() + retrieval.search() fieldsOfStudy filter."""
+
 from __future__ import annotations
 
 import os
@@ -10,14 +11,15 @@ from backend.agent.gap_detection.retrieval import clean_query, search
 from backend.agent.gap_detection.settings import get_default_fields_of_study
 from backend.shared.models.paper import Paper
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _paper(pid: str = "p1", title: str = "Test") -> Paper:
     return Paper(paperId=pid, title=title)
 
 
 # ── clean_query() — pure function tests ──────────────────────────────────────
+
 
 class TestCleanQuery:
     def test_strip_viet_meta_words(self):
@@ -64,6 +66,7 @@ class TestCleanQuery:
 
 # ── get_default_fields_of_study() — settings tests ───────────────────────────
 
+
 class TestGetDefaultFieldsOfStudy:
     def test_default_returns_cs(self):
         with patch.dict(os.environ, {}, clear=False):
@@ -90,16 +93,20 @@ class TestGetDefaultFieldsOfStudy:
 
 # ── retrieval.search() — integration with mocked search_papers ───────────────
 
+
 class TestRetrievalSearch:
     @pytest.mark.asyncio
     async def test_cleaned_query_passed_to_search_papers(self):
         """search_papers receives cleaned query, not raw."""
         mock_papers = [_paper("p1")]
-        with patch(
-            "backend.agent.gap_detection.retrieval.search_papers",
-            new_callable=AsyncMock,
-            return_value=mock_papers,
-        ) as mock_sp, patch.dict(os.environ, {"DEFAULT_FIELDS_OF_STUDY": "None"}):
+        with (
+            patch(
+                "backend.agent.gap_detection.retrieval.search_papers",
+                new_callable=AsyncMock,
+                return_value=mock_papers,
+            ) as mock_sp,
+            patch.dict(os.environ, {"DEFAULT_FIELDS_OF_STUDY": "None"}),
+        ):
             await search("Tìm research gap về transformer long-context", limit=5)
 
         mock_sp.assert_awaited_once()
@@ -110,11 +117,14 @@ class TestRetrievalSearch:
     async def test_fields_of_study_passed_when_set(self):
         """search_papers receives fields_of_study=["Computer Science"] from env."""
         mock_papers = [_paper("p1")]
-        with patch(
-            "backend.agent.gap_detection.retrieval.search_papers",
-            new_callable=AsyncMock,
-            return_value=mock_papers,
-        ) as mock_sp, patch.dict(os.environ, {"DEFAULT_FIELDS_OF_STUDY": "Computer Science"}):
+        with (
+            patch(
+                "backend.agent.gap_detection.retrieval.search_papers",
+                new_callable=AsyncMock,
+                return_value=mock_papers,
+            ) as mock_sp,
+            patch.dict(os.environ, {"DEFAULT_FIELDS_OF_STUDY": "Computer Science"}),
+        ):
             await search("transformer", limit=5)
 
         call_kwargs = mock_sp.call_args[1]
@@ -124,11 +134,14 @@ class TestRetrievalSearch:
     async def test_fields_of_study_none_when_env_none(self):
         """When DEFAULT_FIELDS_OF_STUDY=None, fields_of_study=None passed."""
         mock_papers = [_paper("p1")]
-        with patch(
-            "backend.agent.gap_detection.retrieval.search_papers",
-            new_callable=AsyncMock,
-            return_value=mock_papers,
-        ) as mock_sp, patch.dict(os.environ, {"DEFAULT_FIELDS_OF_STUDY": "None"}):
+        with (
+            patch(
+                "backend.agent.gap_detection.retrieval.search_papers",
+                new_callable=AsyncMock,
+                return_value=mock_papers,
+            ) as mock_sp,
+            patch.dict(os.environ, {"DEFAULT_FIELDS_OF_STUDY": "None"}),
+        ):
             await search("transformer", limit=5)
 
         call_kwargs = mock_sp.call_args[1]
@@ -138,6 +151,7 @@ class TestRetrievalSearch:
     async def test_signature_unchanged(self):
         """search() still accepts (query, limit) positionally — callers unbroken."""
         import inspect
+
         sig = inspect.signature(search)
         params = list(sig.parameters.keys())
         assert params[0] == "query"

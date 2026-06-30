@@ -44,11 +44,7 @@ def _check_has_supporting_papers(gap: GapItem) -> dict:
 def _check_quality_score_present(gap: GapItem) -> dict:
     """quality_score must not be None (synthesizer ran fully)."""
     passed = gap.quality_score is not None
-    detail = (
-        f"quality_score={gap.quality_score}"
-        if passed
-        else "quality_score is None — synthesizer may have failed"
-    )
+    detail = f"quality_score={gap.quality_score}" if passed else "quality_score is None — synthesizer may have failed"
     return {"check": "quality_score_present", "passed": passed, "detail": detail}
 
 
@@ -88,9 +84,5 @@ def check_empty_on_nonsense(gaps: list[GapItem], expect_empty: bool) -> dict:
             "detail": "not a nonsense topic — check skipped",
         }
     passed = len(gaps) == 0
-    detail = (
-        "correctly returned 0 gaps"
-        if passed
-        else f"hallucination: returned {len(gaps)} gaps for nonsense topic"
-    )
+    detail = "correctly returned 0 gaps" if passed else f"hallucination: returned {len(gaps)} gaps for nonsense topic"
     return {"check": "empty_on_nonsense", "passed": passed, "detail": detail}

@@ -20,8 +20,8 @@ from backend.shared.models.review import Theme
 
 class ResearchState(TypedDict, total=False):
     # ── Input / conversation ──────────────────────────────────────────
-    query: str        # original user query (latest turn)
-    thread_id: str    # LangGraph thread ID for checkpoint lookup
+    query: str  # original user query (latest turn)
+    thread_id: str  # LangGraph thread ID for checkpoint lookup
 
     # Conversation history (Step 0 multi-turn); add_messages reducer appends
     messages: Annotated[list, add_messages]
@@ -38,32 +38,32 @@ class ResearchState(TypedDict, total=False):
 
     # For intent="search": rewritten query + sub-queries for parallel search
     refined_query: str
-    sub_queries: list[str]   # 4-6 angles for parallel_search
-    sources: list[str]       # LLM-selected subset of {semantic_scholar, openalex, arxiv, pubmed}
-    plan_description: str    # one-sentence plan summary shown for user approval
+    sub_queries: list[str]  # 4-6 angles for parallel_search
+    sources: list[str]  # LLM-selected subset of {semantic_scholar, openalex, arxiv, pubmed}
+    plan_description: str  # one-sentence plan summary shown for user approval
 
     # ── Step 0c: Research plan approval (interrupt) ───────────────────
     plan_approved: bool
 
     # ── Step ①: Parallel multi-source search ─────────────────────────
     raw_papers: list[Paper]
-    search_stats: dict[str, int]   # {"semantic_scholar": n, "openalex": n, "arxiv": n, "pubmed": n}
+    search_stats: dict[str, int]  # {"semantic_scholar": n, "openalex": n, "arxiv": n, "pubmed": n}
 
     # ── Step ①bis: Cross-source dedup ────────────────────────────────
-    papers: list[Paper]            # deduplicated corpus
+    papers: list[Paper]  # deduplicated corpus
 
     # ── Step ②bis: Snowball also updates `papers` + records who-cites-whom ──
-    citation_edges: list[dict]     # [{source, target, intent, isInfluential}] — source CITES target
+    citation_edges: list[dict]  # [{source, target, intent, isInfluential}] — source CITES target
 
     # ── Step ③: Embed + ChromaDB ─────────────────────────────────────
-    embed_stats: dict[str, int]    # {"api_hit": n, "fallback_hit": n, "stored": n}
+    embed_stats: dict[str, int]  # {"api_hit": n, "fallback_hit": n, "stored": n}
 
     # ── Step ④: Outline generation + interrupt ───────────────────────
     themes: list[Theme]
     outline_approved: bool
 
     # ── Steps ⑤⑥: Hybrid search + write ─────────────────────────────
-    theme_contents: list[dict]   # [{"theme": str, "content": str, "paper_ids": list[str]}]
+    theme_contents: list[dict]  # [{"theme": str, "content": str, "paper_ids": list[str]}]
 
     # ── Step ⑦: Claim extraction ─────────────────────────────────────
     claims: list[Claim]
@@ -77,10 +77,10 @@ class ResearchState(TypedDict, total=False):
     removed_claims: list[Claim]
 
     # ── Step ⑨bis: Knowledge Graph (knowledge-graph_SPEC_2.0.md) ──────
-    knowledge_graph: dict   # {nodes, edges, stats} — paper/theme/claim layers
+    knowledge_graph: dict  # {nodes, edges, stats} — paper/theme/claim layers
 
     # ── Step ⑩: Export ───────────────────────────────────────────────
-    latex_doc: str    # full .tex document string
+    latex_doc: str  # full .tex document string
     bib_content: str  # BibTeX .bib content
 
     # ── Error handling ────────────────────────────────────────────────

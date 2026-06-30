@@ -8,7 +8,6 @@ import importlib.util
 import pathlib
 import sys
 
-
 _CUSTOM_LOOP = "backend.main:_uvicorn_loop_factory"
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent
 

@@ -19,6 +19,7 @@ _CURRENT_YEAR = datetime.now().year
 
 # ── Seed selection: dual-pool (SPEC Fix 1) ────────────────────────────────────
 
+
 def select_seeds(papers: list[Paper], pool_size: int = 5) -> list[str]:
     """Dual-pool seed selection per SPEC_1.0.1:
     Pool A: top-N by raw citationCount (foundational papers)
@@ -46,6 +47,7 @@ def select_seeds(papers: list[Paper], pool_size: int = 5) -> list[str]:
 
 # ── Backward filter: time-decayed + isInfluential bypass (SPEC Fix 2) ─────────
 
+
 def _backward_keep(paper: Paper, is_influential: bool) -> bool:
     if is_influential:
         return True
@@ -67,6 +69,7 @@ def _forward_keep(paper: Paper, is_influential: bool) -> bool:
 
 
 # ── Main snowball ──────────────────────────────────────────────────────────────
+
 
 async def run_snowball(seed_ids: list[str], depth: int = 1) -> tuple[list[Paper], list[dict]]:
     """Expand seed papers via backward (references) + forward (citations) snowballing.
@@ -118,12 +121,14 @@ async def run_snowball(seed_ids: list[str], depth: int = 1) -> tuple[list[Paper]
                     seen.add(paper.paper_id)
                     new_papers.append(paper)
                     next_ids.append(paper.paper_id)
-                edges.append({
-                    "source": seed_pid,
-                    "target": paper.paper_id,
-                    "intent": intents[0] if intents else "background",
-                    "isInfluential": is_inf,
-                })
+                edges.append(
+                    {
+                        "source": seed_pid,
+                        "target": paper.paper_id,
+                        "intent": intents[0] if intents else "background",
+                        "isInfluential": is_inf,
+                    }
+                )
 
             # Forward (/citations): the newer paper CITES seed_pid.
             for entry in forward:
@@ -141,12 +146,14 @@ async def run_snowball(seed_ids: list[str], depth: int = 1) -> tuple[list[Paper]
                     seen.add(paper.paper_id)
                     new_papers.append(paper)
                     next_ids.append(paper.paper_id)
-                edges.append({
-                    "source": paper.paper_id,
-                    "target": seed_pid,
-                    "intent": intents[0] if intents else "background",
-                    "isInfluential": is_inf,
-                })
+                edges.append(
+                    {
+                        "source": paper.paper_id,
+                        "target": seed_pid,
+                        "intent": intents[0] if intents else "background",
+                        "isInfluential": is_inf,
+                    }
+                )
 
         current_seed_ids = next_ids[:10]
         if not current_seed_ids:

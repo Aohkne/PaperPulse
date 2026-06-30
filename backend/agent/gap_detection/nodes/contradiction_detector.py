@@ -53,8 +53,9 @@ opposite). For each contradiction, write a context_explanation: the
 plausible reason for the disagreement (e.g. different dataset, different
 year, different study scope or population).
 
-Cite the two conflicting papers using ONLY the paper ids listed above.
+For the "paper_id_a" and "paper_id_b" fields: use ONLY the paper ids listed above.
 The two ids MUST be different papers.
+In the "statement" narrative text: refer to papers by their title (e.g. "Smith et al.") — NEVER write raw paper ids in the statement.
 
 Return a JSON object with EXACTLY this shape:
 {{

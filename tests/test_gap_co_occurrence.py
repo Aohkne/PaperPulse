@@ -16,12 +16,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _make_epd(methodology: str | None, topics: list[str], paper_id: str = "p0"):
     """Create a minimal ExtractedPaperData for testing."""
     from backend.agent.gap_detection.schemas import ExtractedPaperData, PaperRef
+
     return ExtractedPaperData(
         paper_ref=PaperRef(paper_id=paper_id, title=f"Paper {paper_id}"),
         methodology=methodology,
@@ -47,10 +48,7 @@ def test_build_co_occurrence_counts_pairs() -> None:
     """AC: 3 papers with method=transformer + domain=NLP → count=3."""
     from backend.agent.gap_detection.co_occurrence import build_co_occurrence
 
-    papers = [
-        _make_epd("transformer", ["NLP"], f"p{i}")
-        for i in range(3)
-    ]
+    papers = [_make_epd("transformer", ["NLP"], f"p{i}") for i in range(3)]
     matrix = build_co_occurrence(papers)
     assert matrix[("transformer", "nlp")] == 3
 
@@ -142,8 +140,8 @@ def test_collect_corpus_vocab_deduplication() -> None:
         _make_epd("CNN", ["vision"], "p2"),
     ]
     methods, domains = collect_corpus_vocab(papers)
-    assert methods == ["cnn", "transformer"]   # sorted, deduped
-    assert domains == ["nlp", "vision"]        # sorted, deduped
+    assert methods == ["cnn", "transformer"]  # sorted, deduped
+    assert domains == ["nlp", "vision"]  # sorted, deduped
 
 
 def test_collect_corpus_vocab_no_methodology() -> None:
@@ -196,13 +194,9 @@ def test_co_occurrence_threshold_invalid_env_falls_back() -> None:
 async def test_method_detector_no_gap_for_covered_pairs() -> None:
     """AC: method_detector does not suggest a gap for well-covered (transformer, NLP) pairs."""
     from backend.agent.gap_detection.nodes.method_detector import method_detector_node
-    from backend.agent.gap_detection.schemas import ExtractedPaperData, PaperRef
 
     # 3 papers all cover (transformer, NLP) → count=3 ≥ threshold=2 → COVERED
-    papers = [
-        _make_epd("transformer", ["NLP"], f"p{i}")
-        for i in range(3)
-    ]
+    papers = [_make_epd("transformer", ["NLP"], f"p{i}") for i in range(3)]
 
     # LLM returns empty gaps (mocked) — test is about the wire path, not LLM output
     with patch(
@@ -305,9 +299,7 @@ async def test_method_detector_skips_untrusted_density_cells() -> None:
         "backend.agent.gap_detection.nodes.method_detector.chat_completion",
         new=_capture_chat,
     ):
-        await method_detector_node(
-            {"extracted_data": papers, "candidate_gaps": [], "density_signal": density_signal}
-        )
+        await method_detector_node({"extracted_data": papers, "candidate_gaps": [], "density_signal": density_signal})
 
     user_content = next(m["content"] for m in captured_messages if m["role"] == "user")
     assert "[UNDEREXPLORED domains exist]" not in user_content

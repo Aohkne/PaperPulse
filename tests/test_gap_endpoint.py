@@ -1,35 +1,36 @@
-"""Tests for the /api/gap endpoint — cold-start contract (TIP-G12).
-
-After TIP-G05 the endpoint accepts {topic: str} and routes to
-``orchestrator.cold_start``.  These tests cover the router contract:
-  - request validation (topic min_length=3, missing field, wrong shape)
-  - response shape (GapReport)
-  - insufficient-paper happy path (gaps=[], narrative)
-  - internal error -> 500 with safe message (no stack trace in body)
-
-``cold_start`` is mocked — pipeline internals are covered by test_gap_e2e.py.
-"""
+"""Tests for the /api/gap endpoint cold-start contract."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from backend.agent.gap_detection import router as gap_router
 from backend.agent.gap_detection.schemas import GapReport
+from backend.auth.dependencies import get_current_user
+from backend.main import app
 
-# Mock target: cold_start as imported in the router module
 _COLD_START = "backend.agent.gap_detection.router.cold_start"
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+async def _override_user():
+    return SimpleNamespace(id="00000000-0000-0000-0000-000000000001", email="test@example.com")
+
+
+@pytest.fixture(autouse=True)
+def _override_gap_dependencies(monkeypatch):
+    app.dependency_overrides[get_current_user] = _override_user
+    monkeypatch.setattr(gap_router.billing_db, "start_session", AsyncMock(return_value={}))
+    monkeypatch.setattr(gap_router.billing_db, "refund_session", AsyncMock(return_value={}))
+    yield
+    app.dependency_overrides.clear()
+
 
 def _make_report(**kwargs) -> GapReport:
     defaults = dict(papers_analyzed=5, narrative="Gaps found", gaps=[])
     return GapReport(**{**defaults, **kwargs})
-
-
-# ── Test cases ────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
@@ -71,11 +72,7 @@ async def test_missing_topic_field(client) -> None:
 @pytest.mark.asyncio
 async def test_old_warm_shape_rejected(client) -> None:
     """AC: old warm-start shape {papers:[...]} -> 422 (topic field missing)."""
-    old_payload = {
-        "papers": [
-            {"paper_id": "p1", "title": "Some paper", "year": 2024}
-        ]
-    }
+    old_payload = {"papers": [{"paper_id": "p1", "title": "Some paper", "year": 2024}]}
     resp = await client.post("/api/gap", json=old_payload)
     assert resp.status_code == 422
 
@@ -85,7 +82,7 @@ async def test_insufficient_papers(client) -> None:
     """AC: cold_start returns gaps=[] narrative -> 200 + gaps empty, narrative present."""
     report = _make_report(
         papers_analyzed=2,
-        narrative="Không đủ tài liệu cho chủ đề này.",
+        narrative="Khong du tai lieu cho chu de nay.",
         gaps=[],
     )
     with patch(_COLD_START, new=AsyncMock(return_value=report)) as mock_cs:
@@ -94,7 +91,7 @@ async def test_insufficient_papers(client) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["gaps"] == []
-    assert "Không đủ" in data["narrative"]
+    assert "Khong du" in data["narrative"]
     mock_cs.assert_awaited_once()
 
 
@@ -106,9 +103,7 @@ async def test_internal_error(client) -> None:
 
     assert resp.status_code == 500
     body_text = resp.text
-    # Safe message present
-    assert "Gap detection" in body_text or "thất bại" in body_text
-    # Stack trace NOT leaked
+    assert "Gap detection" in body_text or "that bai" in body_text
     assert "boom" not in body_text
     assert "Traceback" not in body_text
     assert "RuntimeError" not in body_text

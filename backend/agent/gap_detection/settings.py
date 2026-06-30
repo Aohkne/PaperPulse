@@ -8,31 +8,31 @@ from __future__ import annotations
 
 import os
 
-_DEFAULT_NIM_RETRY_MAX = 3            # max retry attempts for NIM API HTTP 429
-_DEFAULT_NIM_BACKOFF_BASE = 2.0       # exponential backoff base seconds (attempt N → base^N s)
+_DEFAULT_NIM_RETRY_MAX = 3  # max retry attempts for NIM API HTTP 429
+_DEFAULT_NIM_BACKOFF_BASE = 2.0  # exponential backoff base seconds (attempt N → base^N s)
 _DEFAULT_NIM_UPSERT_CONCURRENCY = 3  # max concurrent NIM abstract upserts (TIP-410)
 
-_DEFAULT_MAX_PAPERS = 20          # cap-final (G11.1 — Chu thau duyet 2026-06-20):
-                                   # E2E@20 ~4.8min validated from G10.4 data:
-                                   # pipeline@N=10=175s, extractor dom. ~100s, fixed~75s;
-                                   # budget 300s-13s(retrieval)-75s(fixed)=212s extractor
-                                   # @20 papers=4 batches@conc5: 4/2*100=200s < 212s ok.
-                                   # Phase 2: raise EXTRACTOR_CONCURRENCY 5->8-10 to lift to 30.
-_DEFAULT_CONCURRENCY = 3          # S2 + LLM concurrent requests per extractor batch (TIP-410: 5→3)
-_DEFAULT_MIN_COLD_START = 5       # minimum papers required to trigger cold-start gap run
+_DEFAULT_MAX_PAPERS = 20  # cap-final (G11.1 — Chu thau duyet 2026-06-20):
+# E2E@20 ~4.8min validated from G10.4 data:
+# pipeline@N=10=175s, extractor dom. ~100s, fixed~75s;
+# budget 300s-13s(retrieval)-75s(fixed)=212s extractor
+# @20 papers=4 batches@conc5: 4/2*100=200s < 212s ok.
+# Phase 2: raise EXTRACTOR_CONCURRENCY 5->8-10 to lift to 30.
+_DEFAULT_CONCURRENCY = 3  # S2 + LLM concurrent requests per extractor batch (TIP-410: 5→3)
+_DEFAULT_MIN_COLD_START = 5  # minimum papers required to trigger cold-start gap run
 _DEFAULT_CO_OCCURRENCE_THRESHOLD = 2  # gap if < 2 papers cover (method, domain) pair
-_DEFAULT_HYDE_ABSTRACT_WORDS = 80     # target word count for HyDE abstract generation
-_DEFAULT_SPECTER2_WEIGHT = 0.4        # semantic arm weight in hybrid rank (0.4 sem + 0.6 BM25)
-_DEFAULT_BACKGROUND_POOL_SIZE = 100   # default pool size for background corpus (reduced from 200)
-_DEFAULT_BACKGROUND_BATCH_SIZE = 25   # default SPECTER2 batch size (smaller to reduce S2 rate-limit pressure)
-_DEFAULT_SPECTER_RETRY_MAX = 3        # max retries on 429 from SPECTER2 API
-_DEFAULT_SPECTER_BACKOFF_BASE = 2.0   # exponential backoff base (seconds)
+_DEFAULT_HYDE_ABSTRACT_WORDS = 80  # target word count for HyDE abstract generation
+_DEFAULT_SPECTER2_WEIGHT = 0.4  # semantic arm weight in hybrid rank (0.4 sem + 0.6 BM25)
+_DEFAULT_BACKGROUND_POOL_SIZE = 100  # default pool size for background corpus (reduced from 200)
+_DEFAULT_BACKGROUND_BATCH_SIZE = 25  # default SPECTER2 batch size (smaller to reduce S2 rate-limit pressure)
+_DEFAULT_SPECTER_RETRY_MAX = 3  # max retries on 429 from SPECTER2 API
+_DEFAULT_SPECTER_BACKOFF_BASE = 2.0  # exponential backoff base (seconds)
 _DEFAULT_FALSE_GAP_THRESHOLD = 0.15  # cosine distance < 0.15 → probable existing research
-_DEFAULT_TOP_K_GAPS = 7              # default number of top gaps returned after quality ranking
-_DEFAULT_INTENT_OFF_PENALTY = 0.7   # quality_score multiplier for gaps whose topic diverges from user_intent
+_DEFAULT_TOP_K_GAPS = 7  # default number of top gaps returned after quality ranking
+_DEFAULT_INTENT_OFF_PENALTY = 0.7  # quality_score multiplier for gaps whose topic diverges from user_intent
 _DEFAULT_FIELDS_OF_STUDY = "Computer Science"
 _DEFAULT_ARXIV_ENABLED = True
-_DEFAULT_ARXIV_SEARCH_LIMIT = 20     # arXiv papers per query (supplement to S2)
+_DEFAULT_ARXIV_SEARCH_LIMIT = 20  # arXiv papers per query (supplement to S2)
 
 
 def get_default_fields_of_study() -> list[str] | None:

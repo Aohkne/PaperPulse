@@ -12,7 +12,6 @@ Covers:
 
 from __future__ import annotations
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -109,13 +108,17 @@ async def test_verifier_inferred_2_papers_confidence():
     state = {
         "candidate_gaps": [gap],
         "extracted_data": [
-            type("E", (), {
-                "paper_ref": PaperRef(paper_id="p0", title="P0"),
-                "abstract": "Strong abstract support",
-                "key_claims": [],
-                "limitation_statements": [],
-                "methodology": None,
-            })()
+            type(
+                "E",
+                (),
+                {
+                    "paper_ref": PaperRef(paper_id="p0", title="P0"),
+                    "abstract": "Strong abstract support",
+                    "key_claims": [],
+                    "limitation_statements": [],
+                    "methodology": None,
+                },
+            )()
         ],
     }
 
@@ -138,13 +141,17 @@ async def test_verifier_inferred_3_papers_confidence():
     state = {
         "candidate_gaps": [gap],
         "extracted_data": [
-            type("E", (), {
-                "paper_ref": PaperRef(paper_id="p0", title="P0"),
-                "abstract": "Weak abstract support",
-                "key_claims": [],
-                "limitation_statements": [],
-                "methodology": None,
-            })()
+            type(
+                "E",
+                (),
+                {
+                    "paper_ref": PaperRef(paper_id="p0", title="P0"),
+                    "abstract": "Weak abstract support",
+                    "key_claims": [],
+                    "limitation_statements": [],
+                    "methodology": None,
+                },
+            )()
         ],
     }
 
@@ -314,16 +321,16 @@ def test_quality_score_varies_with_confidence():
     score_high = compute_quality_score(gap_high)
     score_low = compute_quality_score(gap_low)
 
-    assert score_high > score_low, (
-        f"quality score should be higher for higher confidence: {score_high} vs {score_low}"
-    )
+    assert score_high > score_low, f"quality score should be higher for higher confidence: {score_high} vs {score_low}"
 
 
 def test_quality_breakdown_is_exposed_from_scorer():
     """quality_breakdown mirrors the normalized axes used by compute_quality_score."""
     from backend.agent.gap_detection.quality_scorer import compute_quality_score
 
-    gap = _make_gap(n_papers=4, confidence=0.77, suggested_method=None, falsifiability_condition="If Y is shown, gap is closed")
+    gap = _make_gap(
+        n_papers=4, confidence=0.77, suggested_method=None, falsifiability_condition="If Y is shown, gap is closed"
+    )
     gap.novelty_score = 1.3
 
     score = compute_quality_score(gap)

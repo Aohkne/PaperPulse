@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import logging
 
-from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
+from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.services.snowball import run_snowball, select_seeds
 
 log = logging.getLogger(__name__)

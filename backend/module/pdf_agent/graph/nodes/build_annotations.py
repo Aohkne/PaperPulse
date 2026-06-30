@@ -37,16 +37,18 @@ def _suggest_annotations(state: PDFAgentState) -> list[Annotation]:
             if pos == -1:
                 continue
             anchor = build_anchor(section["raw_latex"], pos, pos + len(quote))
-            out.append({
-                "id": str(uuid4()),
-                "type": "suggest",
-                "anchor": anchor,
-                "aspect": issue.get("aspect", "clarity"),
-                "comment": issue.get("comment", ""),
-                "suggested_fix": issue.get("suggested_fix"),
-                "evidence": None,
-                "status": "pending",
-            })
+            out.append(
+                {
+                    "id": str(uuid4()),
+                    "type": "suggest",
+                    "anchor": anchor,
+                    "aspect": issue.get("aspect", "clarity"),
+                    "comment": issue.get("comment", ""),
+                    "suggested_fix": issue.get("suggested_fix"),
+                    "evidence": None,
+                    "status": "pending",
+                }
+            )
     return out
 
 
@@ -64,16 +66,18 @@ def _citation_warning_annotations(state: PDFAgentState) -> list[Annotation]:
             "prefix": rf"\bibitem{{{key}}} " if key else "",
             "suffix": "",
         }
-        out.append({
-            "id": str(uuid4()),
-            "type": "warning",
-            "anchor": anchor,
-            "aspect": _VERDICT_ASPECT[label],
-            "comment": _VERDICT_COMMENT[label],
-            "suggested_fix": None,
-            "evidence": verdict.get("evidence"),
-            "status": "pending",
-        })
+        out.append(
+            {
+                "id": str(uuid4()),
+                "type": "warning",
+                "anchor": anchor,
+                "aspect": _VERDICT_ASPECT[label],
+                "comment": _VERDICT_COMMENT[label],
+                "suggested_fix": None,
+                "evidence": verdict.get("evidence"),
+                "status": "pending",
+            }
+        )
     return out
 
 
@@ -91,18 +95,19 @@ def _link_warning_annotations(state: PDFAgentState) -> list[Annotation]:
             continue
         anchor = build_anchor(section["raw_latex"], pos, pos + len(url))
         status = link.get("status_code")
-        out.append({
-            "id": str(uuid4()),
-            "type": "warning",
-            "anchor": anchor,
-            "aspect": "broken_link",
-            "comment": (
-                f"This link returned HTTP {status}" if status else "This link did not respond"
-            ) + " — please check the URL.",
-            "suggested_fix": None,
-            "evidence": {"url": url, "status_code": status},
-            "status": "pending",
-        })
+        out.append(
+            {
+                "id": str(uuid4()),
+                "type": "warning",
+                "anchor": anchor,
+                "aspect": "broken_link",
+                "comment": (f"This link returned HTTP {status}" if status else "This link did not respond")
+                + " — please check the URL.",
+                "suggested_fix": None,
+                "evidence": {"url": url, "status_code": status},
+                "status": "pending",
+            }
+        )
     return out
 
 
@@ -111,16 +116,18 @@ def _missing_asset_annotations(state: PDFAgentState) -> list[Annotation]:
     for fig in state.get("figures") or []:
         if not fig.get("missing") or not fig.get("anchor"):
             continue
-        out.append({
-            "id": str(uuid4()),
-            "type": "warning",
-            "anchor": fig["anchor"],
-            "aspect": "missing_asset",
-            "comment": "This figure is referenced but its file is missing. Please re-upload as a .zip including the image folder.",
-            "suggested_fix": None,
-            "evidence": None,
-            "status": "pending",
-        })
+        out.append(
+            {
+                "id": str(uuid4()),
+                "type": "warning",
+                "anchor": fig["anchor"],
+                "aspect": "missing_asset",
+                "comment": "This figure is referenced but its file is missing. Please re-upload as a .zip including the image folder.",
+                "suggested_fix": None,
+                "evidence": None,
+                "status": "pending",
+            }
+        )
     return out
 
 

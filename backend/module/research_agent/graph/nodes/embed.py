@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import logging
 
-from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
+from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.services.embedding import embed_text
-from backend.shared.services.semantic_scholar import get_embeddings_batch
 from backend.module.research_agent.services.vector_store import upsert_papers
+from backend.shared.services.semantic_scholar import get_embeddings_batch
 
 log = logging.getLogger(__name__)
 

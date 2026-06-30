@@ -46,7 +46,7 @@ def _to_paper(raw: dict) -> Paper:
 
     doi = raw.get("doi") or ""
     if doi.startswith("https://doi.org/"):
-        doi = doi[len("https://doi.org/"):]
+        doi = doi[len("https://doi.org/") :]
 
     external_ids: dict[str, str] = {}
     if doi:
@@ -55,7 +55,7 @@ def _to_paper(raw: dict) -> Paper:
     ids = raw.get("ids") or {}
     arxiv_raw = ids.get("arxiv") or ""
     if arxiv_raw.startswith("https://arxiv.org/abs/"):
-        arxiv_raw = arxiv_raw[len("https://arxiv.org/abs/"):]
+        arxiv_raw = arxiv_raw[len("https://arxiv.org/abs/") :]
     if arxiv_raw:
         external_ids["ArXiv"] = arxiv_raw
 

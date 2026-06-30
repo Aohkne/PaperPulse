@@ -34,5 +34,7 @@ async def load_owned_state(doc_id: str, user) -> PDFAgentState:
     if not state.values or state.values.get("user_id") != str(user.id):
         raise HTTPException(status_code=404, detail="Document not found")
     if "main_tex_path" not in state.values:
-        raise HTTPException(status_code=409, detail="Document is still processing or failed to parse — please re-upload")
+        raise HTTPException(
+            status_code=409, detail="Document is still processing or failed to parse — please re-upload"
+        )
     return state.values

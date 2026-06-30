@@ -19,6 +19,7 @@ def _uvicorn_loop_factory() -> asyncio.AbstractEventLoop:
         return asyncio.SelectorEventLoop()
     return asyncio.new_event_loop()
 
+
 _settings_for_sentry = get_settings()
 if _settings_for_sentry.sentry_dsn:
     import sentry_sdk
@@ -26,7 +27,9 @@ if _settings_for_sentry.sentry_dsn:
     # Initialized once at process start, before the app handles any request —
     # no-op (never imported/called) when SENTRY_DSN is unset, matching every
     # other optional integration in this codebase (optimize_Plan.html §5).
-    sentry_sdk.init(dsn=_settings_for_sentry.sentry_dsn, environment=_settings_for_sentry.app_env, traces_sample_rate=0.1)
+    sentry_sdk.init(
+        dsn=_settings_for_sentry.sentry_dsn, environment=_settings_for_sentry.app_env, traces_sample_rate=0.1
+    )
 
 
 @asynccontextmanager

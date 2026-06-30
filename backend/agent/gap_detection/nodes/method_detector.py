@@ -73,8 +73,9 @@ Find METHODOLOGICAL gaps:
    (e.g. "we did not try method X").
 
 For each gap, set "from_limitation" to true ONLY when the gap comes
-directly from a limitation statement, otherwise false. Cite papers using
-ONLY the paper ids listed above.
+directly from a limitation statement, otherwise false. List paper ids in
+"supporting_paper_ids" using ONLY the ids above.
+In the "statement" field, write a natural narrative describing the gap — do NOT include raw paper ids in the statement text.
 
 Return a JSON object with EXACTLY this shape:
 {{
@@ -128,10 +129,7 @@ async def method_detector_node(state: GapDetectionState) -> dict[str, Any]:
     density_signal = state.get("density_signal")
     trusted_cells = set((density_signal or {}).get("trusted_cells", []) or [])
     if density_signal is not None:
-        underexplored = {
-            pair for pair in underexplored
-            if f"{pair[0]}|{pair[1]}" in trusted_cells
-        }
+        underexplored = {pair for pair in underexplored if f"{pair[0]}|{pair[1]}" in trusted_cells}
 
     matrix = _build_method_matrix(extracted, underexplored)
     limitations = _build_limitations_block(extracted)
@@ -201,10 +199,7 @@ def _build_method_matrix(extracted: list[ExtractedPaperData], underexplored: set
         if underexplored is not None and epd.methodology and epd.topics:
             method_tok = epd.methodology.strip().lower()
             # Check if the primary method token has any underexplored domain pairs.
-            has_underexplored = any(
-                (method_tok, d.strip().lower()) in underexplored
-                for d in epd.topics
-            )
+            has_underexplored = any((method_tok, d.strip().lower()) in underexplored for d in epd.topics)
             coverage_note = " [UNDEREXPLORED domains exist]" if has_underexplored else " [COVERED]"
 
         lines.append(

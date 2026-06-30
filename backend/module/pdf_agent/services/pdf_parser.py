@@ -42,6 +42,7 @@ def _get_executor() -> ThreadPoolExecutor:
         )
     return _executor
 
+
 _HEADING_RE = re.compile(
     r"^(?:\d{1,2}[\.\)]?\s+)?"
     r"(Abstract|Introduction|Related Work|Background|Motivation|"
@@ -53,13 +54,16 @@ _HEADING_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 
-_FIGURE_CAPTION_RE = re.compile(r"\b(?:Figure|Fig\.?)\s*(\d+)\s*[:.]?\s*(.{0,200}?)(?:\n\n|\.\s|$)", re.IGNORECASE | re.DOTALL)
+_FIGURE_CAPTION_RE = re.compile(
+    r"\b(?:Figure|Fig\.?)\s*(\d+)\s*[:.]?\s*(.{0,200}?)(?:\n\n|\.\s|$)", re.IGNORECASE | re.DOTALL
+)
 _REF_HEADING_RE = re.compile(r"^(References?|Bibliography)\s*$", re.IGNORECASE | re.MULTILINE)
 _MIN_IMAGE_DIM = 50  # px — skip tiny logos/icons
 
 
 def get_pdf_page_count(pdf_path: str) -> int:
     import fitz
+
     doc = fitz.open(pdf_path)
     try:
         return doc.page_count
@@ -121,7 +125,9 @@ def _extract_sections(full_text: str) -> list[Section]:
     return sections or [{"title": "Document", "raw_latex": full_text.strip(), "paragraph_ids": ["document-p0"]}]
 
 
-def _extract_figures(doc, page_texts: list[str], page_offsets: list[int], full_text: str, figures_dir: str) -> list[Figure]:
+def _extract_figures(
+    doc, page_texts: list[str], page_offsets: list[int], full_text: str, figures_dir: str
+) -> list[Figure]:
     Path(figures_dir).mkdir(parents=True, exist_ok=True)
     figures: list[Figure] = []
     seen_xrefs: set[int] = set()
@@ -154,14 +160,16 @@ def _extract_figures(doc, page_texts: list[str], page_offsets: list[int], full_t
                     global_start = page_offsets[page_index] + local_pos
                     anchor = build_anchor(full_text, global_start, global_start + len(caption))
 
-            figures.append({
-                "image_path": str(out_path),
-                "caption": caption,
-                "label": None,  # PDF gốc không có \label — xem SPEC Step P1 "Giới hạn cần biết"
-                "anchor": anchor,
-                "page_number": page_index + 1,
-                "missing": False,
-            })
+            figures.append(
+                {
+                    "image_path": str(out_path),
+                    "caption": caption,
+                    "label": None,  # PDF gốc không có \label — xem SPEC Step P1 "Giới hạn cần biết"
+                    "anchor": anchor,
+                    "page_number": page_index + 1,
+                    "missing": False,
+                }
+            )
 
     return figures
 
@@ -170,7 +178,7 @@ def _extract_reference_lines(full_text: str) -> list[str]:
     matches = list(_REF_HEADING_RE.finditer(full_text))
     if not matches:
         return []
-    block = full_text[matches[-1].end():]
+    block = full_text[matches[-1].end() :]
     # Numbered markers like "[12]" or "12." at line start — split before each.
     splits = list(re.finditer(r"(?:^|\n)\s*(?:\[\d+\]|\d{1,3}\.)\s+", block))
     if len(splits) >= 2:
@@ -212,30 +220,41 @@ async def parse_references_with_llm(raw_lines: list[str]) -> list[RawCitation]:
     llm = get_llm(temperature=get_settings().pdf_judge_temperature, streaming=False)
     numbered = "\n".join(f"{i + 1}. {line}" for i, line in enumerate(raw_lines))
     try:
-        response = await ainvoke_with_timeout(llm, [
-            {"role": "system", "content": _REFERENCE_CLEANUP_PROMPT},
-            {"role": "user", "content": numbered},
-        ])
+        response = await ainvoke_with_timeout(
+            llm,
+            [
+                {"role": "system", "content": _REFERENCE_CLEANUP_PROMPT},
+                {"role": "user", "content": numbered},
+            ],
+        )
         content = response.content if hasattr(response, "content") else str(response)
         match = re.search(r"\[.*\]", content, re.DOTALL)
         parsed = json.loads(match.group(0) if match else content)
     except Exception:
         logger.warning("parse_references_with_llm failed — falling back to raw_text-only citations", exc_info=True)
         return [
-            {"key": None, "raw_text": line, "guessed_title": None, "guessed_authors": None,
-             "guessed_year": None, "guessed_doi_or_url": None}
+            {
+                "key": None,
+                "raw_text": line,
+                "guessed_title": None,
+                "guessed_authors": None,
+                "guessed_year": None,
+                "guessed_doi_or_url": None,
+            }
             for line in raw_lines
         ]
 
     citations: list[RawCitation] = []
     for i, line in enumerate(raw_lines):
         item = parsed[i] if i < len(parsed) and isinstance(parsed[i], dict) else {}
-        citations.append({
-            "key": None,
-            "raw_text": item.get("raw_text") or line,
-            "guessed_title": item.get("guessed_title"),
-            "guessed_authors": item.get("guessed_authors"),
-            "guessed_year": item.get("guessed_year"),
-            "guessed_doi_or_url": item.get("guessed_doi_or_url"),
-        })
+        citations.append(
+            {
+                "key": None,
+                "raw_text": item.get("raw_text") or line,
+                "guessed_title": item.get("guessed_title"),
+                "guessed_authors": item.get("guessed_authors"),
+                "guessed_year": item.get("guessed_year"),
+                "guessed_doi_or_url": item.get("guessed_doi_or_url"),
+            }
+        )
     return citations

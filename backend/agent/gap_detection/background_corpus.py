@@ -33,30 +33,33 @@ async def _embed_batch_specter_with_retry(
             logger.error(f"SPECTER2 batch failed (non-429): {e}")
             return {}
         if retry >= max_retries:
-            logger.error(
-                f"SPECTER2 batch 429: đã retry {max_retries} lần, skip {len(paper_ids)} papers"
-            )
+            logger.error(f"SPECTER2 batch 429: đã retry {max_retries} lần, skip {len(paper_ids)} papers")
             return {}
         delay = backoff_base ** (retry + 1)
-        logger.warning(
-            f"SPECTER2 batch 429, retry {retry+1}/{max_retries} sau {delay}s"
-        )
+        logger.warning(f"SPECTER2 batch 429, retry {retry + 1}/{max_retries} sau {delay}s")
         await asyncio.sleep(delay)
         if retry == 0 and len(paper_ids) > 10:
             mid = len(paper_ids) // 2
             left = await _embed_batch_specter_with_retry(
-                paper_ids[:mid], retry=max_retries - 1,
-                max_retries=max_retries, backoff_base=backoff_base,
+                paper_ids[:mid],
+                retry=max_retries - 1,
+                max_retries=max_retries,
+                backoff_base=backoff_base,
             )
             right = await _embed_batch_specter_with_retry(
-                paper_ids[mid:], retry=max_retries - 1,
-                max_retries=max_retries, backoff_base=backoff_base,
+                paper_ids[mid:],
+                retry=max_retries - 1,
+                max_retries=max_retries,
+                backoff_base=backoff_base,
             )
             return {**left, **right}
         return await _embed_batch_specter_with_retry(
-            paper_ids, retry=retry + 1,
-            max_retries=max_retries, backoff_base=backoff_base,
+            paper_ids,
+            retry=retry + 1,
+            max_retries=max_retries,
+            backoff_base=backoff_base,
         )
+
 
 async def build_background_corpus(clean_query: str) -> int:
     """
@@ -64,7 +67,7 @@ async def build_background_corpus(clean_query: str) -> int:
     Trả số papers đã upsert thành công.
     KHÔNG extract/LLM — chỉ dùng search+snowball+SPECTER2.
     """
-    pool_size = get_background_pool_size()   # default 100
+    pool_size = get_background_pool_size()  # default 100
     pool = await retrieval.search(clean_query, limit=pool_size)
     merged = await retrieval.snowball(pool)
 
@@ -72,7 +75,7 @@ async def build_background_corpus(clean_query: str) -> int:
     batch_size = get_background_batch_size()
     upserted = 0
     for i in range(0, len(merged), batch_size):
-        batch = merged[i:i+batch_size]
+        batch = merged[i : i + batch_size]
         paper_ids = [p.paper_id for p in batch if p.paper_id]
         if not paper_ids:
             continue
@@ -83,16 +86,16 @@ async def build_background_corpus(clean_query: str) -> int:
                 backoff_base=get_specter_backoff_base(),
             )
             papers_with_vec = [
-                {"paper_id": p.paper_id, "title": p.title or "",
-                 "year": p.year, "vector": vectors.get(p.paper_id)}
-                for p in batch if p.paper_id and vectors.get(p.paper_id)
+                {"paper_id": p.paper_id, "title": p.title or "", "year": p.year, "vector": vectors.get(p.paper_id)}
+                for p in batch
+                if p.paper_id and vectors.get(p.paper_id)
             ]
             if papers_with_vec:
                 await upsert_papers(papers_with_vec)
                 upserted += len(papers_with_vec)
         except Exception:
             logger.warning(f"build_background_corpus: batch {i} failed, skipping", exc_info=True)
-            continue   # batch fail → skip, tiếp batch sau
+            continue  # batch fail → skip, tiếp batch sau
 
         # Thêm NIM upsert (fire-and-forget per paper, không block batch):
         for p in batch:
@@ -101,12 +104,16 @@ async def build_background_corpus(clean_query: str) -> int:
             try:
                 nim_vec = await embed_text(p.abstract)
                 if nim_vec:
-                    await upsert_papers_nim([{
-                        "paper_id": p.paper_id,
-                        "title": p.title or "",
-                        "year": p.year or 0,
-                        "vector": nim_vec,
-                    }])
+                    await upsert_papers_nim(
+                        [
+                            {
+                                "paper_id": p.paper_id,
+                                "title": p.title or "",
+                                "year": p.year or 0,
+                                "vector": nim_vec,
+                            }
+                        ]
+                    )
             except Exception:
                 pass  # fire-and-forget, không crash batch
 

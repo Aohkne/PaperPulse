@@ -9,6 +9,7 @@ Differences from research_agent/services/embedding.py:
   - Uses gap-local settings (NIM_RETRY_MAX, NIM_BACKOFF_BASE from gap_detection.settings).
   - fetch_and_store_embeddings() is NOT included (research_agent concern only).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,8 +17,8 @@ import logging
 
 import httpx
 
-from backend.config import get_settings
 from backend.agent.gap_detection.settings import get_nim_backoff_base, get_nim_retry_max
+from backend.config import get_settings
 
 logger = logging.getLogger(__name__)
 

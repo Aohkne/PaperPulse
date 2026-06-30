@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -221,7 +221,7 @@ async def test_deliver_in_app_notifications_is_idempotent_for_existing_notificat
             "id": "notification-1",
             "user_id": "user-1",
             "type": "new_paper",
-            "content": "New paper for your topic \"GraphRAG evaluation\"",
+            "content": 'New paper for your topic "GraphRAG evaluation"',
             "paper_ref": {"id": "paper-1", "title": "GraphRAG evaluation benchmark design"},
             "is_read": False,
             "created_at": "2026-06-25T01:05:00Z",
@@ -275,7 +275,6 @@ async def test_deliver_in_app_notifications_releases_queued_event_after_unpause_
     assert delivery_db.tables["notification_events"][0]["status"] == "sent"
 
 
-
 @pytest.mark.asyncio
 async def test_deliver_in_app_notifications_skips_muted_or_deleted_topics(delivery_db):
     from backend.shared.services import topic_monitoring
@@ -325,7 +324,7 @@ async def test_notification_open_flow_can_monitor_then_deliver_new_notification(
     monkeypatch.setattr(topic_monitoring, "search_pubmed", fake_empty)
 
     monitor_result = await topic_monitoring.run_topic_monitor(
-        now=datetime(2026, 6, 26, 12, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 6, 26, 12, 0, tzinfo=UTC),
         user_id="user-1",
     )
     delivery_result = await topic_monitoring.deliver_in_app_notifications(user_id="user-1")

@@ -38,4 +38,3 @@ def test_dedup_gaps_by_jaccard_keeps_best_gap_per_cluster() -> None:
     assert deduped[0].statement == "gap-a"
     assert deduped[0].evidence_quotes == ["q1", "q2"]
     assert deduped[1].statement == "gap-c"
-

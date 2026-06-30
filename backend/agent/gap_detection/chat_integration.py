@@ -16,13 +16,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from backend.agent.gap_detection import retrieval
 from backend.agent.gap_detection.graph import run_gap_detection
 from backend.agent.gap_detection.nodes.paper_check import (
     collect_session_papers,
     paper_check_node,
 )
 from backend.agent.gap_detection.schemas import GapDetectionState, PaperRef
-from backend.agent.gap_detection import retrieval
 from backend.shared.models.paper import Paper
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,9 @@ async def _baseline_topup(existing: list[PaperRef], query: str) -> list[PaperRef
     try:
         found: list[Paper] = await retrieval.search(query, limit=BASELINE_SEARCH_LIMIT)
     except Exception:
-        logger.warning("run_gap_detection_chat: baseline search failed — proceeding with existing papers", exc_info=True)
+        logger.warning(
+            "run_gap_detection_chat: baseline search failed — proceeding with existing papers", exc_info=True
+        )
         return existing
 
     merged = list(existing)

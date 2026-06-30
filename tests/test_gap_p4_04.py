@@ -21,9 +21,7 @@ Also covers:
 
 from __future__ import annotations
 
-import pytest
-
-from backend.agent.gap_detection.schemas import CanonicalPaper, CorpusRole
+from backend.agent.gap_detection.schemas import CorpusRole
 from backend.agent.gap_detection.source_resolution import (
     RawRecord,
     _normalize_doi,
@@ -32,7 +30,6 @@ from backend.agent.gap_detection.source_resolution import (
     resolve_papers,
 )
 from backend.shared.models.paper import Paper
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -114,8 +111,8 @@ def test_normalize_title_collapses_whitespace():
 
 def test_normalize_title_nfc():
     """Precomposed and decomposed forms of the same character → same key."""
-    composed = _normalize_title("café")       # é precomposed
-    decomposed = _normalize_title("café")    # é decomposed
+    composed = _normalize_title("café")  # é precomposed
+    decomposed = _normalize_title("café")  # é decomposed
     assert composed == decomposed
 
 
@@ -196,10 +193,8 @@ def test_resolve_same_title_no_doi():
 
 def test_resolve_fulltext_preferred_over_abstract():
     """AC3: one record with fulltext, one with abstract only → fulltext propagated."""
-    p_abstract = _paper(paper_id="p1", title="Paper B", doi="10.5/b",
-                        abstract="Short abstract")
-    p_fulltext = _paper(paper_id="p2", title="Paper B", doi="10.5/b",
-                        abstract="Abstract from fulltext source")
+    p_abstract = _paper(paper_id="p1", title="Paper B", doi="10.5/b", abstract="Short abstract")
+    p_fulltext = _paper(paper_id="p2", title="Paper B", doi="10.5/b", abstract="Abstract from fulltext source")
 
     records = [
         _rec(p_abstract, source_name="s2", fulltext=None),
@@ -308,8 +303,10 @@ def test_resolve_abstract_longest_when_no_fulltext():
     doi = "10.1/abs"
     records = [
         _rec(_paper(paper_id="p1", title="X", doi=doi, abstract="Short"), source_name="s2"),
-        _rec(_paper(paper_id="p2", title="X", doi=doi,
-                    abstract="Much longer abstract with more content"), source_name="arxiv"),
+        _rec(
+            _paper(paper_id="p2", title="X", doi=doi, abstract="Much longer abstract with more content"),
+            source_name="arxiv",
+        ),
     ]
     result = resolve_papers(records)
     assert result[0].abstract == "Much longer abstract with more content"

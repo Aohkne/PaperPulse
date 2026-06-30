@@ -102,27 +102,63 @@ export default function CommunityModerationPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchQueue = useCallback((s) => {
-    if (!token) return;
-    setLoading(true);
-    adminApi
-      .getContributions(token, { status: s || undefined, limit: 50 })
-      .then((res) => { setData(res.data ?? []); setTotal(res.pagination?.total ?? 0); })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    if (!token) {
+      return Promise.resolve(null);
+    }
+    return adminApi.getContributions(token, { status: s || undefined, limit: 50 });
   }, [token]);
 
-  useEffect(() => { fetchQueue(status); }, [status, fetchQueue]);
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchQueue(status)
+      .then((res) => {
+        if (cancelled || !res) {
+          return;
+        }
+        setData(res.data ?? []);
+        setTotal(res.pagination?.total ?? 0);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        console.error(error);
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, fetchQueue]);
 
   const handleApprove = async (id) => {
+    setLoading(true);
     await adminApi.approveContribution(token, id);
-    fetchQueue(status);
+    const res = await fetchQueue(status);
+    if (!res) {
+      setLoading(false);
+      return;
+    }
+    setData(res.data ?? []);
+    setTotal(res.pagination?.total ?? 0);
+    setLoading(false);
   };
 
   const handleReject = async (id) => {
     const reason = window.prompt('Reason for rejecting this contribution:');
     if (!reason) return;
+    setLoading(true);
     await adminApi.rejectContribution(token, id, reason);
-    fetchQueue(status);
+    const res = await fetchQueue(status);
+    if (!res) {
+      setLoading(false);
+      return;
+    }
+    setData(res.data ?? []);
+    setTotal(res.pagination?.total ?? 0);
+    setLoading(false);
   };
 
   return (
@@ -145,7 +181,7 @@ export default function CommunityModerationPage() {
         {TABS.map(([key, label]) => (
           <button
             key={key || 'all'}
-            onClick={() => setStatus(key)}
+            onClick={() => { setLoading(true); setStatus(key); }}
             style={{
               padding: '6px 14px', borderRadius: 8, border: '1px solid',
               borderColor: status === key ? 'var(--color-admin-accent)' : 'var(--color-admin-border)',

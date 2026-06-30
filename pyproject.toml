@@ -76,6 +76,7 @@ dev = [
     "ruff>=0.8.0",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
+    "taskipy>=1.12",
 ]
 # MinerU (pdf-agent_PLAN_2.0.md §1) — kept OUT of the base `dependencies` list:
 # requires Python >=3.10,<3.14 (this project's own `requires-python` has no upper
@@ -123,3 +124,6 @@ indent-style = "space"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.taskipy.tasks]
+ci = "ruff format . && ruff check . --output-format=github && cd frontend && bun run lint && cd .. && pytest tests/ -q"

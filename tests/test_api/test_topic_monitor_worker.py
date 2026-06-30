@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -197,16 +197,40 @@ def _seed_interest(db, *, interest_id, user_id, topic_id, score, state, last_che
 async def test_list_monitor_candidates_filters_auto_watching_and_cooldown(monitor_db):
     from backend.shared.services import topic_monitoring
 
-    now = datetime(2026, 6, 25, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 6, 25, 12, 0, tzinfo=UTC)
     fresh = (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
     stale = (now - timedelta(hours=30)).isoformat().replace("+00:00", "Z")
 
     _seed_topic(monitor_db, topic_id="topic-1", label="GraphRAG", normalized_query="graphrag")
     _seed_topic(monitor_db, topic_id="topic-2", label="RAG Eval", normalized_query="rag eval")
     _seed_topic(monitor_db, topic_id="topic-3", label="Muted", normalized_query="muted")
-    _seed_interest(monitor_db, interest_id="interest-1", user_id="user-1", topic_id="topic-1", score=8, state="auto_watching", last_checked_at=stale)
-    _seed_interest(monitor_db, interest_id="interest-2", user_id="user-1", topic_id="topic-2", score=7, state="auto_watching", last_checked_at=fresh)
-    _seed_interest(monitor_db, interest_id="interest-3", user_id="user-1", topic_id="topic-3", score=9, state="muted", last_checked_at=stale)
+    _seed_interest(
+        monitor_db,
+        interest_id="interest-1",
+        user_id="user-1",
+        topic_id="topic-1",
+        score=8,
+        state="auto_watching",
+        last_checked_at=stale,
+    )
+    _seed_interest(
+        monitor_db,
+        interest_id="interest-2",
+        user_id="user-1",
+        topic_id="topic-2",
+        score=7,
+        state="auto_watching",
+        last_checked_at=fresh,
+    )
+    _seed_interest(
+        monitor_db,
+        interest_id="interest-3",
+        user_id="user-1",
+        topic_id="topic-3",
+        score=9,
+        state="muted",
+        last_checked_at=stale,
+    )
 
     candidates = await topic_monitoring.list_monitor_candidates(now=now)
 
@@ -218,7 +242,15 @@ async def test_run_topic_monitor_upserts_matches_and_notification_events_idempot
     from backend.shared.services import topic_monitoring
 
     _seed_topic(monitor_db, topic_id="topic-1", label="GraphRAG evaluation", normalized_query="graphrag evaluation")
-    _seed_interest(monitor_db, interest_id="interest-1", user_id="user-1", topic_id="topic-1", score=9, state="auto_watching", last_checked_at="2026-06-20T00:00:00Z")
+    _seed_interest(
+        monitor_db,
+        interest_id="interest-1",
+        user_id="user-1",
+        topic_id="topic-1",
+        score=9,
+        state="auto_watching",
+        last_checked_at="2026-06-20T00:00:00Z",
+    )
 
     calls = []
 
@@ -280,9 +312,9 @@ async def test_run_topic_monitor_upserts_matches_and_notification_events_idempot
     monkeypatch.setattr(topic_monitoring.arxiv_fetcher, "arxiv_search", fake_arxiv)
     monkeypatch.setattr(topic_monitoring, "search_pubmed", fake_pubmed)
 
-    first = await topic_monitoring.run_topic_monitor(now=datetime(2026, 6, 25, 12, 0, tzinfo=timezone.utc))
+    first = await topic_monitoring.run_topic_monitor(now=datetime(2026, 6, 25, 12, 0, tzinfo=UTC))
     monitor_db.tables["user_topic_interests"][0]["last_checked_at"] = "2026-06-20T00:00:00Z"
-    second = await topic_monitoring.run_topic_monitor(now=datetime(2026, 6, 27, 12, 0, tzinfo=timezone.utc))
+    second = await topic_monitoring.run_topic_monitor(now=datetime(2026, 6, 27, 12, 0, tzinfo=UTC))
 
     assert first["processed_topics"] == 1
     assert second["processed_topics"] == 1
@@ -293,7 +325,11 @@ async def test_run_topic_monitor_upserts_matches_and_notification_events_idempot
     assert len(monitor_db.tables["topic_paper_matches"]) == 2
     assert len(monitor_db.tables["notification_events"]) == 1
 
-    strong_match = next(row for row in monitor_db.tables["topic_paper_matches"] if row["paper_id"] == monitor_db.tables["papers"][0]["id"])
+    strong_match = next(
+        row
+        for row in monitor_db.tables["topic_paper_matches"]
+        if row["paper_id"] == monitor_db.tables["papers"][0]["id"]
+    )
     assert strong_match["hybrid_score"] >= 0.72
     assert strong_match["reason"]
 
@@ -307,11 +343,27 @@ async def test_run_topic_monitor_upserts_matches_and_notification_events_idempot
 async def test_run_topic_monitor_skips_recent_topics_and_soft_fails_per_topic(monkeypatch, monitor_db):
     from backend.shared.services import topic_monitoring
 
-    now = datetime(2026, 6, 25, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 6, 25, 12, 0, tzinfo=UTC)
     _seed_topic(monitor_db, topic_id="topic-1", label="Failing", normalized_query="failing")
     _seed_topic(monitor_db, topic_id="topic-2", label="Healthy", normalized_query="healthy")
-    _seed_interest(monitor_db, interest_id="interest-1", user_id="user-1", topic_id="topic-1", score=9, state="auto_watching", last_checked_at="2026-06-20T00:00:00Z")
-    _seed_interest(monitor_db, interest_id="interest-2", user_id="user-1", topic_id="topic-2", score=8, state="auto_watching", last_checked_at="2026-06-20T00:00:00Z")
+    _seed_interest(
+        monitor_db,
+        interest_id="interest-1",
+        user_id="user-1",
+        topic_id="topic-1",
+        score=9,
+        state="auto_watching",
+        last_checked_at="2026-06-20T00:00:00Z",
+    )
+    _seed_interest(
+        monitor_db,
+        interest_id="interest-2",
+        user_id="user-1",
+        topic_id="topic-2",
+        score=8,
+        state="auto_watching",
+        last_checked_at="2026-06-20T00:00:00Z",
+    )
 
     async def fake_process(interest, topic):
         if topic["id"] == "topic-1":

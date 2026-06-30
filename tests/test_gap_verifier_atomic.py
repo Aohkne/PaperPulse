@@ -17,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _VERIFIER = "backend.agent.gap_detection.nodes.verifier"
@@ -31,6 +30,7 @@ def _make_gap(statement: str, n_papers: int = 1, origin="LIMITATION"):
         GapType,
         PaperRef,
     )
+
     papers = [PaperRef(paper_id=f"p{i}", title=f"P{i}") for i in range(n_papers)]
     return GapItem(
         gap_type=GapType.TOPICAL,
@@ -110,9 +110,7 @@ async def test_decompose_claim_strips_markdown_fences() -> None:
     llm_response = f"```json\n{json.dumps(sub_claims)}\n```"
 
     with patch(f"{_VERIFIER}.chat_completion", new=AsyncMock(return_value=llm_response)):
-        result = await _decompose_claim(
-            "A sufficiently long claim that needs to be decomposed into parts"
-        )
+        result = await _decompose_claim("A sufficiently long claim that needs to be decomposed into parts")
 
     assert result == ["Claim A", "Claim B"]
 
@@ -183,7 +181,7 @@ def test_most_restrictive_status_unknown_status_maps_to_uncertain() -> None:
 @pytest.mark.asyncio
 async def test_verify_limitation_unsupported_subclaim_downgrades_gap() -> None:
     """AC: sub-claim with 'unsupported' → overall NOT_CONFIRMED (gap dropped)."""
-    from backend.agent.gap_detection.nodes.verifier import _verify_limitation, _NOT_CONFIRMED
+    from backend.agent.gap_detection.nodes.verifier import _NOT_CONFIRMED, _verify_limitation
 
     gap = _make_gap("X achieves SOTA on Y and Z but has not been tested on W")
 
@@ -210,7 +208,7 @@ async def test_verify_limitation_unsupported_subclaim_downgrades_gap() -> None:
 @pytest.mark.asyncio
 async def test_verify_limitation_all_supported_confirms_gap() -> None:
     """All sub-claims supported → CONFIRMED."""
-    from backend.agent.gap_detection.nodes.verifier import _verify_limitation, _CONFIRMED
+    from backend.agent.gap_detection.nodes.verifier import _CONFIRMED, _verify_limitation
 
     gap = _make_gap("X achieves SOTA on Y and Z but has not been tested on W")
 
@@ -236,7 +234,7 @@ async def test_verify_limitation_all_supported_confirms_gap() -> None:
 @pytest.mark.asyncio
 async def test_verify_limitation_no_supporting_papers_not_confirmed() -> None:
     """Gap with no supporting papers → _NOT_CONFIRMED immediately."""
-    from backend.agent.gap_detection.nodes.verifier import _verify_limitation, _NOT_CONFIRMED
+    from backend.agent.gap_detection.nodes.verifier import _NOT_CONFIRMED, _verify_limitation
     from backend.agent.gap_detection.schemas import GapItem, GapOrigin, GapStatus, GapType
 
     gap = GapItem(
@@ -253,7 +251,7 @@ async def test_verify_limitation_no_supporting_papers_not_confirmed() -> None:
 @pytest.mark.asyncio
 async def test_verify_limitation_verify_exception_returns_error() -> None:
     """verify_claims raises → _ERROR (gap not dropped)."""
-    from backend.agent.gap_detection.nodes.verifier import _verify_limitation, _ERROR
+    from backend.agent.gap_detection.nodes.verifier import _ERROR, _verify_limitation
 
     gap = _make_gap("X achieves SOTA on Y and Z but has not been tested on W")
 

@@ -20,10 +20,7 @@ from backend.shared.services.s2_rate_limiter import s2_acquire
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://api.semanticscholar.org/graph/v1"
-_DETAIL_FIELDS = (
-    "paperId,title,abstract,year,url,tldr,"
-    "openAccessPdf,fieldsOfStudy,publicationTypes,venue,authors"
-)
+_DETAIL_FIELDS = "paperId,title,abstract,year,url,tldr,openAccessPdf,fieldsOfStudy,publicationTypes,venue,authors"
 
 
 def _s2_headers() -> dict:
@@ -40,13 +37,13 @@ async def _s2_get(client: httpx.AsyncClient, url: str, params: dict) -> dict:
             return r.json()
         except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.TimeoutException):
             if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
             else:
                 logger.warning("s2_client._s2_get: timeout after 3 attempts for %s — returning {}", url)
                 return {}
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
             else:
                 raise
     return {}

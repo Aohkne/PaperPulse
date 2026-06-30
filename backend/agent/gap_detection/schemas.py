@@ -58,8 +58,12 @@ class PaperRef(BaseModel):
     title: str
     year: int | None = None
     url: str | None = None
+    doi: str | None = None
     abstract: str | None = None
     source: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    venue: str | None = None
+    citation_index: int | None = None
 
 
 class ExtractedPaperData(BaseModel):
@@ -166,7 +170,7 @@ class CanonicalPaper(BaseModel):
 
     # Resolution identity
     id: str  # "doi:<norm>" | "title:<norm>" | "s2:<paper_id>"
-    sources: list[str] = Field(default_factory=list)   # e.g. ["s2", "arxiv"]
+    sources: list[str] = Field(default_factory=list)  # e.g. ["s2", "arxiv"]
     corpus_role: CorpusRole = CorpusRole.USER
     fulltext_available: bool = False
 
@@ -180,8 +184,9 @@ class CanonicalPaper(BaseModel):
     url: str | None = None
     open_access_pdf: str | None = None
     external_ids: dict = Field(default_factory=dict)
-    s2_paper_id: str | None = None   # S2 paperId (paper_id in Paper model)
+    s2_paper_id: str | None = None  # S2 paperId (paper_id in Paper model)
     is_influential: bool = False
+    venue: str | None = None
 
 
 # ── Stage A output ──────────────────────────────────────────────────
@@ -203,6 +208,16 @@ class GapQuery(BaseModel):
     recency_bias: bool = True
     seminal_bias: bool = True
     user_intent: str | None = None
+    is_research_topic: bool = True
+    reject_reason: str | None = None
+
+
+class QueryRejectedError(ValueError):
+    """Raised by the query guardrail when a topic is off-topic, nonsense, or injection."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"Query rejected: {reason}")
 
 
 # ── LangGraph State ─────────────────────────────────────────────────

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from backend.agent.gap_detection.schemas import GapItem, GapType, GapOrigin, GapStatus, PaperRef
-from tests.test_research_gap.structural_checks import check_gap_structural, check_empty_on_nonsense
+import pytest
+
+from backend.agent.gap_detection.schemas import GapItem, GapOrigin, GapStatus, GapType, PaperRef
+from tests.test_research_gap.structural_checks import check_empty_on_nonsense, check_gap_structural
 
 
 def _make_gap(
@@ -14,7 +15,9 @@ def _make_gap(
     paper_ids: list[str] | None = None,
     quality_score: float | None = 0.75,
 ) -> GapItem:
-    papers = [PaperRef(paper_id=pid, title=f"Paper {pid}") for pid in (paper_ids if paper_ids is not None else ["abc123"])]
+    papers = [
+        PaperRef(paper_id=pid, title=f"Paper {pid}") for pid in (paper_ids if paper_ids is not None else ["abc123"])
+    ]
     return GapItem(
         gap_type=GapType.TOPICAL,
         origin=GapOrigin.INFERRED,

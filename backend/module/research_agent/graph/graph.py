@@ -43,18 +43,18 @@ from backend.module.research_agent.graph.state import ResearchState
 
 # Linear sequence after the routing branch
 _SEARCH_SEQUENCE = [
-    ("plan_review",      plan_review_node),       # Step 0c ← interrupt
+    ("plan_review", plan_review_node),  # Step 0c ← interrupt
     ("parallel_search", parallel_search_node),  # Step ①
-    ("dedup",           dedup_node),             # Step ①bis
-    ("snowball",        snowball_node),           # Step ②bis
-    ("embed",           embed_node),              # Step ③
-    ("outline_gen",     outline_gen_node),        # Step ④ ← interrupt
-    ("write_themes",    write_themes_node),       # Steps ⑤⑥
-    ("extract_claims",  extract_claims_node),     # Step ⑦
-    ("verify_claims",   verify_claims_node),      # Step ⑧
-    ("route_claims",    route_claims_node),       # Step ⑨ ← interrupt
-    ("build_graph",     build_graph_node),         # Step ⑨bis — knowledge graph
-    ("export",          export_node),             # Step ⑩
+    ("dedup", dedup_node),  # Step ①bis
+    ("snowball", snowball_node),  # Step ②bis
+    ("embed", embed_node),  # Step ③
+    ("outline_gen", outline_gen_node),  # Step ④ ← interrupt
+    ("write_themes", write_themes_node),  # Steps ⑤⑥
+    ("extract_claims", extract_claims_node),  # Step ⑦
+    ("verify_claims", verify_claims_node),  # Step ⑧
+    ("route_claims", route_claims_node),  # Step ⑨ ← interrupt
+    ("build_graph", build_graph_node),  # Step ⑨bis — knowledge graph
+    ("export", export_node),  # Step ⑩
 ]
 
 
@@ -124,11 +124,13 @@ async def _open_checkpointer() -> BaseCheckpointSaver:
     # ResearchState stores these Pydantic models directly (Paper, Claim, Theme) —
     # allow-list them so checkpointing doesn't warn/eventually fail to
     # deserialize them (LangGraph is moving to a strict allow-list by default).
-    serde = JsonPlusSerializer(allowed_msgpack_modules=[
-        ("backend.shared.models.paper", "Paper"),
-        ("backend.shared.models.claim", "Claim"),
-        ("backend.shared.models.review", "Theme"),
-    ])
+    serde = JsonPlusSerializer(
+        allowed_msgpack_modules=[
+            ("backend.shared.models.paper", "Paper"),
+            ("backend.shared.models.claim", "Claim"),
+            ("backend.shared.models.review", "Theme"),
+        ]
+    )
 
     pool = AsyncConnectionPool(
         conninfo=settings.supabase_db_url,

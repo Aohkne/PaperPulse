@@ -69,9 +69,9 @@ class PDFAgentState(TypedDict, total=False):
     main_tex_path: str
 
     # ── Step P3 (intermediate — consumed by build_annotations, P4) ──
-    critic_results: list[dict]   # [{"section_title", "issues": [{"aspect","quote","comment","suggested_fix"}]}]
+    critic_results: list[dict]  # [{"section_title", "issues": [{"aspect","quote","comment","suggested_fix"}]}]
     citation_verdicts: list[dict]  # 1:1 with raw_citations — [{"verdict","confidence","evidence"}]
-    link_results: list[dict]     # [{"section_title","url","alive","status_code"}]
+    link_results: list[dict]  # [{"section_title","url","alive","status_code"}]
 
     # ── Step P4 ──
     annotations: list[Annotation]

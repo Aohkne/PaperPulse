@@ -57,8 +57,8 @@ _STATUS_TAGS: dict[GapStatus, str] = {
 # Downstream action hooks (REQ-G12) — suggestion text only, no engine here.
 _ACTION_HOOKS = (
     "---\n"
-    "Suggested next steps: you can request \"find more papers for this gap\" "
-    "to strengthen the evidence, or \"export Research Gap section\" to insert "
+    'Suggested next steps: you can request "find more papers for this gap" '
+    'to strengthen the evidence, or "export Research Gap section" to insert '
     "it directly into your manuscript."
 )
 
@@ -71,9 +71,17 @@ _EMPTY_MESSAGE = (
 
 # ── Rejection gate ──────────────────────────────────────────────────
 
-_PLACEHOLDER_LOWER: frozenset[str] = frozenset({
-    "", "n/a", "none", "not specified", "not applicable", "unknown", "tbd",
-})
+_PLACEHOLDER_LOWER: frozenset[str] = frozenset(
+    {
+        "",
+        "n/a",
+        "none",
+        "not specified",
+        "not applicable",
+        "unknown",
+        "tbd",
+    }
+)
 
 
 def _is_emittable(gap: GapItem) -> bool:
@@ -116,6 +124,7 @@ def _intent_rescore(
     quality_score on each GapItem is NOT mutated — the penalty only affects
     the sort key used for top-k selection.
     """
+
     def _key(g: GapItem) -> float:
         base = g.quality_score or 0.0
         return base if _gap_aligned_with_intent(g, user_intent) else base * penalty
@@ -124,6 +133,7 @@ def _intent_rescore(
 
 
 # ── Unicode normalization ────────────────────────────────────────────
+
 
 def normalize_vi(text: str) -> str:
     """Normalize Unicode NFD → NFC to fix split Vietnamese diacritics.
@@ -207,17 +217,18 @@ async def synthesizer_node(
     gap_query: GapQuery | None = state.get("gap_query")  # type: ignore[assignment]
     if gap_query is not None and gap_query.user_intent is not None:
         penalty = get_intent_off_penalty()
-        off_count = sum(
-            1 for g in all_ranked if not _gap_aligned_with_intent(g, gap_query.user_intent)
-        )
+        off_count = sum(1 for g in all_ranked if not _gap_aligned_with_intent(g, gap_query.user_intent))
         all_ranked = _intent_rescore(all_ranked, gap_query.user_intent, penalty)
         logger.info(
             "synthesizer_node: intent re-score applied (intent=%r, penalty=%.2f, off_intent=%d/%d)",
-            gap_query.user_intent, penalty, off_count, len(all_ranked),
+            gap_query.user_intent,
+            penalty,
+            off_count,
+            len(all_ranked),
         )
 
     all_ranked = _dedup_gaps_by_jaccard(all_ranked)
-    top_gaps = all_ranked[:get_top_k_gaps()]
+    top_gaps = all_ranked[: get_top_k_gaps()]
     ordered = sorted(top_gaps, key=lambda g: (_TYPE_ORDER.get(g.gap_type, 99), -(g.quality_score or g.confidence)))
     main_gaps = [g for g in ordered if g.confidence >= min_confidence]
     weak_gaps = [g for g in ordered if g.confidence < min_confidence]
@@ -240,9 +251,20 @@ async def synthesizer_node(
         narrative = f"Detected {k} research gap(s). See details in each gap card below."
     logger.debug("synthesizer_node: narrative repr[:60]=%r", narrative[:60])
 
+    final_gaps = [*main_gaps, *weak_gaps]
+    for gap in final_gaps:
+        # model_copy() creates independent PaperRef instances per gap so that
+        # shared objects (same paper in multiple gaps) don't alias citation_index.
+        gap.supporting_papers = [
+            p.model_copy(update={"citation_index": i + 1}) for i, p in enumerate(gap.supporting_papers)
+        ]
+        id2cite = {p.paper_id: p.citation_index for p in gap.supporting_papers}
+        if id2cite:
+            gap.statement = _normalize_statement_citations(gap.statement, id2cite)
+
     report = GapReport(
         papers_analyzed=papers_analyzed,
-        gaps=[*main_gaps, *weak_gaps],
+        gaps=final_gaps,
         narrative=narrative,
         baseline_triggered=baseline_triggered,
     )
@@ -269,9 +291,10 @@ async def _build_narrative(
 
     k = len(main_gaps) + len(weak_gaps)
     prefix = (
-        f"Showing top {k}/{total_count} research gaps by quality "
-        f"(from {total_count} gaps detected):"
-    ) if total_count > k else ""
+        (f"Showing top {k}/{total_count} research gaps by quality (from {total_count} gaps detected):")
+        if total_count > k
+        else ""
+    )
 
     if main_gaps:
         main_text = await _generate_main_narrative(main_gaps)
@@ -280,10 +303,7 @@ async def _build_narrative(
             main_text = _fallback_narrative(main_gaps)
     else:
         # Everything was demoted — keep the report meaningful.
-        main_text = (
-            "All detected gaps have low confidence; "
-            "see the Weak Signals section below for your own assessment."
-        )
+        main_text = "All detected gaps have low confidence; see the Weak Signals section below for your own assessment."
 
     sections = [s for s in [prefix, main_text] if s]
     weak_section = _build_weak_section(weak_gaps)
@@ -343,9 +363,7 @@ def _build_weak_section(weak_gaps: list[GapItem]) -> str:
     for gap in weak_gaps:
         tag = _STATUS_TAGS.get(gap.status, "")
         cites = _format_citations(gap.supporting_papers)
-        lines.append(
-            f"- {tag} ({gap.gap_type.value}, confidence {gap.confidence:.2f}) {gap.statement} {cites}".strip()
-        )
+        lines.append(f"- {tag} ({gap.gap_type.value}, confidence {gap.confidence:.2f}) {gap.statement} {cites}".strip())
     return "\n".join(lines)
 
 
@@ -367,7 +385,7 @@ def _dedup_gaps_by_jaccard(gaps: list[GapItem], threshold: float = 0.6) -> list[
     if not gaps:
         return []
 
-    ordered = sorted(gaps, key=lambda g: (g.quality_score or g.confidence), reverse=True)
+    ordered = sorted(gaps, key=lambda g: g.quality_score or g.confidence, reverse=True)
     kept: list[GapItem] = []
     for gap in ordered:
         current_ids = {p.paper_id for p in gap.supporting_papers if p.paper_id}
@@ -495,6 +513,30 @@ def _gap_prompt_block(index: int, gap: GapItem) -> str:
         lines.append(f"  Evidence: {gap.evidence_quotes[0][:200]}")
 
     return "\n".join(lines)
+
+
+_ORPHAN_RAW_ID_RE = re.compile(r"\b[0-9a-f]{32,}\b")
+
+
+def _normalize_statement_citations(statement: str, id2cite: dict[str, int]) -> str:
+    """Replace raw paper IDs in gap statement with [n] citation markers.
+
+    Processes known IDs (longest first to avoid partial matches). Logs a
+    warning for any remaining long hex sequences not in id2cite (orphans
+    dropped during dedup).
+    """
+    result = statement
+    for paper_id in sorted(id2cite.keys(), key=len, reverse=True):
+        n = id2cite[paper_id]
+        result = re.sub(r"\b[Pp]aper\s+" + re.escape(paper_id) + r"\b", f"[{n}]", result)
+        result = re.sub(r"\b" + re.escape(paper_id) + r"\b", f"[{n}]", result)
+    orphans = _ORPHAN_RAW_ID_RE.findall(result)
+    if orphans:
+        logger.warning(
+            "synthesizer: orphan raw paper id(s) in statement (not in supporting_papers): %s",
+            orphans,
+        )
+    return result
 
 
 def _format_citations(papers: list[PaperRef]) -> str:

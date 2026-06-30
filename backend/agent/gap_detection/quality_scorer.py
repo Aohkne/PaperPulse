@@ -54,12 +54,7 @@ def compute_quality_score(gap: GapItem) -> float:
     actionable = breakdown["actionable"]
     corpus_ev = breakdown["corpus_evidence"]
 
-    score = (
-        0.3333 * grounding
-        + 0.2778 * novelty_n
-        + 0.2222 * actionable
-        + 0.1667 * corpus_ev
-    )
+    score = 0.3333 * grounding + 0.2778 * novelty_n + 0.2222 * actionable + 0.1667 * corpus_ev
     gap.quality_breakdown = breakdown
     return round(score, 4)
 

@@ -14,14 +14,12 @@ Unit helpers tested:
 from __future__ import annotations
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
 
 from backend.shared.models.paper import Paper
 from backend.shared.services.arxiv_fetcher import _parse_arxiv_feed, _parse_arxiv_id
-
 
 # ── Sample Atom XML ───────────────────────────────────────────────────────────
 
@@ -170,6 +168,7 @@ async def test_search_includes_arxiv_papers_when_enabled():
         ),
     ):
         from backend.agent.gap_detection import retrieval
+
         result = await retrieval.search("speculative decoding", limit=10)
 
     # Both sources contributed; dedup via title → 1 or 2 papers depending on title match
@@ -203,6 +202,7 @@ async def test_search_deduplicates_same_doi():
         ),
     ):
         from backend.agent.gap_detection import retrieval
+
         result = await retrieval.search("speculative decoding", limit=10)
 
     # Same DOI → exactly 1 paper
@@ -237,6 +237,7 @@ async def test_search_arxiv_timeout_falls_back_to_s2():
         ),
     ):
         from backend.agent.gap_detection import retrieval
+
         result = await retrieval.search("speculative decoding", limit=10)
 
     assert len(result) == 1
@@ -264,6 +265,7 @@ async def test_search_arxiv_disabled_skips_arxiv():
         ) as mock_arxiv,
     ):
         from backend.agent.gap_detection import retrieval
+
         result = await retrieval.search("federated learning", limit=10)
 
     mock_arxiv.assert_not_called()
@@ -278,12 +280,14 @@ def test_is_arxiv_enabled_default_true():
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("ARXIV_ENABLED", None)
         from backend.agent.gap_detection.settings import is_arxiv_enabled
+
         assert is_arxiv_enabled() is True
 
 
 def test_is_arxiv_enabled_false_via_env():
     with patch.dict(os.environ, {"ARXIV_ENABLED": "false"}):
         from backend.agent.gap_detection.settings import is_arxiv_enabled
+
         assert is_arxiv_enabled() is False
 
 
@@ -291,10 +295,12 @@ def test_get_arxiv_search_limit_default():
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("ARXIV_SEARCH_LIMIT", None)
         from backend.agent.gap_detection.settings import get_arxiv_search_limit
+
         assert get_arxiv_search_limit() == 20
 
 
 def test_get_arxiv_search_limit_custom():
     with patch.dict(os.environ, {"ARXIV_SEARCH_LIMIT": "15"}):
         from backend.agent.gap_detection.settings import get_arxiv_search_limit
+
         assert get_arxiv_search_limit() == 15

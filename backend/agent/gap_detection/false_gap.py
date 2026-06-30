@@ -10,6 +10,7 @@ from backend.agent.gap_detection.settings import get_false_gap_threshold
 
 logger = logging.getLogger(__name__)
 
+
 async def check_false_gap(gap_statement: str) -> bool:
     """
     Trả True nếu gap có thể đã được nghiên cứu (false gap).

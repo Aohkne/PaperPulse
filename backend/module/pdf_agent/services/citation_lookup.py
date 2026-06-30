@@ -96,10 +96,13 @@ async def _llm_judge_citation_match(citation: RawCitation, paper: Paper) -> dict
     )
     same = False
     try:
-        response = await ainvoke_with_timeout(llm, [
-            {"role": "system", "content": _JUDGE_PROMPT},
-            {"role": "user", "content": user_content},
-        ])
+        response = await ainvoke_with_timeout(
+            llm,
+            [
+                {"role": "system", "content": _JUDGE_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+        )
         content = response.content if hasattr(response, "content") else str(response)
         match = re.search(r"\{.*\}", content, re.DOTALL)
         parsed = json.loads(match.group(0)) if match else {}

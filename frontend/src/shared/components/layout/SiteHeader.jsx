@@ -31,7 +31,7 @@ const NAV_LINKS = [
   { label: 'Community', to: ROUTES.COMMUNITY },
 ];
 
-// ── Avatar dropdown (auth + profile menu) ────────────────────────────────────
+// â”€â”€ Avatar dropdown (auth + profile menu) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
@@ -201,7 +201,7 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
   );
 };
 
-// ── Header ────────────────────────────────────────────────────────────────────
+// â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SiteHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -210,7 +210,6 @@ const SiteHeader = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const scrolled = useIsScrolled();
-  const isLanding = location.pathname === ROUTES.HOME;
   const isMobile = useIsMobile(640);
 
   const [menuOpen, setMenuOpen] = useState(false);

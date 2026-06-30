@@ -1,4 +1,5 @@
 """Tests for TIP-P3-08: GapQuery schema + analyze_query() node."""
+
 from __future__ import annotations
 
 import json
@@ -11,10 +12,10 @@ from backend.agent.gap_detection.nodes.query_analyzer import analyze_query
 from backend.agent.gap_detection.schemas import GapQuery
 from backend.agent.gap_detection.settings import is_query_analyzer_enabled
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 _META_WORDS = {"tìm", "research gap", "research gaps", "về", "find", "gap", "gaps"}
+
 
 def _llm_response(**kwargs) -> str:
     payload = {
@@ -29,6 +30,7 @@ def _llm_response(**kwargs) -> str:
 
 
 # ── GapQuery schema ──────────────────────────────────────────────────────────
+
 
 class TestGapQuerySchema:
     def test_defaults(self):
@@ -55,6 +57,7 @@ class TestGapQuerySchema:
 
 # ── is_query_analyzer_enabled() ──────────────────────────────────────────────
 
+
 class TestIsQueryAnalyzerEnabled:
     def test_default_true(self):
         with patch.dict(os.environ, {}, clear=False):
@@ -75,6 +78,7 @@ class TestIsQueryAnalyzerEnabled:
 
 
 # ── analyze_query() — AC scenarios ──────────────────────────────────────────
+
 
 class TestAnalyzeQuery:
     @pytest.mark.asyncio

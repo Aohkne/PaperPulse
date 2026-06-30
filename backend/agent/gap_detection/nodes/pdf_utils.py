@@ -37,7 +37,7 @@ _TAIL_CHARS = 4_000
 #: Matches numbered ("3. Methods") and unnumbered ("METHODS") forms.
 _SECTION_RE = re.compile(
     r"^"
-    r"(?:\d+[\.\)]\s*)?"            # optional leading number
+    r"(?:\d+[\.\)]\s*)?"  # optional leading number
     r"("
     r"method(?:ology|s)?"
     r"|materials?\s+and\s+methods?"

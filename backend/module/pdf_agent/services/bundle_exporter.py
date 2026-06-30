@@ -63,9 +63,7 @@ def strip_missing_figures_from_sections(sections: list[Section], figures: list[F
     return stripped
 
 
-def splice_figures_into_sections(
-    sections: list[Section], figures: list[Figure]
-) -> tuple[list[Section], list[Figure]]:
+def splice_figures_into_sections(sections: list[Section], figures: list[Figure]) -> tuple[list[Section], list[Figure]]:
     """Insert each figure's LaTeX block right after its anchor's exact text inside
     whichever section contains it. Figures with no match anywhere (no anchor, or the
     anchor text isn't a substring of any section — e.g. it fell inside text that got
@@ -99,9 +97,7 @@ def splice_figures_into_sections(
                 idx = s["raw_latex"].find(exact)
                 if idx != -1:
                     insert_at = idx + len(exact)
-                    s["raw_latex"] = (
-                        s["raw_latex"][:insert_at] + "\n\n" + block + "\n\n" + s["raw_latex"][insert_at:]
-                    )
+                    s["raw_latex"] = s["raw_latex"][:insert_at] + "\n\n" + block + "\n\n" + s["raw_latex"][insert_at:]
                     placed = True
                     break
         if not placed:
@@ -150,9 +146,7 @@ def render_editable_bundle(
             if src.resolve() != dest.resolve():
                 shutil.copy(src, dest)
 
-    bibliography = [
-        {"key": c.get("key") or f"ref{i}", "raw_text": c["raw_text"]} for i, c in enumerate(raw_citations)
-    ]
+    bibliography = [{"key": c.get("key") or f"ref{i}", "raw_text": c["raw_text"]} for i, c in enumerate(raw_citations)]
 
     template = _env.get_template("pdf_agent_document.tex.j2")
     main_tex = template.render(

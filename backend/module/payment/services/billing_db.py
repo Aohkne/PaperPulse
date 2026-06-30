@@ -104,6 +104,7 @@ async def _pg_write(table: str, method: str, params: dict, body: dict) -> list[d
 
 # ── billing_* RPC wrappers ───────────────────────────────────────────────────
 
+
 async def get_or_create_account(user_id: str) -> dict:
     return await _rpc("billing_get_or_create_account", {"p_user_id": user_id})
 
@@ -135,6 +136,7 @@ async def request_downgrade(user_id: str, new_tier: str) -> dict:
 
 # ── payment_transactions table access ───────────────────────────────────────
 
+
 async def next_order_code() -> int:
     result = await _rpc("next_payos_order_code", {})
     return int(result)
@@ -162,7 +164,8 @@ async def create_transaction(
 
 async def set_payment_link_id(transaction_id: str, payment_link_id: str) -> None:
     await _pg_write(
-        "payment_transactions", "PATCH",
+        "payment_transactions",
+        "PATCH",
         {"id": f"eq.{transaction_id}"},
         {"payos_payment_link_id": payment_link_id},
     )
@@ -170,7 +173,8 @@ async def set_payment_link_id(transaction_id: str, payment_link_id: str) -> None
 
 async def set_order_code(transaction_id: str, payos_order_code: int) -> None:
     await _pg_write(
-        "payment_transactions", "PATCH",
+        "payment_transactions",
+        "PATCH",
         {"id": f"eq.{transaction_id}"},
         {"payos_order_code": payos_order_code},
     )
@@ -182,16 +186,15 @@ async def get_transaction(transaction_id: str) -> dict | None:
 
 
 async def get_transaction_by_order_code(order_code: int) -> dict | None:
-    rows, _ = await _pg(
-        "payment_transactions", {"payos_order_code": f"eq.{order_code}", "select": "*"}
-    )
+    rows, _ = await _pg("payment_transactions", {"payos_order_code": f"eq.{order_code}", "select": "*"})
     return rows[0] if rows else None
 
 
 async def mark_transaction_paid(transaction_id: str) -> bool:
     """Returns False if the transaction wasn't `pending` (already handled)."""
     rows = await _pg_write(
-        "payment_transactions", "PATCH",
+        "payment_transactions",
+        "PATCH",
         {"id": f"eq.{transaction_id}", "status": "eq.pending"},
         {"status": "paid", "paid_at": "now"},
     )

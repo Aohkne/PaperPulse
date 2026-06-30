@@ -16,10 +16,10 @@ import logging
 
 from langgraph.types import interrupt
 
-from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
-from backend.shared.models.review import Theme
+from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.services.outline_generator import generate_outline
+from backend.shared.models.review import Theme
 
 log = logging.getLogger(__name__)
 
@@ -35,10 +35,7 @@ async def outline_gen_node(state: ResearchState) -> dict:
         log.error("Outline generation failed: %s", exc)
         themes = []
 
-    themes_payload = [
-        {"title": t.title, "description": t.description, "paper_ids": t.paper_ids}
-        for t in themes
-    ]
+    themes_payload = [{"title": t.title, "description": t.description, "paper_ids": t.paper_ids} for t in themes]
 
     # Pause: send outline to frontend for user approval/editing
     resume_value = interrupt({"themes": themes_payload})

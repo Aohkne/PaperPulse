@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from langgraph.types import interrupt
 
-from backend.module.research_agent.graph.state import ResearchState
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
+from backend.module.research_agent.graph.state import ResearchState
 
 
 async def route_claims_node(state: ResearchState) -> dict:
@@ -30,10 +30,7 @@ async def route_claims_node(state: ResearchState) -> dict:
         "included": len(included),
         "removed": len(removed),
         "review": len(review),
-        "review_sample": [
-            {"text": c.text[:120], "status": c.status, "paper_id": c.paper_id}
-            for c in review[:5]
-        ],
+        "review_sample": [{"text": c.text[:120], "status": c.status, "paper_id": c.paper_id} for c in review[:5]],
     }
 
     # Pause: let user inspect routing before export

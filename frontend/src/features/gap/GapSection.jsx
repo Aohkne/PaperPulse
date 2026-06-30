@@ -47,17 +47,15 @@ const GapSection = () => {
   const { gapNarrative, gapReport, gapLoading, gapError, streamEvents, streamGaps } = useGapStore();
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
       {/* ① Topic input — always visible, no paper-count gate */}
       <ColdStartInput onSubmit={streamGaps} />
 
       {/* ② Progress Panel - shows during streaming */}
       <GapProgressPanel events={streamEvents} loading={gapLoading} />
 
-      {/* ③ Results panel — fills remaining height */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <GapResultPanel narrative={gapNarrative} gapReport={gapReport} loading={gapLoading} error={gapError} />
-      </div>
+      {/* ③ Results panel — flows naturally in page scroll */}
+      <GapResultPanel narrative={gapNarrative} gapReport={gapReport} loading={gapLoading} error={gapError} />
     </div>
   );
 };

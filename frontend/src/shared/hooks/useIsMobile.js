@@ -14,7 +14,6 @@ export function useIsMobile(breakpoint = 768) {
     const mql = window.matchMedia(query);
     const handler = (e) => setIsMobile(e.matches);
     mql.addEventListener('change', handler);
-    setIsMobile(mql.matches);
     return () => mql.removeEventListener('change', handler);
   }, [query]);
 

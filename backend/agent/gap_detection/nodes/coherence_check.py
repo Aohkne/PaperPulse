@@ -49,14 +49,40 @@ _SATURATION_TARGET = 20
 
 # Ordered method keywords for heuristic extraction from Paper abstracts.
 _METHOD_KEYWORDS: list[str] = [
-    "deep learning", "neural network", "transformer", "bert",
-    "large language model", "llm", "machine learning", "reinforcement learning",
-    "convolutional", "cnn", "recurrent", "rnn", "lstm", "graph neural", "gnn",
-    "attention mechanism", "diffusion model", "contrastive learning",
-    "random forest", "support vector", "svm", "clustering",
-    "retrieval-augmented", "rag", "few-shot", "zero-shot",
-    "fine-tuning", "pre-training", "self-supervised", "meta-learning",
-    "generative model", "classification", "regression", "optimization",
+    "deep learning",
+    "neural network",
+    "transformer",
+    "bert",
+    "large language model",
+    "llm",
+    "machine learning",
+    "reinforcement learning",
+    "convolutional",
+    "cnn",
+    "recurrent",
+    "rnn",
+    "lstm",
+    "graph neural",
+    "gnn",
+    "attention mechanism",
+    "diffusion model",
+    "contrastive learning",
+    "random forest",
+    "support vector",
+    "svm",
+    "clustering",
+    "retrieval-augmented",
+    "rag",
+    "few-shot",
+    "zero-shot",
+    "fine-tuning",
+    "pre-training",
+    "self-supervised",
+    "meta-learning",
+    "generative model",
+    "classification",
+    "regression",
+    "optimization",
 ]
 
 
@@ -179,10 +205,7 @@ async def _check_coherence_impl(papers: list[Paper]) -> dict:
     seed_ids = ordered_ids[:3]
     seed_vectors = [vectors_dict[pid] for pid in seed_ids]
 
-    centroid = [
-        sum(v[i] for v in seed_vectors) / len(seed_vectors)
-        for i in range(len(seed_vectors[0]))
-    ]
+    centroid = [sum(v[i] for v in seed_vectors) / len(seed_vectors) for i in range(len(seed_vectors[0]))]
 
     scored: list[tuple[float, Paper]] = []
     for pid in ordered_ids:
@@ -230,11 +253,7 @@ def _paper_method_key(paper: object) -> str:
     """Normalised method key from Paper or ExtractedPaperData (duck-typed)."""
     if hasattr(paper, "methodology") and paper.methodology:  # type: ignore[union-attr]
         return paper.methodology.lower().strip()[:60]  # type: ignore[union-attr]
-    text = (
-        (getattr(paper, "title", "") or "").lower()
-        + " "
-        + (getattr(paper, "abstract", "") or "").lower()
-    )
+    text = (getattr(paper, "title", "") or "").lower() + " " + (getattr(paper, "abstract", "") or "").lower()
     for kw in _METHOD_KEYWORDS:
         if kw in text:
             return kw

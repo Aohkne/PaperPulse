@@ -1,4 +1,4 @@
-"""Wrapper for Semantic Scholar API — paper search, references, citations, snippets."""
+"""Wrapper for Semantic Scholar API - paper search, references, citations, snippets."""
 
 import asyncio
 import logging
@@ -11,9 +11,11 @@ from backend.shared.services.s2_rate_limiter import s2_acquire
 from backend.shared.services.search_cache import get_cached, make_query_hash, set_cached
 
 BASE_URL = "https://api.semanticscholar.org/graph/v1"
-FIELDS = "paperId,title,abstract,year,citationCount,authors,url,externalIds,openAccessPdf"
-# externalIds needed for ArXiv ID (Step ⑧ 3-tier verify) and DOI (Step ⑩ PDF links)
-SNOWBALL_FIELDS = "contexts,intents,isInfluential,citationCount,year,externalIds,openAccessPdf,paperId,title,abstract,authors,url"
+FIELDS = (
+    "paperId,title,abstract,year,citationCount,authors,url,externalIds,openAccessPdf,publicationVenue,journal,venue"
+)
+# externalIds needed for ArXiv ID (Step 8 in 3-tier verify) and DOI (Step 10 PDF links)
+SNOWBALL_FIELDS = "contexts,intents,isInfluential,citationCount,year,externalIds,openAccessPdf,paperId,title,abstract,authors,url,publicationVenue,journal,venue"
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +36,14 @@ async def _get(client: httpx.AsyncClient, url: str, params: dict) -> dict:
             if attempt < 2:
                 await asyncio.sleep(2**attempt)
             else:
-                logger.warning("S2 _get: timeout after 3 attempts for %s — returning empty", url)
+                logger.warning("S2 _get: timeout after 3 attempts for %s - returning empty", url)
                 return {}
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
                 await asyncio.sleep(2**attempt)
             else:
                 raise
-    logger.warning(
-        "S2 _get: all retries exhausted for %s — returning empty (rate-limit or API down)", url
-    )
+    logger.warning("S2 _get: all retries exhausted for %s - returning empty (rate-limit or API down)", url)
     return {}
 
 
@@ -52,7 +52,7 @@ async def search_papers(
     limit: int = 100,
     fields_of_study: list[str] | None = None,
 ) -> list[Paper]:
-    """① Search papers by query string.
+    """Search papers by query string.
 
     Args:
         query: Search query string.
@@ -71,24 +71,25 @@ async def search_papers(
     else:
         async with httpx.AsyncClient() as client:
             data = await _get(client, f"{BASE_URL}/paper/search", params)
-        if data:  # don't cache empty/failed responses — let the next call retry live
+        if data:  # don't cache empty/failed responses - let the next call retry live
             await set_cached(query_hash, "semantic_scholar", data)
 
     return [_to_paper(p) for p in (data.get("data") or []) if p and p.get("paperId")]
 
 
 async def _get_single(client: httpx.AsyncClient, id_str: str) -> dict | None:
-    """GET /paper/{id} — single-paper lookup by a prefixed external id (DOI:.../ARXIV:...).
+    """GET /paper/{id} - single-paper lookup by a prefixed external id (DOI:.../ARXIV:...).
 
-    Unlike `_get()`, a 404 here means "not found" (not a transient error) — return
+    Unlike `_get()`, a 404 here means "not found" (not a transient error) - return
     None instead of raising so callers (PDF Agent citation lookup) can fall through
     to the next source in the waterfall.
     """
-    if _S2_REQUEST_DELAY > 0:
-        await asyncio.sleep(_S2_REQUEST_DELAY)
+    await s2_acquire()
     for attempt in range(3):
         try:
-            r = await client.get(f"{BASE_URL}/paper/{id_str}", params={"fields": FIELDS}, headers=_headers(), timeout=30)
+            r = await client.get(
+                f"{BASE_URL}/paper/{id_str}", params={"fields": FIELDS}, headers=_headers(), timeout=30
+            )
             r.raise_for_status()
             return r.json()
         except httpx.HTTPStatusError as e:
@@ -102,7 +103,7 @@ async def _get_single(client: httpx.AsyncClient, id_str: str) -> dict | None:
 
 
 async def lookup_by_doi(doi: str) -> Paper | None:
-    """Single-paper lookup by DOI — PDF Agent citation verification (mode "lookup 1 paper")."""
+    """Single-paper lookup by DOI - PDF Agent citation verification (mode "lookup 1 paper")."""
     async with httpx.AsyncClient() as client:
         data = await _get_single(client, f"DOI:{doi}")
     return _to_paper(data) if data and data.get("paperId") else None
@@ -118,10 +119,17 @@ async def lookup_by_arxiv_id(arxiv_id: str) -> Paper | None:
 async def get_references(paper_id: str, limit: int = 100) -> list[dict]:
     """Fetch references (backward snowball) with full snowball fields."""
     async with httpx.AsyncClient() as client:
-        data = await _get(client, f"{BASE_URL}/paper/{paper_id}/references", {"fields": SNOWBALL_FIELDS, "limit": limit})
+        data = await _get(
+            client, f"{BASE_URL}/paper/{paper_id}/references", {"fields": SNOWBALL_FIELDS, "limit": limit}
+        )
     return [
-        {"paper": _to_paper(r["citedPaper"]), "isInfluential": bool(r.get("isInfluential")), "intents": r.get("intents") or []}
-        for r in (data.get("data") or []) if r.get("citedPaper") and r["citedPaper"].get("paperId")
+        {
+            "paper": _to_paper(r["citedPaper"]),
+            "isInfluential": bool(r.get("isInfluential")),
+            "intents": r.get("intents") or [],
+        }
+        for r in (data.get("data") or [])
+        if r.get("citedPaper") and r["citedPaper"].get("paperId")
     ]
 
 
@@ -130,8 +138,13 @@ async def get_citations(paper_id: str, limit: int = 100) -> list[dict]:
     async with httpx.AsyncClient() as client:
         data = await _get(client, f"{BASE_URL}/paper/{paper_id}/citations", {"fields": SNOWBALL_FIELDS, "limit": limit})
     return [
-        {"paper": _to_paper(r["citingPaper"]), "isInfluential": bool(r.get("isInfluential")), "intents": r.get("intents") or []}
-        for r in (data.get("data") or []) if r.get("citingPaper") and r["citingPaper"].get("paperId")
+        {
+            "paper": _to_paper(r["citingPaper"]),
+            "isInfluential": bool(r.get("isInfluential")),
+            "intents": r.get("intents") or [],
+        }
+        for r in (data.get("data") or [])
+        if r.get("citingPaper") and r["citingPaper"].get("paperId")
     ]
 
 
@@ -169,7 +182,7 @@ async def get_embeddings_batch(paper_ids: list[str]) -> dict[str, list[float]]:
 
 
 async def search_snippet(claim_text: str, paper_id: str | None = None) -> str | None:
-    """⑧ Fetch full-text snippet for claim verification."""
+    """Fetch full-text snippet for claim verification."""
     params: dict = {"query": claim_text, "limit": 1}
     if paper_id:
         params["paperId"] = paper_id
@@ -184,6 +197,12 @@ async def search_snippet(claim_text: str, paper_id: str | None = None) -> str | 
 def _to_paper(raw: dict) -> Paper:
     authors = [a["name"] for a in (raw.get("authors") or []) if a and a.get("name")]
     pdf_info = raw.get("openAccessPdf") or {}
+    venue = (
+        (raw.get("publicationVenue") or {}).get("name")
+        or (raw.get("journal") or {}).get("name")
+        or raw.get("venue")
+        or None
+    )
     return Paper(
         paperId=raw.get("paperId") or "",
         title=raw.get("title") or "",
@@ -196,4 +215,5 @@ def _to_paper(raw: dict) -> Paper:
         openAccessPdfStatus=pdf_info.get("status"),
         externalIds=raw.get("externalIds") or {},
         source="semantic_scholar",
+        venue=venue,
     )

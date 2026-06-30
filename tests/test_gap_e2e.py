@@ -192,9 +192,7 @@ async def test_e2e_five_papers_happy_path() -> None:
     assert _UNVERIFIED_MARKER not in narrative  # template has no fabricated citations
     # After P2-01.C: retrieval.search is shared by counter_search (limit=5) and
     # chat_integration baseline (limit=10). With 5 papers, no baseline → no limit=10 call.
-    baseline_calls = [
-        c for c in mocks["baseline_search"].await_args_list if c.kwargs.get("limit") == 10
-    ]
+    baseline_calls = [c for c in mocks["baseline_search"].await_args_list if c.kwargs.get("limit") == 10]
     assert baseline_calls == [], "Baseline should not be triggered with 5 papers"
 
 
@@ -221,15 +219,11 @@ async def test_e2e_few_papers_triggers_baseline() -> None:
     """AC: <5 papers → baseline search runs (baseline_triggered), then pipeline."""
     baseline = [Paper(paperId=f"b{i}", title=f"B{i}", year=2025) for i in range(3)]
     with ExitStack() as stack:
-        mocks = _patch_pipeline(
-            stack, detail=_detail(), synth_narrative=_GOOD_NARRATIVE, baseline_results=baseline
-        )
+        mocks = _patch_pipeline(stack, detail=_detail(), synth_narrative=_GOOD_NARRATIVE, baseline_results=baseline)
         narrative = await run_gap_detection_chat(_source_msg(2))
 
     # After P2-01.C: retrieval.search is shared; baseline calls use limit=10
-    baseline_calls = [
-        c for c in mocks["baseline_search"].await_args_list if c.kwargs.get("limit") == 10
-    ]
+    baseline_calls = [c for c in mocks["baseline_search"].await_args_list if c.kwargs.get("limit") == 10]
     assert len(baseline_calls) == 1, f"Expected 1 baseline call, got {len(baseline_calls)}"
     assert narrative  # produced a narrative, no crash
 

@@ -17,13 +17,9 @@ async def batch_analysis_node(state: PDFAgentState) -> dict:
     citation_task = citation_lookup.verify_citations_batch(state["raw_citations"])
     link_task = link_checker.check_links_batch(state["sections"])
 
-    critic_pairs, citation_verdicts, link_results = await asyncio.gather(
-        critic_task, citation_task, link_task
-    )
+    critic_pairs, citation_verdicts, link_results = await asyncio.gather(critic_task, citation_task, link_task)
 
-    critic_results = [
-        {"section_title": section["title"], "issues": issues} for section, issues in critic_pairs
-    ]
+    critic_results = [{"section_title": section["title"], "issues": issues} for section, issues in critic_pairs]
     return {
         "critic_results": critic_results,
         "citation_verdicts": citation_verdicts,

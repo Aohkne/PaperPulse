@@ -37,6 +37,7 @@ def _normalise_method(methodology: str | None) -> list[str]:
         return []
     # Split on comma or slash; strip and lowercase each token.
     import re
+
     tokens = re.split(r"[,/]", methodology)
     return [t.strip().lower() for t in tokens if t.strip()]
 
@@ -101,10 +102,7 @@ def find_underexplored_pairs(
     """
     t = threshold if threshold is not None else get_co_occurrence_threshold()
     return [
-        (m.lower(), d.lower())
-        for m in all_methods
-        for d in all_domains
-        if matrix.get((m.lower(), d.lower()), 0) < t
+        (m.lower(), d.lower()) for m in all_methods for d in all_domains if matrix.get((m.lower(), d.lower()), 0) < t
     ]
 
 
@@ -124,7 +122,7 @@ def collect_corpus_vocab(extracted_data: list) -> tuple[list[str], list[str]]:
     for paper in extracted_data:
         for m in _normalise_method(getattr(paper, "methodology", None)):
             methods.add(m)
-        for t in (getattr(paper, "topics", None) or []):
+        for t in getattr(paper, "topics", None) or []:
             d = t.strip().lower()
             if d:
                 domains.add(d)

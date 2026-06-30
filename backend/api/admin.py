@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 # ── PostgREST helper ─────────────────────────────────────────────────────────
+
 
 async def _pg(
     table: str,
@@ -48,6 +49,7 @@ async def _pg(
     # that fit entirely within the limit still returned 200 and worked.
     if res.status_code not in (200, 206):
         import logging
+
         logging.getLogger(__name__).warning("_pg %s status=%s body=%s", table, res.status_code, res.text[:300])
         return [], 0
 
@@ -87,12 +89,16 @@ async def _pg_write(table: str, method: str, params: dict, body: dict) -> list[d
         )
     if res.status_code not in (200, 201):
         import logging
-        logging.getLogger(__name__).warning("_pg_write %s %s status=%s body=%s", method, table, res.status_code, res.text[:300])
+
+        logging.getLogger(__name__).warning(
+            "_pg_write %s %s status=%s body=%s", method, table, res.status_code, res.text[:300]
+        )
         raise HTTPException(status_code=502, detail=f"PostgREST {method} {table} failed")
     return res.json()
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
+
 
 class StatsResponse(BaseModel):
     total_users: int
@@ -212,24 +218,31 @@ class RevenueResponse(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats(
     _admin: Any = Depends(require_admin),
 ):
     """Aggregate dashboard statistics (admin only)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     week_ago = (now - timedelta(days=7)).isoformat()
 
     _, total_users = await _pg("profiles", {"select": "id"}, count=True)
 
     _, new_today = await _pg("profiles", {"select": "id", "created_at": f"gte.{today}"}, count=True)
-    _, new_week  = await _pg("profiles", {"select": "id", "created_at": f"gte.{week_ago}"}, count=True)
+    _, new_week = await _pg("profiles", {"select": "id", "created_at": f"gte.{week_ago}"}, count=True)
 
-    _, logins_today = await _pg("login_logs", {"select": "id", "event_type": "eq.login", "logged_in_at": f"gte.{today}"}, count=True)
-    _, logins_week  = await _pg("login_logs", {"select": "id", "event_type": "eq.login", "logged_in_at": f"gte.{week_ago}"}, count=True)
+    _, logins_today = await _pg(
+        "login_logs", {"select": "id", "event_type": "eq.login", "logged_in_at": f"gte.{today}"}, count=True
+    )
+    _, logins_week = await _pg(
+        "login_logs", {"select": "id", "event_type": "eq.login", "logged_in_at": f"gte.{week_ago}"}, count=True
+    )
 
-    _, registers_week = await _pg("login_logs", {"select": "id", "event_type": "eq.register", "logged_in_at": f"gte.{week_ago}"}, count=True)
+    _, registers_week = await _pg(
+        "login_logs", {"select": "id", "event_type": "eq.register", "logged_in_at": f"gte.{week_ago}"}, count=True
+    )
 
     active_rows, _ = await _pg("login_logs", {"select": "user_id", "logged_in_at": f"gte.{week_ago}"})
     active_users_7d = len({r["user_id"] for r in active_rows})
@@ -274,16 +287,20 @@ async def list_users(
     user_ids = [p["id"] for p in profiles]
 
     from collections import defaultdict
+
     counts: dict[str, int] = defaultdict(int)
     last_login: dict[str, str] = {}
 
     if user_ids:
         id_filter = ",".join(user_ids)
-        logs, _ = await _pg("login_logs", {
-            "select": "user_id,logged_in_at",
-            "event_type": "eq.login",
-            "user_id": f"in.({id_filter})",
-        })
+        logs, _ = await _pg(
+            "login_logs",
+            {
+                "select": "user_id,logged_in_at",
+                "event_type": "eq.login",
+                "user_id": f"in.({id_filter})",
+            },
+        )
         for log in logs:
             uid = log["user_id"]
             counts[uid] += 1
@@ -327,7 +344,7 @@ async def ban_user(
         {"id": f"eq.{user_id}"},
         {
             "is_banned": True,
-            "banned_at": datetime.now(timezone.utc).isoformat(),
+            "banned_at": datetime.now(UTC).isoformat(),
             "ban_reason": body.reason,
         },
     )
@@ -335,8 +352,14 @@ async def ban_user(
         raise HTTPException(status_code=404, detail="User not found")
     p = rows[0]
     return UserRow(
-        id=p["id"], email=p["email"], full_name=p.get("full_name"), role=p["role"],
-        is_banned=p.get("is_banned", False), created_at=p["created_at"], last_login=None, total_logins=0,
+        id=p["id"],
+        email=p["email"],
+        full_name=p.get("full_name"),
+        role=p["role"],
+        is_banned=p.get("is_banned", False),
+        created_at=p["created_at"],
+        last_login=None,
+        total_logins=0,
     )
 
 
@@ -356,8 +379,14 @@ async def unban_user(
         raise HTTPException(status_code=404, detail="User not found")
     p = rows[0]
     return UserRow(
-        id=p["id"], email=p["email"], full_name=p.get("full_name"), role=p["role"],
-        is_banned=p.get("is_banned", False), created_at=p["created_at"], last_login=None, total_logins=0,
+        id=p["id"],
+        email=p["email"],
+        full_name=p.get("full_name"),
+        role=p["role"],
+        is_banned=p.get("is_banned", False),
+        created_at=p["created_at"],
+        last_login=None,
+        total_logins=0,
     )
 
 
@@ -367,7 +396,7 @@ def _billing_row(user_id: str, profile: dict, acct: dict) -> BillingAccountRow:
         email=profile.get("email", ""),
         full_name=profile.get("full_name"),
         tier=acct.get("tier", "free"),
-        tier_period_end=acct.get("tier_period_end") or datetime.now(timezone.utc).isoformat(),
+        tier_period_end=acct.get("tier_period_end") or datetime.now(UTC).isoformat(),
         subscription_lr_quota=acct.get("subscription_lr_quota"),
         subscription_pdf_quota=acct.get("subscription_pdf_quota"),
         subscription_gap_quota=acct.get("subscription_gap_quota"),
@@ -382,9 +411,15 @@ def _billing_row(user_id: str, profile: dict, acct: dict) -> BillingAccountRow:
 
 _BILLING_ACCOUNT_DEFAULTS: dict = {
     "tier": "free",
-    "subscription_lr_quota": 3, "subscription_pdf_quota": 5, "subscription_gap_quota": 3,
-    "topup_lr_balance": 0, "topup_pdf_balance": 0, "topup_gap_balance": 0,
-    "lr_used_this_period": 0, "pdf_used_this_period": 0, "gap_used_this_period": 0,
+    "subscription_lr_quota": 3,
+    "subscription_pdf_quota": 5,
+    "subscription_gap_quota": 3,
+    "topup_lr_balance": 0,
+    "topup_pdf_balance": 0,
+    "topup_gap_balance": 0,
+    "lr_used_this_period": 0,
+    "pdf_used_this_period": 0,
+    "gap_used_this_period": 0,
 }
 
 
@@ -418,23 +453,27 @@ async def list_billing_accounts(
     accounts_by_id: dict[str, dict] = {}
     if user_ids:
         id_filter = ",".join(user_ids)
-        accounts, _ = await _pg("billing_accounts", {
-            "select": (
-                "user_id,tier,tier_period_end,subscription_lr_quota,subscription_pdf_quota,"
-                "subscription_gap_quota,topup_lr_balance,topup_pdf_balance,topup_gap_balance,"
-                "lr_used_this_period,pdf_used_this_period,gap_used_this_period"
-            ),
-            "user_id": f"in.({id_filter})",
-        })
+        accounts, _ = await _pg(
+            "billing_accounts",
+            {
+                "select": (
+                    "user_id,tier,tier_period_end,subscription_lr_quota,subscription_pdf_quota,"
+                    "subscription_gap_quota,topup_lr_balance,topup_pdf_balance,topup_gap_balance,"
+                    "lr_used_this_period,pdf_used_this_period,gap_used_this_period"
+                ),
+                "user_id": f"in.({id_filter})",
+            },
+        )
         accounts_by_id = {a["user_id"]: a for a in accounts}
 
-    rows = [
-        _billing_row(p["id"], p, accounts_by_id.get(p["id"], _BILLING_ACCOUNT_DEFAULTS))
-        for p in profiles
-    ]
+    rows = [_billing_row(p["id"], p, accounts_by_id.get(p["id"], _BILLING_ACCOUNT_DEFAULTS)) for p in profiles]
 
     return BillingAccountListResponse(
-        data=rows, total=total, page=page, limit=limit, has_more=(offset + limit) < total,
+        data=rows,
+        total=total,
+        page=page,
+        limit=limit,
+        has_more=(offset + limit) < total,
     )
 
 
@@ -458,7 +497,7 @@ async def reset_usage(
         "lr_used_this_period": 0,
         "pdf_used_this_period": 0,
         "gap_used_this_period": 0,
-        "tier_period_end": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+        "tier_period_end": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
     }
 
     if existing:
@@ -470,10 +509,15 @@ async def reset_usage(
         raise HTTPException(status_code=404, detail="Billing account not found")
 
     await _pg_write(
-        "quota_ledger", "POST", {},
+        "quota_ledger",
+        "POST",
+        {},
         {
-            "user_id": user_id, "feature": "lr", "delta": 0, "source": "subscription",
-            "session_id": f"admin-reset:{admin.id}:{datetime.now(timezone.utc).isoformat()}",
+            "user_id": user_id,
+            "feature": "lr",
+            "delta": 0,
+            "source": "subscription",
+            "session_id": f"admin-reset:{admin.id}:{datetime.now(UTC).isoformat()}",
             "reason": "subscription_reset",
         },
     )
@@ -494,10 +538,13 @@ async def topup_usage(
     if body.lr == 0 and body.pdf == 0 and body.gap == 0:
         raise HTTPException(status_code=400, detail="Provide at least one non-zero amount")
 
-    existing, _ = await _pg("billing_accounts", {
-        "select": "topup_lr_balance,topup_pdf_balance,topup_gap_balance",
-        "user_id": f"eq.{user_id}",
-    })
+    existing, _ = await _pg(
+        "billing_accounts",
+        {
+            "select": "topup_lr_balance,topup_pdf_balance,topup_gap_balance",
+            "user_id": f"eq.{user_id}",
+        },
+    )
 
     if existing:
         current = existing[0]
@@ -508,12 +555,17 @@ async def topup_usage(
         }
         rows = await _pg_write("billing_accounts", "PATCH", {"user_id": f"eq.{user_id}"}, patch)
     else:
-        rows = await _pg_write("billing_accounts", "POST", {}, {
-            "user_id": user_id,
-            "topup_lr_balance": max(body.lr, 0),
-            "topup_pdf_balance": max(body.pdf, 0),
-            "topup_gap_balance": max(body.gap, 0),
-        })
+        rows = await _pg_write(
+            "billing_accounts",
+            "POST",
+            {},
+            {
+                "user_id": user_id,
+                "topup_lr_balance": max(body.lr, 0),
+                "topup_pdf_balance": max(body.pdf, 0),
+                "topup_gap_balance": max(body.gap, 0),
+            },
+        )
 
     if not rows:
         raise HTTPException(status_code=404, detail="Billing account not found")
@@ -521,10 +573,15 @@ async def topup_usage(
     for feature, delta in (("lr", body.lr), ("pdf", body.pdf), ("gap", body.gap)):
         if delta:
             await _pg_write(
-                "quota_ledger", "POST", {},
+                "quota_ledger",
+                "POST",
+                {},
                 {
-                    "user_id": user_id, "feature": feature, "delta": delta, "source": "topup",
-                    "session_id": f"admin-topup:{admin.id}:{datetime.now(timezone.utc).isoformat()}",
+                    "user_id": user_id,
+                    "feature": feature,
+                    "delta": delta,
+                    "source": "topup",
+                    "session_id": f"admin-topup:{admin.id}:{datetime.now(UTC).isoformat()}",
                     "reason": "topup_purchase",
                 },
             )
@@ -577,7 +634,7 @@ async def get_revenue(
     _admin: Any = Depends(require_admin),
 ):
     """Aggregate revenue from paid PayOS transactions (admin only)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
     thirty_days_ago = (now - timedelta(days=30)).isoformat()
 

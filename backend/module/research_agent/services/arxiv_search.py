@@ -28,6 +28,7 @@ def _get_executor() -> ThreadPoolExecutor:
         )
     return _executor
 
+
 # `arxiv.Client` exposes no timeout option and its underlying `requests.Session`
 # can hang indefinitely on a stalled connection — since these calls run in a
 # 2-worker pool shared by every caller, one hang would eventually exhaust the

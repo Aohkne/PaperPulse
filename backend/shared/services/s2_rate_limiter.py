@@ -11,6 +11,7 @@ issuing the request.  This serialises them through the bucket so the
 pipeline never exceeds the detected rate regardless of how many
 coroutines are running concurrently.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,8 +21,8 @@ import time
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_RPS_FREE = 1.0    # S2 free tier
-_DEFAULT_RPS_KEY = 10.0    # S2 with API key
+_DEFAULT_RPS_FREE = 1.0  # S2 free tier
+_DEFAULT_RPS_KEY = 10.0  # S2 with API key
 
 
 class _TokenBucket:
@@ -63,6 +64,7 @@ def _build_bucket() -> _TokenBucket:
 
     try:
         from backend.config import get_settings
+
         if get_settings().semantic_scholar_api_key:
             logger.info("S2 rate limiter: %.1f req/s (API key detected)", _DEFAULT_RPS_KEY)
             return _TokenBucket(_DEFAULT_RPS_KEY)

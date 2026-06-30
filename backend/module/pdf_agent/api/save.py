@@ -111,17 +111,20 @@ async def resume_from_review(
 
     graph = await get_pdf_agent_graph()
     config = pdf_agent_config(doc_id)
-    await graph.aupdate_state(config, {
-        "doc_id": doc_id,
-        "user_id": str(user.id),
-        "input_format": "tex",
-        "raw_file_path": str(main_tex_path),
-        "sections": [],
-        "raw_citations": [],
-        "figures": [],
-        "bundle_path": str(bundle_path),
-        "main_tex_path": str(main_tex_path),
-        "annotations": annotations,
-        "review_id": review_id,
-    })
+    await graph.aupdate_state(
+        config,
+        {
+            "doc_id": doc_id,
+            "user_id": str(user.id),
+            "input_format": "tex",
+            "raw_file_path": str(main_tex_path),
+            "sections": [],
+            "raw_citations": [],
+            "figures": [],
+            "bundle_path": str(bundle_path),
+            "main_tex_path": str(main_tex_path),
+            "annotations": annotations,
+            "review_id": review_id,
+        },
+    )
     return {"doc_id": doc_id, "title": row["title"], "annotations": annotations}

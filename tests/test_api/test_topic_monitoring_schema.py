@@ -17,8 +17,14 @@ def test_schema_contains_topic_monitoring_tables_and_indexes():
 def test_schema_extends_notifications_for_topic_linked_alerts():
     schema = Path("supabase/schema.sql").read_text(encoding="utf-8")
 
-    assert "ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS topic_id uuid REFERENCES public.research_topics(id) ON DELETE SET NULL;" in schema
-    assert "ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS paper_id uuid REFERENCES public.papers(id) ON DELETE SET NULL;" in schema
+    assert (
+        "ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS topic_id uuid REFERENCES public.research_topics(id) ON DELETE SET NULL;"
+        in schema
+    )
+    assert (
+        "ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS paper_id uuid REFERENCES public.papers(id) ON DELETE SET NULL;"
+        in schema
+    )
     assert "ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS reason text;" in schema
     assert "ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS score numeric;" in schema
 

@@ -67,8 +67,8 @@ class Settings(BaseSettings):
 
     # MMR (Maximal Marginal Relevance) — SPEC 2.0 §Step ④⑤
     mmr_lambda: float = Field(default=0.5, ge=0.0, le=1.0)
-    mmr_prefetch_outline: int = 150   # fetch_k before MMR for Step ④ (outline, k=20)
-    mmr_prefetch_theme: int = 50      # fetch_k before MMR for Step ⑤ (per-theme, k=10)
+    mmr_prefetch_outline: int = 150  # fetch_k before MMR for Step ④ (outline, k=20)
+    mmr_prefetch_theme: int = 50  # fetch_k before MMR for Step ⑤ (per-theme, k=10)
 
     # Search guardrails — SPEC 2.0 §System Guardrails
     max_sub_queries: int = 6
@@ -91,7 +91,9 @@ class Settings(BaseSettings):
     # ── PDF Agent (pdf-agent_PLAN_2.0.md) ──────────────────────────────────
     pdf_agent_output_dir: str = "./data/pdf_agent_output"
     pdf_parser_max_workers: int = 2  # ThreadPoolExecutor size — tune to Cloud Run instance's CPU allocation
-    pdf_agent_upload_concurrency: int = 4  # max simultaneous /upload requests before returning 429 (optimize_Plan.html §2.2)
+    pdf_agent_upload_concurrency: int = (
+        4  # max simultaneous /upload requests before returning 429 (optimize_Plan.html §2.2)
+    )
 
     # MinerU (self-host) — see services/mineru_client.py. Falls back to PyMuPDF
     # (services/pdf_parser.py) if unavailable in either mode.
@@ -143,7 +145,6 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""  # empty = Sentry disabled (no-op), see main.py lifespan
 
 
-
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
@@ -164,4 +165,3 @@ def get_llm(temperature: float | None = None, streaming: bool = True):
     if s.llm_base_url:
         kwargs["base_url"] = s.llm_base_url
     return ChatOpenAI(**kwargs)
-
