@@ -155,7 +155,7 @@ const ChatInput = () => {
             fontFamily: "'Noto Serif', serif",
           }}
         >
-          PaperPulse only cites real papers — never fabricated sources.
+          PaperPulse is AI and may make mistakes.
         </p>
       </div>
     </div>
