@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useBillingStore } from '@/shared/store/useBillingStore';
 
 const TIER_LABELS = { free: 'Free', plus: 'Plus', unlimited: 'Unlimited' };
-const SOFT_CAP_CREDIT = 1500; // Unlimited soft cap (mirrors pricing.SOFT_CAP_CREDIT)
 
 const cardStyle = {
   border: '1px solid var(--color-hairline-border)',
@@ -27,8 +26,8 @@ const UsagePanel = () => {
   const used = Number(account.credit_used_this_period ?? 0);
   const balance = account.subscription_credit_balance; // null = unlimited
   const unlimited = balance === null || balance === undefined;
-  const budget = unlimited ? SOFT_CAP_CREDIT : Math.max(0, Number(balance)) + used;
-  const pct = budget > 0 ? Math.min(100, Math.round((used / budget) * 100)) : 0;
+  const budget = unlimited ? null : Math.max(0, Number(balance)) + used;
+  const pct = budget ? Math.min(100, Math.round((used / budget) * 100)) : 0;
 
   return (
     <div style={cardStyle}>
@@ -46,16 +45,19 @@ const UsagePanel = () => {
         <span style={{ color: 'var(--color-paper-mid)' }}>
           {unlimited ? 'Usage this period' : 'Monthly budget used'}
         </span>
-        <span style={{ fontWeight: 700, color: barColor(pct), fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontWeight: 700, color: unlimited ? 'var(--color-brand-600)' : barColor(pct), fontVariantNumeric: 'tabular-nums' }}>
           {unlimited ? `${used.toFixed(1)} credits` : `${pct}%`}
         </span>
       </div>
-      <div style={{ height: 10, borderRadius: 999, background: 'var(--color-hairline-border)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${unlimited ? Math.min(100, (used / SOFT_CAP_CREDIT) * 100) : pct}%`, background: barColor(pct), borderRadius: 999 }} />
-      </div>
+      {/* Progress bar only for capped tiers — Unlimited has no monthly cap. */}
+      {!unlimited && (
+        <div style={{ height: 10, borderRadius: 999, background: 'var(--color-hairline-border)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: barColor(pct), borderRadius: 999 }} />
+        </div>
+      )}
       <p style={{ fontSize: 12, color: 'var(--color-paper-mid)', marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
         {unlimited
-          ? `Unlimited plan — soft cap ${SOFT_CAP_CREDIT} credits`
+          ? 'Unlimited plan — no monthly cap'
           : `${used.toFixed(1)} / ${budget.toFixed(0)} credits used · ${Math.max(0, Number(balance)).toFixed(1)} left`}
       </p>
 

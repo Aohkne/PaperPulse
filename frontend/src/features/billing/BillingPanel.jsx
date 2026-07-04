@@ -8,10 +8,12 @@ import { friendlyError } from '@/shared/utils/errorMessage';
 // Lora has full Vietnamese Unicode support — fixes "đ" rendering
 const PRICE_FONT = "'Lora', 'Newsreader', serif";
 
+// Token-weighted billing: one shared monthly credit pool per tier (credits=null
+// → unlimited). All features (LR · PDF · Research Gap) draw from it.
 const TIERS = [
-  { key: 'free',      label: 'Free',      price: '0đ',              lr: 3,   pdf: 5,   gap: 3   },
-  { key: 'plus',      label: 'Plus',      price: '19.000đ/month',   lr: 5,   pdf: 10,  gap: 5,  popular: true },
-  { key: 'unlimited', label: 'Unlimited', price: '299.000đ/month',  lr: '∞', pdf: '∞', gap: '∞' },
+  { key: 'free',      label: 'Free',      price: '0đ',              credits: 50 },
+  { key: 'plus',      label: 'Plus',      price: '19.000đ/month',   credits: 100, popular: true },
+  { key: 'unlimited', label: 'Unlimited', price: '299.000đ/month',  credits: null },
 ];
 
 const sectionTitle = {
@@ -240,11 +242,10 @@ const BillingPanel = () => {
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {[
-                  `${tier.lr} Literature Review/month`,
-                  `${tier.pdf} PDF Agent/month`,
-                  `${tier.gap} Research Gap/month`,
-                ].map((line) => (
+                {(tier.credits === null
+                  ? ['Unlimited usage — no monthly cap', 'All tools — LR · PDF · Research Gap', 'Knowledge Graph included free']
+                  : [`${tier.credits} credits / month`, 'One shared pool — LR · PDF · Research Gap', 'Knowledge Graph included free']
+                ).map((line) => (
                   <p key={line} style={{
                     fontSize: 13, margin: 0,
                     fontFamily: PRICE_FONT,

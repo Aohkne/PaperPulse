@@ -89,11 +89,11 @@ const PLANS = [
     ctaOutline: true,
     highlight: false,
     features: [
-      { ok: true, label: '3 Literature Reviews / month' },
-      { ok: true, label: '5 PDF Agent uses / month' },
+      { ok: true, label: '50 credits / month' },
+      { ok: true, label: 'One shared pool — LR · PDF · Research Gap' },
       { ok: true, label: 'Knowledge Graph included free' },
-      { ok: true, label: '3 Research Gaps / month' },
-      { ok: false, label: 'Top up when you run out of quota' },
+      { ok: true, label: '≈ 4 reviews or 25 PDF analyses / month' },
+      { ok: false, label: 'Upgrade or wait for renewal when out' },
     ],
   },
   {
@@ -106,11 +106,11 @@ const PLANS = [
     ctaOutline: false,
     highlight: true,
     features: [
-      { ok: true, label: '5 Literature Reviews / month' },
-      { ok: true, label: '10 PDF Agent uses / month' },
+      { ok: true, label: '100 credits / month' },
+      { ok: true, label: 'One shared pool — LR · PDF · Research Gap' },
       { ok: true, label: 'Knowledge Graph included free' },
-      { ok: true, label: '5 Research Gaps / month' },
-      { ok: true, label: 'Top up when you run out of quota' },
+      { ok: true, label: '≈ 9 reviews or 50 PDF analyses / month' },
+      { ok: true, label: '2× the Free monthly budget' },
     ],
   },
   {
@@ -122,11 +122,10 @@ const PLANS = [
     ctaOutline: true,
     highlight: false,
     features: [
-      { ok: true, label: 'Unlimited Literature Reviews' },
-      { ok: true, label: 'Unlimited PDF Agent' },
+      { ok: true, label: 'Unlimited usage — no monthly cap' },
+      { ok: true, label: 'All tools — LR · PDF · Research Gap' },
       { ok: true, label: 'Knowledge Graph included free' },
-      { ok: true, label: 'Unlimited Research Gaps' },
-      { ok: true, label: 'No need to top up' },
+      { ok: true, label: 'Best for heavy, continuous use' },
     ],
   },
 ];
