@@ -1,0 +1,406 @@
+{
+  "query_set": [
+    {
+      "topic": "RAG application in healthcare",
+      "domain": "Healthcare AI",
+      "note": "A3 intent/citation probe"
+    }
+  ],
+  "max_papers_for_gap": "5",
+  "query_delay_seconds": 0,
+  "query_limit": 1,
+  "query_start": 1,
+  "mode_filter": [
+    "on"
+  ],
+  "results": [
+    {
+      "topic": "RAG application in healthcare",
+      "domain": "Healthcare AI",
+      "mode": "on",
+      "flags": {
+        "GAP_DIVERSITY_ENABLED": "true",
+        "SELF_CONSISTENCY_ENABLED": "true",
+        "COUNTER_CRITIQUE_ENABLED": "true",
+        "UNPAYWALL_ENABLED": "true",
+        "MAX_PAPERS_FOR_GAP": "5"
+      },
+      "runtime_seconds": 615.47,
+      "papers_analyzed": 5,
+      "gap_count": 6,
+      "quality": {
+        "gap_count": 6,
+        "mean_total": 0.153,
+        "max_total": 0.1679,
+        "axis_mean": {
+          "grounding": 0.4843,
+          "novelty": 0.2243,
+          "actionable": 1.0,
+          "corpus_evidence": 0.6333
+        },
+        "totals": [
+          0.1679,
+          0.1643,
+          0.1632,
+          0.1474,
+          0.1119,
+          0.1633
+        ]
+      },
+      "duplicates": {
+        "cluster_count": 6,
+        "duplicate_count": 0,
+        "clusters": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ],
+          [
+            4
+          ],
+          [
+            5
+          ]
+        ]
+      },
+      "low_confidence_count": 6,
+      "fulltext_coverage": {
+        "fulltext": 1,
+        "abstract": 4,
+        "unpaywall_hits": 4
+      },
+      "telemetry": {
+        "diversity_calls": [
+          {
+            "groups": [
+              [
+                0
+              ],
+              [
+                1,
+                6,
+                8
+              ],
+              [
+                2,
+                4
+              ],
+              [
+                3
+              ],
+              [
+                5
+              ],
+              [
+                7
+              ]
+            ],
+            "intent_aligned": {
+              "0": true,
+              "1": true,
+              "2": true,
+              "3": true,
+              "4": true,
+              "5": true,
+              "6": true,
+              "7": true,
+              "8": true
+            }
+          }
+        ],
+        "critique_calls": [
+          {
+            "verdicts": {
+              "0": {
+                "level": "moderate",
+                "already_solved": false,
+                "reason": "Recent privacy‑preserving retrieval work (e.g., federated EHR search, DP‑augmented retrieval) exists, so the claim of no exploration is overstated."
+              },
+              "1": {
+                "level": "none",
+                "already_solved": false,
+                "reason": "No published RCTs evaluating RAG‑driven clinical decision support have been reported, making the gap genuinely open."
+              },
+              "2": {
+                "level": "strong",
+                "already_solved": true,
+                "reason": "The MedRAG paper already benchmarks KG‑enhanced RAG on the MIRAGE suite, so the gap is already addressed."
+              }
+            },
+            "removed": 1,
+            "moderated": 1
+          }
+        ],
+        "extraction_events": [
+          {
+            "paper_id": "5879575701b9b65b5cc56c00d9eebbfa219e0428",
+            "doi": "10.1371/journal.pdig.0000877",
+            "source": "abstract",
+            "pdf_url": ""
+          },
+          {
+            "paper_id": "83939671534dc3d374c9bc4e3e03b5ec2c7ba301",
+            "doi": "10.1093/jamia/ocaf008",
+            "source": "abstract",
+            "pdf_url": "https://doi.org/10.1093/jamia/ocaf008"
+          },
+          {
+            "paper_id": "da83852315c884c73dc527a4b7bc1209fbb037c3",
+            "doi": "10.1145/3696410.3714782",
+            "source": "abstract",
+            "pdf_url": ""
+          },
+          {
+            "paper_id": "b798cf6af813638fab09a8af6ad0f3df6c241485",
+            "doi": "10.48550/arXiv.2402.13178",
+            "source": "abstract",
+            "pdf_url": ""
+          },
+          {
+            "paper_id": "8c85026fe0d5c96fb275b81d483f8910db6ada03",
+            "doi": "10.1038/s41746-025-01519-z",
+            "source": "fulltext",
+            "pdf_url": "https://www.nature.com/articles/s41746-025-01519-z.pdf"
+          }
+        ],
+        "unpaywall_requests": [
+          {
+            "doi": "10.1371/journal.pdig.0000877",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://doi.org/10.1371/journal.pdig.0000877"
+          },
+          {
+            "doi": "10.1093/jamia/ocaf008",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://academic.oup.com/jamia/advance-article-pdf/doi/10.1093/jamia/ocaf008/61442713/ocaf008.pdf"
+          },
+          {
+            "doi": "10.1145/3696410.3714782",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://dl.acm.org/doi/pdf/10.1145/3696410.3714782"
+          },
+          {
+            "doi": "10.48550/arXiv.2402.13178",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": null
+          },
+          {
+            "doi": "10.1038/s41746-025-01519-z",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://www.nature.com/articles/s41746-025-01519-z.pdf"
+          }
+        ],
+        "unpaywall_hits": [
+          {
+            "doi": "10.1371/journal.pdig.0000877",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://doi.org/10.1371/journal.pdig.0000877"
+          },
+          {
+            "doi": "10.1093/jamia/ocaf008",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://academic.oup.com/jamia/advance-article-pdf/doi/10.1093/jamia/ocaf008/61442713/ocaf008.pdf"
+          },
+          {
+            "doi": "10.1145/3696410.3714782",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://dl.acm.org/doi/pdf/10.1145/3696410.3714782"
+          },
+          {
+            "doi": "10.1038/s41746-025-01519-z",
+            "email": "duybao04042004@gmail.com",
+            "oa_url": "https://www.nature.com/articles/s41746-025-01519-z.pdf"
+          }
+        ]
+      },
+      "gap_snapshot": [
+        {
+          "statement": "Empirical evidence of RAG’s impact on real clinical outcomes is missing; no randomized controlled trials have measured whether RAG‑augmented decision support improves diagnosis accuracy, treatment timeliness, or patient safety.",
+          "quality_score": 0.16793999999999998,
+          "quality_breakdown": {
+            "grounding": 0.599,
+            "novelty": 0.2566,
+            "actionable": 1.0,
+            "corpus_evidence": 0.4
+          },
+          "low_confidence": true,
+          "supporting_papers": [
+            "5879575701b9b65b5cc56c00d9eebbfa219e0428",
+            "83939671534dc3d374c9bc4e3e03b5ec2c7ba301"
+          ]
+        },
+        {
+          "statement": "Although hallucinations are noted, systematic methods for detecting and mitigating hallucinations in medical RAG outputs have not been investigated.",
+          "quality_score": 0.16433999999999999,
+          "quality_breakdown": {
+            "grounding": 0.599,
+            "novelty": 0.2135,
+            "actionable": 1.0,
+            "corpus_evidence": 0.4
+          },
+          "low_confidence": true,
+          "supporting_papers": [
+            "8c85026fe0d5c96fb275b81d483f8910db6ada03",
+            "5879575701b9b65b5cc56c00d9eebbfa219e0428"
+          ]
+        },
+        {
+          "statement": "The existing literature focuses on text‑only retrieval‑augmented generation for healthcare, leaving a gap in multimodal RAG that can jointly retrieve and reason over medical images (e.g., radiographs, histopathology) alongside clinical notes.",
+          "quality_score": 0.16317,
+          "quality_breakdown": {
+            "grounding": 0.3095,
+            "novelty": 0.1865,
+            "actionable": 1.0,
+            "corpus_evidence": 1.0
+          },
+          "low_confidence": true,
+          "supporting_papers": [
+            "5879575701b9b65b5cc56c00d9eebbfa219e0428",
+            "83939671534dc3d374c9bc4e3e03b5ec2c7ba301",
+            "b798cf6af813638fab09a8af6ad0f3df6c241485",
+            "63d80f0889e514e85cb8c339542b51a4418ddd76",
+            "db20f92811649ba8c03d3d5121da854df82473a0"
+          ]
+        },
+        {
+          "statement": "The temporal dimension of patient records is not addressed; there is a lack of RAG approaches that can retrieve and synthesize longitudinal EHR data to support time‑aware clinical decision making.",
+          "quality_score": 0.14742,
+          "quality_breakdown": {
+            "grounding": 0.2995,
+            "novelty": 0.2497,
+            "actionable": 1.0,
+            "corpus_evidence": 0.6
+          },
+          "low_confidence": true,
+          "supporting_papers": [
+            "da83852315c884c73dc527a4b7bc1209fbb037c3",
+            "8c85026fe0d5c96fb275b81d483f8910db6ada03",
+            "a19c40320dee38dcd49a45b67e9b9c2f9a8438fd"
+          ]
+        },
+        {
+          "statement": "While ethical considerations of RAG in clinical settings are discussed, concrete privacy‑preserving techniques such as federated retrieval or differential privacy for patient data have not been explored.",
+          "quality_score": 0.111906,
+          "quality_breakdown": {
+            "grounding": 0.5,
+            "novelty": 0.2383,
+            "actionable": 1.0,
+            "corpus_evidence": 1.0
+          },
+          "low_confidence": true,
+          "supporting_papers": [
+            "5879575701b9b65b5cc56c00d9eebbfa219e0428",
+            "83939671534dc3d374c9bc4e3e03b5ec2c7ba301",
+            "8c85026fe0d5c96fb275b81d483f8910db6ada03",
+            "fb7619652fdf78d97244cf1432be43e1c63e11b8",
+            "57c67b976c131edc104a6d8c8b331a6078bdcfa2",
+            "b989ae1f7298e298312f01b5839e5d36122bc49c"
+          ]
+        },
+        {
+          "statement": "No systematic literature review has been dedicated to summarising existing knowledge‑graph‑augmented RAG methods in healthcare.",
+          "quality_score": 0.16335,
+          "quality_breakdown": {
+            "grounding": 0.599,
+            "novelty": 0.2014,
+            "actionable": 1.0,
+            "corpus_evidence": 0.4
+          },
+          "low_confidence": true,
+          "supporting_papers": [
+            "5879575701b9b65b5cc56c00d9eebbfa219e0428",
+            "da83852315c884c73dc527a4b7bc1209fbb037c3"
+          ]
+        }
+      ]
+    }
+  ],
+  "evidence": {
+    "a1r_grouping": {
+      "topic": "RAG application in healthcare",
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          6,
+          8
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          3
+        ],
+        [
+          5
+        ],
+        [
+          7
+        ]
+      ]
+    },
+    "a3_intent_aligned": null,
+    "b1_low_confidence": {
+      "topic": "RAG application in healthcare",
+      "low_confidence_count": 6,
+      "gaps": [
+        "Empirical evidence of RAG’s impact on real clinical outcomes is missing; no randomized controlled trials have measured whether RAG‑augmented decision support improves diagnosis accuracy, treatment timeliness, or patient safety.",
+        "Although hallucinations are noted, systematic methods for detecting and mitigating hallucinations in medical RAG outputs have not been investigated.",
+        "The existing literature focuses on text‑only retrieval‑augmented generation for healthcare, leaving a gap in multimodal RAG that can jointly retrieve and reason over medical images (e.g., radiographs, histopathology) alongside clinical notes."
+      ]
+    },
+    "b2_critique": {
+      "topic": "RAG application in healthcare",
+      "removed": 1,
+      "moderated": 1,
+      "verdicts": {
+        "0": {
+          "level": "moderate",
+          "already_solved": false,
+          "reason": "Recent privacy‑preserving retrieval work (e.g., federated EHR search, DP‑augmented retrieval) exists, so the claim of no exploration is overstated."
+        },
+        "1": {
+          "level": "none",
+          "already_solved": false,
+          "reason": "No published RCTs evaluating RAG‑driven clinical decision support have been reported, making the gap genuinely open."
+        },
+        "2": {
+          "level": "strong",
+          "already_solved": true,
+          "reason": "The MedRAG paper already benchmarks KG‑enhanced RAG on the MIRAGE suite, so the gap is already addressed."
+        }
+      }
+    },
+    "c1_unpaywall": {
+      "topic": "RAG application in healthcare",
+      "hits": [
+        {
+          "doi": "10.1371/journal.pdig.0000877",
+          "email": "duybao04042004@gmail.com",
+          "oa_url": "https://doi.org/10.1371/journal.pdig.0000877"
+        },
+        {
+          "doi": "10.1093/jamia/ocaf008",
+          "email": "duybao04042004@gmail.com",
+          "oa_url": "https://academic.oup.com/jamia/advance-article-pdf/doi/10.1093/jamia/ocaf008/61442713/ocaf008.pdf"
+        },
+        {
+          "doi": "10.1145/3696410.3714782",
+          "email": "duybao04042004@gmail.com",
+          "oa_url": "https://dl.acm.org/doi/pdf/10.1145/3696410.3714782"
+        }
+      ]
+    }
+  }
+}

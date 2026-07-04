@@ -233,6 +233,7 @@ async def run_mineru(pdf_path: str, output_dir: str) -&gt; dict:
     <tr><th>P3b Reference Verification</th><td>
       <strong>Công nghệ:</strong> tái dùng <code>semantic_scholar.py</code>/<code>openalex.py</code>/<code>arxiv_search.py</code> của research_agent ở mode "lookup 1 paper" (thêm hàm <code>lookup_by_doi()</code>/<code>lookup_by_id()</code> — bổ sung hàm, không sửa hàm <code>search()</code> cũ), <code>rapidfuzz</code>, LLM judge <code>temperature=PDF_JUDGE_TEMPERATURE(0)</code>, giới hạn <code>PDF_AGENT_MAX_CITATIONS_VERIFY=150</code>.<br>
       <strong>Thuật toán:</strong> waterfall — DOI/arXiv ID exact lookup → nếu không có, search song song 3 nguồn (S2/OpenAlex/arXiv, mỗi nguồn top-5) → <code>rapidfuzz</code> multi-field match (title + year±1 + author overlap) → nếu score ≥<code>PDF_AGENT_MATCH_THRESHOLD_HIGH(0.85)</code> → <code>Verified</code>; &lt;<code>PDF_AGENT_MATCH_THRESHOLD_LOW(0.55)</code> → <code>Not Found</code>; vùng xám giữa 2 threshold → LLM judge.<br>
+      <strong>Concurrency (bắt buộc):</strong> <code>verify_citations_batch</code> chạy qua <code>asyncio.Semaphore(PDF_AGENT_CITATION_VERIFY_CONCURRENCY=4)</code> — KHÔNG bắn tất cả citation cùng lúc. Mọi lookup dùng chung 1 rate-limiter S2 global (1 req/s); nếu fan-out hàng trăm call đồng thời thì mỗi call xếp hàng lâu hơn <code>citation_lookup_timeout_s</code> → <em>tất cả</em> timeout (<code>CancelledError</code> tại <code>s2_acquire</code>). Bound nhỏ → chỉ vài call S2 tranh nhau 1 lúc → mỗi call xong trong timeout. arXiv chậm/timeout là non-fatal (<code>_safe_call</code> trả None, citation vẫn resolve qua S2/OpenAlex).<br>
       <strong>Vấn đề giải quyết:</strong> phát hiện citation hallucinate/sai metadata mà không cần gọi LLM cho toàn bộ — chỉ vùng xám mới cần LLM, giữ chi phí thấp.<br>
       <strong>Backing:</strong> <strong>CheckIfExist</strong> (arXiv:2602.15871) — multi-source CrossRef+S2+OpenAlex, multi-field scoring; <strong>CiteCheck</strong> (arXiv:2605.27700) — waterfall cascade (arXiv→CrossRef→S2→OpenAlex→web) + LLM verifier 0-10 cho case khó, 88.9% accuracy — đã có sẵn 90% hạ tầng từ research_agent Step ①+⑧, chỉ đổi mode "lookup" thay vì "discover".
     </td></tr>
@@ -253,7 +254,16 @@ async def run_mineru(pdf_path: str, output_dir: str) -&gt; dict:
         return {"verdict": "Verified", "confidence": best.score, "evidence": best.paper}
     if best.score &lt; PDF_AGENT_MATCH_THRESHOLD_LOW:
         return {"verdict": "Not Found", "confidence": best.score, "evidence": None}
-    return await llm_judge_citation_match(c, best)</code></pre>
+    return await llm_judge_citation_match(c, best)
+
+# Batch: bound concurrency so the shared 1 req/s S2 limiter isn't overwhelmed
+async def verify_citations_batch(citations):
+    sem = asyncio.Semaphore(PDF_AGENT_CITATION_VERIFY_CONCURRENCY)  # = 4
+    async def _one(c):
+        async with sem:
+            return await verify_citation(c)
+    return await asyncio.gather(*(_one(c) for c in citations[:MAX_CITATIONS_VERIFY]),
+                                return_exceptions=True)</code></pre>
   <p><span class="badge cost">Chi phí</span> P3a Critic Agents (15 section, parallel) ~$0.0017/document; P3b LLM judge vùng xám (~12 citation) ~$0.0003/document; P3c $0 (không LLM).</p>
 
   <h3>Step P4 — Build Annotations</h3>
@@ -434,7 +444,7 @@ def validate_rewrite_patch(patch, current_doc) -&gt; bool:
 
   <pre><code>PDF_AGENT_GUARDRAILS = {
     "max_file_size_mb": 20, "max_pages": 60, "max_citations_verify": 150,
-    "max_sections_critic": 20, "citation_lookup_timeout_s": 10, "link_check_timeout_s": 5,
+    "max_sections_critic": 20, "citation_lookup_timeout_s": 15, "citation_verify_concurrency": 4, "link_check_timeout_s": 5,
     "critic_temperature": 0, "llm_judge_temperature": 0,
     "match_threshold_high": 0.85, "match_threshold_low": 0.55,
     "rewrite_temperature": 0.5, "explain_temperature": 0.3,
@@ -457,6 +467,7 @@ def validate_rewrite_patch(patch, current_doc) -&gt; bool:
     <tr><td>MinerU model weights nặng, lần đầu setup chậm</td><td>Bake vào Docker image lúc build (<code>RUN</code> step), không tải lúc runtime</td></tr>
     <tr><td>Container restart/redeploy mất checkpoint + document đang xử lý</td><td><code>PDF_AGENT_CHECKPOINT_DB</code>/<code>PDF_AGENT_OUTPUT_DIR</code> phải mount Docker volume bền</td></tr>
     <tr><td>Reference list OCR ra quá nhiễu, LLM cleanup parse sai field</td><td>Giữ <code>raw_text</code> gốc luôn đi kèm — verification fallback dùng <code>raw_text</code> full-text search nếu <code>guessed_title</code> rỗng/sai</td></tr>
+    <tr><td>Bài nhiều citation → verify hàng loạt <em>cùng lúc</em> làm nghẽn rate-limiter S2 (1 req/s) → mọi lookup timeout (<code>CancelledError</code> tại <code>s2_acquire</code>), paper thật cũng báo Not Found</td><td><code>Semaphore(PDF_AGENT_CITATION_VERIFY_CONCURRENCY=4)</code> quanh <code>verify_citations_batch</code> — chỉ vài lookup tranh limiter 1 lúc nên mỗi cái xong trong timeout. Ưu tiên DOI/arXiv-id exact lookup (1 call, nhanh) trước khi fan-out 3-nguồn; arXiv chậm là non-fatal (<code>_safe_call</code> → None)</td></tr>
     <tr><td>Threshold 0.85/0.55 sai ở domain ngoài CS/AI</td><td>Đánh giá lại sau khi có data thật — threshold hiện lấy theo benchmark CheckIfExist/CiteCheck, không đảm bảo đúng 100% mọi domain</td></tr>
   </table>
 

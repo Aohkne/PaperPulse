@@ -1,0 +1,22 @@
+[
+  {
+    "topic": "diffusion language models",
+    "domain": "Generative NLP",
+    "note": "A1r duplicate-template probe"
+  },
+  {
+    "topic": "RAG application in healthcare",
+    "domain": "Healthcare AI",
+    "note": "A3 intent/citation probe"
+  },
+  {
+    "topic": "federated learning privacy",
+    "domain": "Privacy ML",
+    "note": "cross-topic quality probe"
+  },
+  {
+    "topic": "long-context transformers",
+    "domain": "LLM Systems",
+    "note": "generalization probe"
+  }
+]

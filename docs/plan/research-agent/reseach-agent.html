@@ -54,7 +54,7 @@
 <div class="wrap">
 
   <h1>PaperPulse — Research Agent</h1>
-  <p class="subtitle">Academic Research Assistant · Pipeline Step 0 → ⑩ · LangGraph (StateGraph + checkpointer) · FastAPI SSE · NVIDIA NIM <code>openai/gpt-oss-120b</code></p>
+  <p class="subtitle">Academic Research Assistant · Pipeline Step 0 → ⑦ · LangGraph (StateGraph + checkpointer) · FastAPI SSE · NVIDIA NIM <code>openai/gpt-oss-120b</code></p>
   <div class="meta">
     <span>📅 Nguồn: <code>research-agent_PLAN_2.0.md</code> · <code>research-agent_SPEC_2.0.md</code></span>
     <span>🎯 Mục tiêu: tự động literature review chất lượng — đa nguồn, đa góc nhìn, không bịa citation, nhanh nhờ parallel agent, human duyệt ở 3 điểm quyết định</span>
@@ -112,50 +112,46 @@
   </table>
 
   <h3>Non-goal — Research Gap Identification</h3>
-  <p>Pipeline này <strong>không</strong> tự động phân loại/định nghĩa "khoảng trống nghiên cứu" theo cấu trúc (structured gap analysis, so sánh đối chiếu giữa các nghiên cứu cũ một cách hệ thống) — việc này quá chung chung nếu làm vội và dễ sai. Thay vào đó, hệ thống <strong>gợi ý</strong> gap bằng trực quan thông qua Knowledge Graph (Step ⑨bis, xem <code>knowledge-graph.html</code>) — claim layer với cụm <code>contradicts</code> dày quanh 1 theme là tín hiệu trực quan cho tension nghiên cứu, không phải kết luận tự động.</p>
+  <p>Pipeline này <strong>không</strong> tự động phân loại/định nghĩa "khoảng trống nghiên cứu" theo cấu trúc — việc này quá chung chung nếu làm vội và dễ sai. Thay vào đó, hệ thống <strong>gợi ý</strong> gap bằng trực quan thông qua Knowledge Graph (Step ⑥, xem <code>knowledge-graph.html</code>) — claim layer với cụm <code>contradicts</code> dày quanh 1 theme là tín hiệu trực quan cho tension nghiên cứu, không phải kết luận tự động.</p>
 
   <hr>
 
   <h2 id="flow">2. Flow (step by step) — diagram</h2>
 
-  <div class="arch">[Step 0]  Intent Router            (LLM tự suy luận: greeting / clarify / search — không schema cứng)
-            │
-   ┌────────┼─────────────────────┐
-   │ greeting/clarify             │ search
-   ▼                              ▼
-[Step 0b] Reply Generator    [Step 0c] Plan Review  ⏸ interrupt (user duyệt sub_queries + sources)
-   │ (stream token) → END         │
-                                  ▼
-                          [Step ①]    Multi-agent Parallel Search   (S2 × OpenAlex × arXiv, asyncio.gather)
-                                  │
-                          [Step ①bis] Cross-source Dedup            (DOI → arXiv ID → S2 id → title fuzzy)
-                                  │
-                          [Step ②bis] Citation Snowballing          (dual-pool Pool A/B, giữ lại citation_edges)
-                                  │
-                          [Step ③]    SPECTER v2 Batch Embed        (→ ChromaDB/pgvector)
-                                  │
-                          [Step ④]    MMR-20 → LLM Outline   ⏸ interrupt (user duyệt/sửa theme)
-                                  │
-                          [Step ⑤]    Per-theme Hybrid Search       (BM25 + MMR + RRF, song song theo theme)
-                                  │
-                          [Step ⑥]    Parallel Writer Agents        (1 agent/theme, asyncio.gather, temp 0.7)
-                                  │
-                          [Step ⑦]    Claim Extraction + Intent     (Supports / Contradicts / Extends)
-                                  │
-                          [Step ⑧]    Parallel Verifier Agents      (3-tier: snippet → ar5iv → abstract, temp 0)
-                                  │
-                          [Step ⑨]    Routing + Human Review  ⏸ interrupt (informational, trước export)
-                                  │
-                          [Step ⑨bis] Knowledge Graph Build         (networkx, không tốn LLM — xem knowledge-graph.html)
-                                  │
-                          [Step ⑩]    Merge + LaTeX Export          (.tex + .bib, compile pdflatex được luôn)</div>
+  <div class="arch">[Step 0]  Intent Router — Function Calling    (1 LLM call, tool_choice="required", stream arguments)
+          │
+          │  model tự chọn function → intent route tự động
+ ┌────────┼──────────────────────────┬───────────────────────────────┐
+ │ send_greeting()                   │ ask_clarification()            │ create_research_plan()
+ │ (reply trong args, stream ngay)   │ (thinking→question, stream)   │ (thinking→plan, stream)
+ ▼                                   ▼                               ▼
+END                          user trả lời turn tiếp       [Step 0c] Plan Review
+                             → intent_router lại                ⏸ interrupt
+                             (có history context)           (user xem/edit plan)
+                                                                       │
+                                                                       ▼
+                      [Step ①]    Search + Dedup              (S2 × OpenAlex, asyncio.gather, merge fields)
+                              │
+                      [Step ①bis] Relevance Filter            (hybrid RRF: BM25 ∥ semantic → top-300, floor 20)
+                              │
+                      [Step ②]    Embed                        (SPECTER v2 → pgvector; OA/PubMed-only excluded)
+                              │
+                      [Step ③]    Clustering            ⏸ interrupt (user duyệt/rename/merge/split)
+                              │
+                      [Step ④]    Write                        (1 Writer Agent/cluster, asyncio.gather, temp 0.7)
+                              │
+                      [Step ⑤]    Extract + Verify Claims      ([[PAPER_ID]] → 3-tier verification, temp 0)
+                              │
+                      [Step ⑥]    Route + Human Review  ⏸ interrupt (approve/remove uncertain claims) + KG Build
+                              │
+                      [Step ⑦]    Export                       ([[PAPER_ID]] → \cite{key} + .bib)</div>
 
-  <p class="note">3 điểm <code>⏸ interrupt</code> là human-in-loop bắt buộc (LangGraph <code>interrupt()</code> gọi ngay trong thân node, không dùng <code>interrupt_before</code> tĩnh ở compile — cho phép node tự tính dữ liệu (plan/outline/routing summary) rồi mới tạm dừng, gửi đúng payload đó cho frontend): duyệt research plan trước khi tốn API search, duyệt/sửa outline trước khi viết, xem qua routing claim trước khi export.</p>
+  <p class="note">3 điểm <code>⏸ interrupt</code> là human-in-loop bắt buộc (LangGraph <code>interrupt()</code> gọi ngay trong thân node): duyệt research plan trước khi tốn API search, duyệt/sửa cluster themes trước khi viết, approve/remove uncertain claims trước khi export.</p>
 
   <h3>Kiến trúc tổng thể</h3>
   <div class="arch">┌─────────────────────────────────────────────────────┐
 │              ORCHESTRATOR (LangGraph StateGraph)     │
-│  • Quản lý toàn bộ workflow Step 0 → ⑩               │
+│  • Quản lý toàn bộ workflow Step 0 → ⑦               │
 │  • Áp guardrail (max papers/calls/time)              │
 │  • Route tới các specialized agent                    │
 └──────────────┬────────────────────────────────────────┘
@@ -164,317 +160,332 @@
     ▼          ▼                          ▼
 ┌────────┐ ┌──────────────────────┐ ┌───────────────────┐
 │ Search │ │  Writer Agents (×N)  │ │  Verifier         │
-│ Agents │ │  (per theme,         │ │  Agents (×M)      │
-│ (×5)   │ │   chạy song song)    │ │  (per batch,      │
+│ Agents │ │  (per cluster,       │ │  Agents (×M)      │
+│ (×4)   │ │   chạy song song)    │ │  (per batch,      │
 │        │ │  Model: gpt-oss-120b │ │   chạy song song) │
 │ S2     │ │  Temp: 0.7           │ │  Model: gpt-oss-120b
 │ OA     │ │                      │ │  Temp: 0          │
-│ arXiv  │ └──────────────────────┘ └───────────────────┘
-└────────┘</div>
+└────────┘ └──────────────────────┘ └───────────────────┘</div>
 
   <hr>
 
   <h2 id="detail">3. Detail Step — công nghệ/API, thuật toán, vấn đề giải quyết</h2>
 
   <h3>Step 0 — Query Intent Router + Research Plan</h3>
+
+  <div class="note">
+    <strong>Kiến trúc (v2.0.1):</strong> 1 LLM call duy nhất với <strong>function calling</strong> thay cho 2 LLM calls tuần tự + regex parse. Node <code>reply_generator_node</code> bị loại bỏ hoàn toàn — reply/thinking/plan đều nằm trong arguments của function được gọi. Effort tỷ lệ với độ phức tạp input: greeting instant, conceptual brief, research full planning.
+  </div>
+
   <table>
-    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code> qua NVIDIA NIM (<code>https://integrate.api.nvidia.com/v1</code>), <code>langchain-openai ChatOpenAI</code>, <code>temperature=0</code>, <code>stream=true</code> cho SSE token streaming</td></tr>
-    <tr><th>Thuật toán</th><td><strong>Reason-before-Act</strong> — LLM tự suy luận intent bằng free-form reasoning (không dùng classification schema cứng). Greeting/câu hỏi khái niệm → trả lời trực tiếp, không search. Query &lt;3 từ hoặc buzzword quá rộng → hỏi lại 3-5 cách diễn giải cụ thể. Query đủ rõ → sinh research plan: 4-6 sub-query phủ nhiều góc (foundational/recent/evaluation/application), nguồn phù hợp theo domain, ước lượng scope — rồi hỏi user confirm/edit</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Mọi input kể cả "hello" bị đẩy thẳng vào search; user không có cơ hội điều hướng/redirect sớm trước khi tốn 3-5 phút pipeline</td></tr>
-    <tr><th>Backing research</th><td><strong>ReAct</strong> (Yao et al. 2022, arXiv:2210.03629) — reason trước khi act; <strong>STORM</strong> (Shao et al., Stanford 2024, arXiv:2402.14207) — generate perspectives/questions trước khi search để tăng diverse coverage</td></tr>
-    <tr><th>Guardrail</th><td><code>MAX_SUB_QUERIES=6</code> — tối đa 6 sub-queries từ Step 0, user có thể xoá sub-query nếu thấy không liên quan</td></tr>
+    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code> qua NVIDIA NIM, <code>temperature=0</code>, <code>tool_choice="required"</code></td></tr>
+    <tr><th>Thuật toán</th><td><strong>Function calling as intent routing</strong> — model chọn function nào để gọi chính là quyết định intent. 4 functions: <code>send_greeting</code> (greeting/off-topic), <code>answer_question</code> (câu hỏi khái niệm), <code>ask_clarification</code> (topic mơ hồ — hỏi 1 câu cụ thể), <code>create_research_plan</code> (topic rõ — sinh plan). Field <code>thinking</code> đặt <strong>đầu tiên</strong> — stream ra trước, user thấy model đang "suy nghĩ".<br><strong>Anchored sub-queries (core_terms):</strong> trước khi sinh query, model trích <code>core_terms</code> = <code>{required (+synonyms), context}</code> — <code>required</code> là các khái niệm phân biệt của topic (VD "diffusion language model", "speculative decoding / drafter") kèm nhóm đồng nghĩa. Mỗi sub-query <strong>bắt buộc chứa ≥1 term <code>required</code></strong> — không sinh query chung chung ("edge deployment", "benchmarking generative AI") làm tản chủ đề. <code>refined_query</code> = dạng canonical chặt; <code>core_terms</code> được truyền xuống Step ①bis để lọc độ liên quan</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Cũ: 2 LLM calls tuần tự → "hello" mất ~4.5s, regex parse fragile. Mới: 1 call ~400ms cho greeting, ~1.8s cho research</td></tr>
+    <tr><th>Backing research</th><td><strong>STORM</strong> (Shao et al., Stanford 2024, arXiv:2402.14207); <strong>Function calling</strong> (OpenAI 2023) — structured output guaranteed</td></tr>
+    <tr><th>Guardrail</th><td><code>MAX_SUB_QUERIES=5</code>, <code>tool_choice="required"</code></td></tr>
   </table>
 
-  <pre><code>System prompt (Step 0):
-"You are an academic research assistant.
-Rules:
-- If the user greets you (hello, hi, thanks, etc.): respond naturally, do NOT search.
-- If the user asks a conceptual question (what is X, explain Y): answer from knowledge, do NOT search.
-- If the research query is too short or ambiguous (&lt; 3 words, broad buzzword):
-  ask for clarification with 3-5 specific interpretations.
-- If the research query is clear enough: generate a research plan with:
-  * 4-6 sub-queries covering different angles (foundational, recent, evaluation, application, etc.)
-  * Recommended sources based on topic domain
-  * Estimated scope
-  Then ask user to confirm or edit before proceeding.
-
-Output format when generating plan:
-{
-  "action": "search",
-  "sub_queries": ["...", "...", "..."],
-  "sources": ["semantic_scholar", "arxiv"],
-  "message": "Here is my research plan: ..."
-}"
-
-POST https://integrate.api.nvidia.com/v1/chat/completions
-{"model":"openai/gpt-oss-120b","temperature":0,"stream":true,
- "messages":[{"role":"system","content":"..."},{"role":"user","content":"RAG optimization techniques"}]}</code></pre>
-  <p><span class="badge cost">Chi phí</span> ~500 input + ~500 output tokens ≈ <strong>$0.0001/session</strong> — không đáng kể.</p>
-
-  <h3>Step ① — Multi-agent Parallel Search</h3>
+  <h4>4 Functions &amp; Stream behavior</h4>
   <table>
-    <tr><th>Công nghệ/API</th><td>Semantic Scholar Graph API (<code>x-api-key</code>, 220M paper, mạnh CS/AI), OpenAlex REST (free, chỉ cần <code>User-Agent</code>, 250M paper, mạnh humanities/social), arXiv API (free, 2.4M preprint CS/AI/Physics/Math), PubMed (free, 35M, nếu domain medical); <code>httpx</code> async, <code>asyncio.gather</code>, <code>tenacity</code> retry exponential backoff</td></tr>
-    <tr><th>Thuật toán</th><td>N sub-queries (LLM sinh ra ở Step 0, mỗi query phủ 1 "lens": foundational/optimization/evaluation/application/recent) × M sources phù hợp domain (LLM tự chọn nguồn dựa trên topic, không hardcode — ví dụ "AI in drug discovery" → S2+PubMed+arXiv) — toàn bộ gọi đồng thời qua <code>asyncio.gather</code>, không tuần tự</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>1 query → 1 nguồn chỉ cho 1 góc nhìn, bỏ sót paper nằm ở database khác hoặc tiếp cận từ hướng khác</td></tr>
-    <tr><th>Backing research</th><td><strong>Query2Doc</strong> (Wang et al. 2023, arXiv:2303.07678), <strong>HyDE</strong> (Gao et al. 2022, arXiv:2212.10496) — kỹ thuật gốc cho query expansion bằng LLM; <strong>LSE Study</strong> (arXiv:2603.20235) — single-query chỉ 20% overlap với expert</td></tr>
-    <tr><th>Guardrail</th><td><code>MAX_PAPERS_TOTAL=1500</code> (hard ceiling), <code>MAX_SEARCH_CALLS=15</code>, <code>MAX_TIME_SECONDS=300</code> (5 phút cho cả search phase), <code>MIN_SOURCES=2</code> (bắt buộc check ≥2 database)</td></tr>
+    <tr><th>Input ví dụ</th><th>Function gọi</th><th>User thấy trên màn hình</th><th>Latency</th></tr>
+    <tr><td><code>"hello"</code></td><td><code>send_greeting(reply)</code></td><td>Reply ngay, không có thinking</td><td>~400ms</td></tr>
+    <tr><td><code>"RAG là gì?"</code></td><td><code>answer_question(thinking, answer)</code></td><td>💭 <em>stream thinking ngắn</em> → rồi answer stream</td><td>~700ms</td></tr>
+    <tr><td><code>"RAG optimization"</code> (mơ hồ)</td><td><code>ask_clarification(thinking, question)</code></td><td>💭 <em>stream lý do cần hỏi</em> → rồi 1 câu hỏi cụ thể</td><td>~600ms</td></tr>
+    <tr><td><code>"RAG embedding optimization"</code> (rõ)</td><td><code>create_research_plan(thinking, plan_description, sub_queries, sources)</code></td><td>💭 <em>stream thinking về plan</em> → plan_description stream → interrupt UI</td><td>~1.8s</td></tr>
   </table>
 
-  <pre><code># Semantic Scholar — Paper Search
+  <pre><code># Topic: "Accelerating LLM inference using Diffusion LMs as drafters"
+core_terms = {
+  "required": [["diffusion language model", "non-autoregressive"],
+               ["drafter", "speculative decoding", "draft"]],   # nhóm đồng nghĩa
+  "context":  ["LLM inference", "latency", "acceleration"]
+}
+
+# Mỗi sub-query phải chứa ≥1 term thuộc 'required' — bám sát method, không tản góc
+sub_queries = [
+  "diffusion language model speculative decoding LLM inference",
+  "non-autoregressive drafter accelerate LLM latency",
+  "diffusion draft verifier benchmark decoding",
+  "parallel diffusion decoding transformer inference speedup"
+]
+
+resume_value = {
+    "sub_queries": ["...edited or original..."],
+    "sources": ["semantic_scholar", "openalex"]   # PubMed nếu domain y tế
+}</code></pre>
+
+  <p><span class="badge cost">Chi phí</span> ~300 input + ~200 output tokens ≈ <strong>&lt;$0.0001/session</strong></p>
+
+  <h3>Step ① — Search + Dedup</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>Semantic Scholar Graph API (220M paper, CS/AI), OpenAlex REST (250M paper, humanities/social), PubMed (35M, nếu domain medical); <code>httpx</code> async, <code>asyncio.gather</code>, <code>tenacity</code> retry; <code>rapidfuzz</code> fuzzy matching cho dedup</td></tr>
+    <tr><th>Thuật toán</th><td><strong>Search:</strong> N sub-queries × M sources đồng thời qua <code>asyncio.gather</code>. Per-source ceiling: <code>quota = max_papers_total // len(sources)</code> — tránh 1 nguồn áp đảo corpus, giữ theo relevance order từ API (không sort lại theo citationCount).<br><strong>Dedup:</strong> Priority key: DOI → ArXiv ID → S2 paperId → title fuzzy (≥90%). Khi tìm thấy duplicate: merge fields còn thiếu vào bản giữ (scalar nếu None, externalIds merge cả 2 dict). Sau dedup: filter bỏ papers có <code>abstract=None AND citationCount=None</code></td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Single-source bỏ sót paper ở database khác; citationCount sort loại hết PubMed papers (citationCount=None); mỗi source mạnh ở fields khác nhau — không merge thì mất metadata</td></tr>
+    <tr><th>Backing research</th><td><strong>Query2Doc</strong> (Wang et al. 2023, arXiv:2303.07678); <strong>HyDE</strong> (Gao et al. 2022, arXiv:2212.10496); <strong>LSE Study</strong> (arXiv:2603.20235)</td></tr>
+    <tr><th>Guardrail</th><td><code>MAX_PAPERS_TOTAL=1500</code>, <code>MAX_TIME_SECONDS=300</code>, <code>MIN_SOURCES=2</code>; không có <code>MAX_SEARCH_CALLS</code> cap</td></tr>
+  </table>
+
+  <pre><code># Search
 GET https://api.semanticscholar.org/graph/v1/paper/search?query=...&amp;limit=100
   &amp;fields=paperId,title,abstract,year,citationCount,externalIds,openAccessPdf
 x-api-key: {SEMANTIC_SCHOLAR_API_KEY}
 
-# OpenAlex — không cần API key
 GET https://api.openalex.org/works?search=...&amp;per-page=100
-  &amp;filter=publication_year:2018-2026
-  &amp;select=id,doi,title,abstract_inverted_index,publication_year,cited_by_count,primary_location,ids
+  &amp;select=id,doi,title,abstract_inverted_index,publication_year,cited_by_count,ids
 User-Agent: AcademicResearchAgent/2.0 (mailto:{OPENALEX_EMAIL})
 
-def reconstruct_abstract(inv: dict) -&gt; str:           # OpenAlex không trả abstract text trực tiếp
-    words = [""] * (max(max(p) for p in inv.values()) + 1)
-    for word, positions in inv.items():
-        for pos in positions: words[pos] = word
-    return " ".join(words)
-
-# arXiv — không cần key
-import arxiv
-client = arxiv.Client()
-results = list(client.results(arxiv.Search(
-    query="retrieval augmented generation",
-    max_results=100, sort_by=arxiv.SortCriterion.Relevance)))
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8))
-async def s2_search(query: str, **kwargs): ...</code></pre>
+# Dedup + merge
+def dedup(all_papers):
+    seen = {}
+    for paper in all_papers:
+        key = get_key(paper)   # DOI → ArXiv → S2 id → title fuzzy
+        if key not in seen:
+            seen[key] = paper
+        else:
+            kept = seen[key]
+            for field in ["abstract", "citationCount", "year", "url"]:
+                if kept.get(field) is None: kept[field] = paper.get(field)
+            kept["externalIds"] = {**paper.get("externalIds",{}), **kept.get("externalIds",{})}
+    return [p for p in seen.values()
+            if not (p.get("abstract") is None and p.get("citationCount") is None)]</code></pre>
 
   <table>
     <tr><th>Nguồn</th><th>Rate limit</th><th>Retry strategy</th></tr>
-    <tr><td>Semantic Scholar (có key)</td><td>100 req/s</td><td><code>tenacity</code> 3 lần, exponential backoff 1s→2s→4s</td></tr>
+    <tr><td>Semantic Scholar (introductory key)</td><td>1 req/s — upgrade tại semanticscholar.org/product/api</td><td><code>s2_rate_limiter</code> 1.0 rps + <code>tenacity</code> 3 lần</td></tr>
     <tr><td>OpenAlex</td><td>10 req/s (polite pool)</td><td><code>asyncio.sleep(0.1)</code></td></tr>
-    <tr><td>arXiv</td><td>~3 req/s</td><td><code>asyncio.sleep(0.35)</code></td></tr>
-    <tr><td>NVIDIA NIM</td><td>theo plan</td><td>retry 2 lần, backoff 2s</td></tr>
+    <tr><td>PubMed</td><td>3 req/s</td><td><code>asyncio.sleep(0.35)</code></td></tr>
   </table>
 
-  <h3>Step ①bis — Cross-source Deduplication</h3>
+  <h3>Step ①bis — Relevance Filter (Hybrid RRF)</h3>
+
+  <div class="note">
+    Bước lọc độ liên quan giữa <strong>query ↔ paper</strong>, chèn giữa Dedup và Embed. Giải bài toán: search đa nguồn + phân rã sub-query dễ kéo về paper lạc chủ đề (VD topic "diffusion drafter" lại lẫn paper về methyl hóa DNA / nhãn khoa / fraud). Chỉ giữ paper thật sự liên quan <em>trước khi</em> cluster + viết, nên corpus vào clustering là corpus đúng chủ đề.
+  </div>
+
   <table>
-    <tr><th>Công nghệ/API</th><td><code>rapidfuzz</code> (fuzzy string matching)</td></tr>
-    <tr><th>Thuật toán</th><td>Priority key tuần tự: <strong>DOI → arXiv ID → Semantic Scholar paperId → title fuzzy</strong> (last resort, threshold ≥90%); giữ bản ghi đầu tiên gặp trong danh sách hợp nhất (S2 thường có metadata tốt nhất nên đứng trước trong thứ tự merge)</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Merge nhiều nguồn (S2+OpenAlex+arXiv) × nhiều sub-query chắc chắn sinh trùng lặp — không dedup sẽ làm sai lệch outline/MMR diversity và lãng phí ngân sách snowball/embed cho paper trùng</td></tr>
+    <tr><th>Công nghệ/API</th><td><code>rank-bm25</code> (lexical), NVIDIA NIM <code>nv-embed-v1</code> (semantic embedding của <em>văn bản tự do</em> — SPECTER không embed được query nên semantic side dùng NIM); Reciprocal Rank Fusion (RRF)</td></tr>
+    <tr><th>Thuật toán</th><td>
+      <strong>Hybrid search (2 tín hiệu chạy song song, cùng nhìn toàn corpus):</strong><br>
+      • <strong>BM25</strong> xếp hạng toàn bộ paper (title+abstract) theo <code>core_terms</code> — bắt khớp thuật ngữ chính xác.<br>
+      • <strong>Semantic</strong>: embed <code>refined_query</code> + mỗi paper bằng NIM → cosine — bắt paper diễn giải khác từ ("non-autoregressive parallel decoding" ≈ "diffusion drafter").<br>
+      • <strong>RRF fuse</strong>: <code>score(d) = Σ 1/(k + rank_i(d))</code> (k≈60) trộn 2 bảng xếp hạng → không cần ngưỡng cosine tuyệt đối (brittle). Giữ <strong>top-300</strong>; paper lạc (bét ở cả 2 bảng) tự rớt.<br>
+      <strong>Sàn:</strong> nếu &lt; <code>relevance_min=20</code> paper qua lọc → gắn cờ <code>low_relevance</code> (nới lọc + Step ⑦ chèn caveat thành thật thay vì cố viết cho đầy)
+    </td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Corpus lạc chủ đề → cluster trung thành gom rác thành theme gọn gàng nhưng sai đề → writer "bịa" liên hệ với topic. Lọc từ gốc chặn cả chuỗi. Hybrid (không phải cascade 2 tầng) để lexical + semantic bù nhau, không tín hiệu nào chặn trên recall của cái kia</td></tr>
+    <tr><th>Backing research</th><td><strong>RRF</strong> (Cormack et al. 2009); <strong>Hybrid dense+sparse retrieval</strong> — BM25 bù chỗ mù ngữ nghĩa của embedding và ngược lại</td></tr>
+    <tr><th>Guardrail</th><td><code>RELEVANCE_TOP_K=300</code> (trần cả corpus vào cluster), <code>RELEVANCE_MIN=20</code> (sàn → low_relevance flag)</td></tr>
   </table>
-  <pre><code>def dedup_cross_source(all_papers: list[dict]) -&gt; list[dict]:
-    seen = {}
-    for paper in all_papers:
-        if doi := paper.get("doi") or paper.get("externalIds", {}).get("DOI"):
-            key = f"doi:{doi.lower()}"
-        elif arxiv := paper.get("externalIds", {}).get("ArXiv"):
-            key = f"arxiv:{arxiv}"
-        elif pid := paper.get("paperId"):
-            key = f"s2:{pid}"
-        else:
-            key = f"title:{normalize(paper['title'])}"
-        if key not in seen:
-            seen[key] = paper
-    return list(seen.values())</code></pre>
-  <p>Kết quả: ~500 bài raw (5 sub-query × 2 nguồn) → ~400-450 unique bài sau dedup; ở quy mô lớn hơn: 400-600 bài raw → 350-500 unique.</p>
+  <pre><code>def relevance_filter(papers, refined_query, core_terms):
+    docs = [f"{p.title} {p.abstract or ''}" for p in papers]
+    bm25_rank    = rank_bm25(docs, query=core_terms)          # lexical, toàn corpus
+    sem_rank     = cosine_rank(nim_embed(refined_query),
+                               nim_embed_batch(docs))         # semantic, toàn corpus
+    fused = rrf_fuse(bm25_rank, sem_rank, k=60)               # trộn thứ hạng
+    kept  = fused[:RELEVANCE_TOP_K]                            # top-300
+    low   = len(kept) &lt; RELEVANCE_MIN                         # sàn 20 → cờ
+    return kept, low</code></pre>
 
-  <h3>Step ②bis — Citation Snowballing</h3>
+  <p class="note"><strong>Lưu ý divergence:</strong> Step ①bis là <em>extension</em> so với bản v2.0 gốc (v2.0 không có relevance gate). Nó tái dùng ý tưởng hybrid BM25+semantic+RRF của <code>hybrid_search</code> cũ (đã bỏ ở Step ③) nhưng cho mục đích khác: lọc <em>query↔paper relevance</em>, không phải hybrid per-theme.</p>
+
+  <h3>Step ② — SPECTER v2 Batch Embed</h3>
   <table>
-    <tr><th>Công nghệ/API</th><td>S2 <code>/paper/{id}/citations</code> + <code>/references</code> (field <code>contexts</code>, <code>intents</code>, <code>isInfluential</code>, <code>citationCount</code>, <code>year</code>, <code>externalIds</code>, <code>openAccessPdf</code>)</td></tr>
-    <tr><th>Thuật toán</th><td><strong>Dual-pool seed selection</strong>: Pool A = citation có <code>isInfluential=true</code> (tier-1 seed, trọng số cao); Pool B = citation lọc theo năm (recency window). Tham số cấu hình: <code>SNOWBALL_POOL_SIZE=5</code>, <code>SNOWBALL_FORWARD_YEAR_WINDOW=4</code>, <code>SNOWBALL_BACKWARD_RECENT=2</code>, <code>SNOWBALL_BACKWARD_MID=5</code>. Đồng thời <strong>giữ lại toàn bộ <code>citation_edges</code></strong> <code>{source, target, intent, isInfluential}</code> trích từ response — đây là nguyên liệu bắt buộc cho Knowledge Graph (Step ⑨bis)</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Search trực tiếp không đủ — nhiều paper quan trọng chỉ lộ ra qua citation network (paper được seed cite nhiều lần, hoặc paper cite ngược lại seed với <code>isInfluential=true</code>)</td></tr>
+    <tr><th>Công nghệ/API</th><td>S2 Batch Embedding API (<code>embedding.specter_v2</code>, adapter <code>proximity</code>, 768-dim); <strong>pgvector (Supabase)</strong> — dev và production dùng cùng backend, không có ChromaDB</td></tr>
+    <tr><th>Thuật toán</th><td>Chỉ papers có S2 paperId mới được batch embed. Papers từ OA/PubMed có synthetic ID (<code>OA_...</code>, <code>pubmed_...</code>) → S2 API reject → không có vector → excluded khỏi clustering. Papers OA/PubMed overlap với S2 (cùng DOI) đã merge lấy S2 paperId ở Step ① → embed bình thường; chỉ papers thực sự không có trong S2 mới bị loại</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>SPECTER train trên citation graph → đo similarity giữa paper học thuật chính xác hơn embedding tổng quát. pgvector duy nhất đảm bảo behavior nhất quán (Cloud Run: không cài torch để giữ cold start nhanh khi scale-to-zero)</td></tr>
   </table>
-  <pre><code>GET https://api.semanticscholar.org/graph/v1/paper/{paperId}/citations
-  ?fields=contexts,intents,isInfluential,citationCount,year,externalIds,openAccessPdf&amp;limit=100
+  <pre><code>POST https://api.semanticscholar.org/graph/v1/paper/batch?fields=embedding.specter_v2
+Body: {"ids": ["s2_paperId1", "s2_paperId2", ...]}   # tối đa 500 ids/call
 
-# Response mẫu:
-{"data":[{
-  "contexts": ["As shown in [RAG]..."], "intents": ["methodology"], "isInfluential": true,
-  "citingPaper": {"paperId":"xyz789...","title":"Self-RAG...","year":2023,
-                   "citationCount":312,"externalIds":{"ArXiv":"2310.11511"}}
-}]}
-# isInfluential=true → Pool A (tier-1 seed). intents: methodology / background / result.</code></pre>
-  <p>Input 350-500 bài (sau dedup) → output ước tính <strong>600-900 bài</strong> sau snowball.</p>
+# Papers không có S2 ID → không gọi API → không upsert → excluded từ clustering</code></pre>
 
-  <h3>Step ③ — SPECTER v2 Batch Embed</h3>
+  <h3>Step ③ — Clustering + User Approval (AutoSurvey)</h3>
+
+  <div class="note">
+    Thay thế MMR-20 Outline + Per-theme Hybrid Search bằng clustering 4-pha theo phương pháp <strong>AutoSurvey</strong> (NeurIPS 2024, arXiv:2406.10252). Không cần encode query, không cần hybrid search per-theme.
+  </div>
+
   <table>
-    <tr><th>Công nghệ/API</th><td>S2 Batch Embedding API (<code>embedding.specter_v2</code>, tối đa 500 paperId/call — 600-900 bài cần 2 lượt call), fallback SPECTER2 adapter <code>proximity</code> chạy local (<code>allenai/specter2_base</code> + adapter <code>allenai/specter2</code>, ~500MB) cho phần <code>embedding: null</code> (~10-15% paper mới, chưa được S2 index); lưu vào ChromaDB (dev) / Supabase pgvector (production)</td></tr>
-    <tr><th>Thuật toán</th><td>Batch theo nhóm tối đa 500 id/call → với phần fallback, encode abstract cục bộ bằng adapter proximity rồi upsert vào vector store</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Cần vector domain-specific cho academic paper — SPECTER được train trên citation graph nên đo similarity giữa paper khoa học chính xác hơn embedding tổng quát</td></tr>
+    <tr><th>Công nghệ/API</th><td><code>scikit-learn</code> KMeans (k-means++ init), silhouette score, cosine similarity; <code>openai/gpt-oss-120b</code> <code>temperature=0.7</code> để đặt tên cluster; LangGraph <code>interrupt()</code></td></tr>
+    <tr><th>Thuật toán</th><td>
+      <strong>Pha 1 — Tìm k tối ưu:</strong> Thử k=3→10, tính silhouette score mỗi k, chọn k có score cao nhất.<br>
+      <strong>Pha 2 — K-means clustering:</strong> Cluster paper vectors với k tối ưu (k-means++). Cluster &lt;3 papers → discard.<br>
+      <strong>Pha 3 — Rank + đặt tên:</strong> Sort papers theo cosine sim với centroid. Cap 15 papers/cluster (15 × ~150 token = ~2,250 token, tránh context rot). LLM sinh title + description.<br>
+      <strong>Pha 4 — User approve:</strong> <code>interrupt()</code> hiện themes + papers → user đổi tên, merge, hoặc split (re-cluster k=2 tự động)
+    </td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>MMR không phát hiện cấu trúc thật của corpus. Hybrid search cần encode query (không có sau khi bỏ embed_text fallback). Clustering tìm theme từ chính data</td></tr>
+    <tr><th>Backing research</th><td><strong>AutoSurvey</strong> (NeurIPS 2024, arXiv:2406.10252); <strong>Context rot</strong> (Chroma 2025) — LLM degradation với context dài; <strong>Silhouette score</strong> (Rousseeuw 1987)</td></tr>
   </table>
-  <pre><code>POST https://api.semanticscholar.org/graph/v1/paper/batch?fields=embedding.specter_v2,openAccessPdf
-Body: {"ids": ["paperId1", "paperId2", ...]}   # tối đa 500 ids/call
+  <pre><code>def find_optimal_k(vectors, k_range=range(3, 11)):
+    best_k, best_score = 3, -1
+    for k in k_range:
+        km = KMeans(n_clusters=k, init="k-means++", n_init=10, random_state=42)
+        score = silhouette_score(vectors, km.fit_predict(vectors), metric="cosine")
+        if score > best_score: best_k, best_score = k, score
+    return best_k
 
-# Response: [{"paperId":"...","embedding":{"model":"specter_v2@v0.1.1","vector":[0.23,...]}}, {"paperId":"...","embedding": null}]</code></pre>
+# Pha 4 — interrupt payload:
+approved = interrupt({"type": "cluster_approval", "themes": [
+    {"title": "...", "description": "...", "papers": [...top_15_papers...]}
+]})</code></pre>
 
-  <h3>Step ④ — MMR Outline + User Approval</h3>
+  <h3>Step ④ — Parallel Writer Agents</h3>
   <table>
-    <tr><th>Công nghệ/API</th><td>MMR tự viết (<code>mmr.py</code>), <code>openai/gpt-oss-120b</code> <code>temperature=0.7</code>, LangGraph <code>interrupt()</code></td></tr>
-    <tr><th>Thuật toán</th><td><strong>MMR-20</strong> (Maximal Marginal Relevance, <code>λ=0.5</code>, <code>fetch_k=150</code>) chọn 20 paper đại diện đa dạng từ toàn corpus → LLM sinh 5-8 theme (mỗi theme có <code>name</code>+<code>description</code>) → <code>interrupt({"themes": [...]})</code> tạm dừng cho user edit/approve → resume tiếp tục với theme đã chốt</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Outline cần vừa liên quan (relevance) vừa đa dạng (không trùng ý) — top-k thuần similarity thường ra outline trùng lặp; user cần align kỳ vọng trước khi tốn thời gian viết nội dung thật</td></tr>
-    <tr><th>So sánh nhanh</th><td>Elicit: có dialog nhưng không sinh research plan/outline có cấu trúc; Gemini Deep Research: pattern tương tự (generate plan → user confirm) — xác nhận đây là pattern đúng cho deep-research tool</td></tr>
+    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code>, <code>temperature=0.7</code>, <code>asyncio.gather</code></td></tr>
+    <tr><th>Thuật toán</th><td>1 Writer Agent/cluster, context isolation tuyệt đối. Papers gửi vào Writer Agent: filter bỏ papers không có abstract trước khi gửi (LLM không có nội dung để viết và cite sẽ không verify được ở Step ⑤ — cluster vẫn giữ nguyên để centroid đúng, chỉ loại khỏi writing). Citation format: <code>[[PAPER_ID]]</code> cứng trong prompt, không free-form.<br><strong>Grounding (chống over-claim):</strong> writer chỉ viết điều <em>abstract cung cấp</em>, cấm suy diễn quan hệ với topic tổng thể mà abstract không nói. Vẫn cho tổng hợp trong cụm, chỉ cấm gán liên hệ không có thật</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Viết tuần tự N theme × 10s = chậm; papers no-abstract tạo citation không verify được</td></tr>
+    <tr><th>So sánh nhanh</th><td>AutoSurvey: 1 LLM sequential — Step ④ chạy <code>asyncio.gather</code>, nhanh hơn 5-20x</td></tr>
   </table>
-  <pre><code>async def outline_gen_node(state):
-    mmr_papers = mmr.mmr_select(query_vec=encode_query(state["query"]),
-                                 fetch_k=MMR_PREFETCH_OUTLINE, k=20)
-    outline_llm = llm.with_config({"temperature": OUTLINE_TEMPERATURE})  # 0.7
-    draft = await outline_llm.ainvoke(OUTLINE_PROMPT + abstracts(mmr_papers))
-    approved = interrupt({"type": "outline_approval", "outline": draft})
-    return {"draft_outline": draft, "approved_outline": approved}</code></pre>
-  <p><span class="badge cost">Chi phí</span> ~100K input (600 abstract + context) + ~2K output ≈ <strong>$0.004/session</strong>. Context window 131K của <code>gpt-oss-120b</code> đủ chứa toàn bộ 600 abstract ngắn trong 1 lần gọi, không cần chunking.</p>
+  <pre><code>tasks = [
+    writer_agent(
+        theme=t["title"], description=t["description"],
+        papers=[p for p in t["papers"] if p.abstract],  # filter no-abstract
+        model="openai/gpt-oss-120b", temperature=0.7
+    )
+    for t in themes
+]
+results = await asyncio.gather(*tasks)
 
-  <h3>Step ⑤ — Per-theme Hybrid Search</h3>
+# Prompt: "Cite using [[PAPER_ID]] immediately after each claim.
+# Example: Attention scales quadratically with sequence length [[S2_a3f9]]."</code></pre>
   <table>
-    <tr><th>Công nghệ/API</th><td><code>rank_bm25</code> (keyword), MMR semantic (<code>MMR_LAMBDA=0.5</code>, <code>MMR_PREFETCH_THEME=50</code>), RRF — Reciprocal Rank Fusion (tự viết)</td></tr>
-    <tr><th>Thuật toán</th><td>Với mỗi theme: chạy BM25 (exact keyword match) và MMR semantic song song trên cùng pool → merge 2 ranking bằng RRF (cộng nghịch đảo rank, paper nào nằm top ở cả 2 phương pháp được đẩy lên đầu) → giữ top-10 paper/theme. Toàn bộ theme chạy đồng thời qua <code>asyncio.gather</code> (không tuần tự theme này xong mới sang theme khác)</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Chỉ semantic bỏ sót exact keyword quan trọng (tên thuật toán/model cụ thể, ví hiệu); chỉ BM25 bỏ sót đồng nghĩa hoặc cách diễn đạt khác cùng nghĩa</td></tr>
-  </table>
-
-  <h3>Step ⑥ — Parallel Writer Agents</h3>
-  <table>
-    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code>, <code>temperature=0.7</code> (sáng tạo/liên kết ý), <code>asyncio.gather</code></td></tr>
-    <tr><th>Thuật toán</th><td>1 Writer Agent/theme, <strong>context isolation</strong> tuyệt đối (mỗi agent chỉ thấy 10 abstract của theme nó phụ trách, không thấy nội dung theme khác) — toàn bộ chạy đồng thời</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Viết tuần tự 8 theme × 10s = 80s; cùng 1 agent thấy hết nội dung mọi theme gây lặp ý/ô nhiễm văn phong và mất tính độc lập tập trung của mỗi theme</td></tr>
-    <tr><th>So sánh nhanh</th><td>Elicit/Consensus: chỉ summarize per-paper, không tổng hợp theo theme; AutoSurvey: 1 LLM sequential, không có cơ chế parallel</td></tr>
-  </table>
-  <pre><code>async def generate_all_themes(themes, papers_per_theme):
-    tasks = [writer_agent(theme=t, papers=p, model="openai/gpt-oss-120b", temperature=0.7)
-             for t, p in zip(themes, papers_per_theme)]
-    results = await asyncio.gather(*tasks)   # tất cả chạy đồng thời
-    return results</code></pre>
-  <table>
-    <tr><th></th><th>Writer Agent</th><th>Verifier Agent (Step ⑧)</th></tr>
+    <tr><th></th><th>Writer Agent (Step ④)</th><th>Verifier Agent (Step ⑤)</th></tr>
     <tr><td>Model</td><td><code>openai/gpt-oss-120b</code></td><td><code>openai/gpt-oss-120b</code></td></tr>
-    <tr><td>Temperature</td><td>0.6-0.7</td><td>0 (deterministic)</td></tr>
-    <tr><td>Vai trò</td><td>Tổng hợp, liên kết ý, viết trôi chảy</td><td>Conservative, hoài nghi, verify claim</td></tr>
-    <tr><td>Context</td><td>10 abstract cho theme của nó CHỈ riêng nó</td><td>1 claim + đoạn văn bản nguồn</td></tr>
+    <tr><td>Temperature</td><td>0.7</td><td>0 (deterministic)</td></tr>
+    <tr><td>Context</td><td>Papers có abstract trong cluster CHỈ riêng nó</td><td>1 claim + đoạn văn bản nguồn</td></tr>
   </table>
-  <p><span class="badge cost">Chi phí</span> 8 Writer Agent song song, mỗi agent ~5K input + ~1.5K output → tổng ~40K input + ~12K output ≈ <strong>$0.004/session</strong>.</p>
+  <p><span class="badge cost">Chi phí</span> ~40K input + ~12K output ≈ <strong>$0.004/session</strong></p>
 
-  <h3>Step ⑦ — Claim Extraction + Intent</h3>
+  <h3>Step ⑤ — Extract + Verify Claims</h3>
   <table>
-    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code>, <code>temperature=0</code> (structured JSON parsing, không sáng tạo)</td></tr>
-    <tr><th>Thuật toán</th><td>Parse tag <code>(Source: PAPER_ID)</code> mà Writer Agent gắn kèm trong văn bản đã viết → trích từng claim độc lập, gán nhãn intent <strong>Supports / Contradicts / Extends</strong> theo quan hệ giữa claim và phần còn lại của theme</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Cần đơn vị "claim" rời rạc để verify từng cái độc lập ở Step ⑧ — không thể verify cả đoạn văn dài cùng lúc với độ chính xác cao</td></tr>
+    <tr><th>Công nghệ/API</th><td><strong>Extract:</strong> regex fast-path + LLM fallback (<code>temperature=0</code>). <strong>Verify:</strong> <code>openai/gpt-oss-120b</code> <code>temperature=0</code>, S2 <code>/snippet/search</code> (qua <code>s2_rate_limiter</code> 1 req/s), <code>ar5iv.labs.arxiv.org</code> + BeautifulSoup, <code>asyncio.gather</code> (Semaphore 4 LLM calls)</td></tr>
+    <tr><th>Thuật toán</th><td>
+      <strong>Extract:</strong> Regex <code>\[\[([A-Za-z0-9_]+)\]\]</code> parse inline citations → sentence-level claims. Sau đó enrich mỗi claim với <code>arxiv_id</code> từ <code>paper.externalIds["ArXiv"]</code> (tra <code>state["papers"]</code>) để Verifier Case B có thể fetch full text.<br>
+      <strong>Verify — 3-tier waterfall per claim:</strong><br>
+      <strong>Case A (~30%):</strong> S2 <code>/snippet/search</code> — calls qua <code>s2_rate_limiter.acquire()</code> (4 concurrent claims song song → 4 S2 req cùng lúc → vượt 1 req/s nếu không rate-limit).<br>
+      <strong>Case B (~80% CS/AI):</strong> <code>claim.arxiv_id</code> có giá trị → fetch full text ar5iv, giữ 10k ký tự. Papers từ S2 vẫn có ArXiv ID dù đã bỏ arXiv làm search source.<br>
+      <strong>Case C (fallback):</strong> Abstract conservative — không bao giờ trả "Supported". Claims <code>Contrasting</code> ưu tiên xử lý trước
+    </td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Citation format <code>[[PAPER_ID]]</code> không thể biến thể → regex không miss. <code>arxiv_id</code> enrich ở Extract để Verify Case B hoạt động — nếu thiếu thì toàn bộ rớt xuống Case C (không verify được "Supported")</td></tr>
+    <tr><th>Backing research</th><td><strong>LLM Cascade</strong> (Dohan et al. 2022); <strong>RouteLLM</strong> (Ong et al. 2024, arXiv:2406.18665)</td></tr>
   </table>
-  <pre><code>System: "Extract verifiable claims. Output JSON array with fields:
-claim, source_paperId, intent (Supports|Contradicts|Extends)."
-User: "[theme section text — toàn bộ 8 theme nối lại]"</code></pre>
-  <p><span class="badge cost">Chi phí</span> ~15K input + ~20K output (200 claim kèm metadata) ≈ <strong>$0.004/session</strong>.</p>
+  <pre><code># Extract — regex fast-path
+_INLINE_RE = re.compile(r"\[\[([A-Za-z0-9_]+)\]\]")
 
-  <h3>Step ⑧ — Parallel Verifier Agents</h3>
+# Enrich với arxiv_id
+paper_lookup = {p.paper_id: p for p in state["papers"]}
+for claim in claims:
+    paper = paper_lookup.get(claim.paper_id)
+    if paper:
+        claim.arxiv_id = (paper.external_ids or {}).get("ArXiv")
+
+# Verify — Case A rate-limited
+async def _verify_one(claim, abstracts):
+    async with _VERIFY_SEM:
+        await s2_rate_limiter.acquire()          # ← bắt buộc, tránh 429
+        snippet = await search_snippet(claim.text, paper_id=claim.paper_id)
+        if snippet: ...   # Case A: LLM classify
+        if claim.arxiv_id:
+            full_text = await fetch_arxiv_text(claim.arxiv_id)
+            if full_text: ...  # Case B
+        # Case C: abstract conservative</code></pre>
   <table>
-    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code> <code>temperature=0</code>, S2 <code>/snippet/search</code>, <code>ar5iv.labs.arxiv.org</code> + BeautifulSoup, <code>asyncio.gather</code> theo batch</td></tr>
-    <tr><th>Thuật toán</th><td><strong>3-tier waterfall</strong>: Tier A — S2 snippet search trả đoạn văn bản gốc khớp claim (coverage ~30% paper); rỗng → Tier B — lấy full text HTML từ ar5iv (~70% paper arXiv có sẵn, parse BeautifulSoup, strip nav/header/footer, giữ 10k ký tự đầu, timeout 15s); lỗi/không có arXiv ID → Tier C — chỉ dùng abstract, conservative tuyệt đối (không bao giờ trả "Supported" nếu chỉ có abstract, vì abstract quá ngắn để chắc chắn). Claim mang intent <code>Contrasting</code> được xử lý trước (priority queue) vì giá trị thông tin cao hơn (claim mâu thuẫn quan trọng để con người xem trước)</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Citation drift (claim suy diễn quá xa so với nguồn thật mà LLM viết ra ở Step ⑥); cần verify nhanh hàng trăm claim mà vẫn giữ độ tin cậy cao</td></tr>
-    <tr><th>Backing research</th><td><strong>LLM Cascade</strong> (Dohan et al. 2022) — route task đơn giản (classification) sang model rẻ hơn vẫn giữ chất lượng; <strong>RouteLLM</strong> (Ong et al. 2024, arXiv:2406.18665) — routing giảm 40-70% chi phí không mất quality cho classification task. <code>gpt-oss-120b</code> là kiến trúc MoE (5.1B active/116.8B total params, 128 expert, chỉ activate 4/128 mỗi token) → cost ngang small model nhưng giữ kiến thức của 120B model</td></tr>
+    <tr><th>Phương án verifier</th><th>Chi phí cho ~150 claims</th></tr>
+    <tr><td>Claude Sonnet</td><td>~$0.45/session (64x đắt hơn)</td></tr>
+    <tr><td>Claude Haiku</td><td>~$0.04/session (6x đắt hơn)</td></tr>
+    <tr><td><strong>gpt-oss-120b (đã chọn)</strong></td><td><strong>~$0.006/session</strong> — MoE, 5.1B active/116.8B total params</td></tr>
   </table>
-  <pre><code>GET https://api.semanticscholar.org/graph/v1/snippet/search?query=...&amp;paperId=...
-# Rỗng → fallback ar5iv:
-GET https://ar5iv.labs.arxiv.org/html/{arxiv_id}   # timeout 15s
-soup = BeautifulSoup(resp.text, "html.parser")
-for tag in soup(["nav","header","footer","script","style"]): tag.decompose()
-text = soup.get_text(separator=" ", strip=True)[:10000]
+  <p><span class="badge cost">Chi phí</span> Extract ~15K+15K tokens + Verify ~100K+8K tokens ≈ <strong>$0.009/session</strong></p>
 
-POST .../chat/completions
-{"model":"openai/gpt-oss-120b","temperature":0,
- "messages":[{"role":"system","content":"You are a conservative scientific claim verifier. Output JSON: {verdict, confidence, evidence}."},
-             {"role":"user","content":"Claim: ...\nSource text: ..."}]}</code></pre>
+  <h3>Step ⑥ — Route + Human Review + KG Build</h3>
   <table>
-    <tr><th>Phương án verifier</th><th>Chi phí cho 200 claims</th></tr>
-    <tr><td>Claude Sonnet</td><td>~$0.60/session (85x đắt hơn)</td></tr>
-    <tr><td>Claude Haiku</td><td>~$0.05/session (7x đắt hơn)</td></tr>
-    <tr><td><strong>gpt-oss-120b (đã chọn)</strong></td><td><strong>~$0.007/session</strong> — input 120K×$0.039/1M=$0.0047, output 10K×$0.180/1M=$0.0018</td></tr>
+    <tr><th>Công nghệ/API</th><td>Rule-based routing (không gọi LLM), LangGraph <code>interrupt()</code>, <code>networkx</code> MultiDiGraph, <code>python-slugify</code></td></tr>
+    <tr><th>Thuật toán</th><td>
+      <strong>Routing tự động:</strong> <code>supported</code> + <code>partial</code> → <code>included</code>; <code>unsupported</code> → <code>removed</code>.<br>
+      <strong>Human review:</strong> Claims <code>uncertain</code> OR <code>low_confidence</code> (abstract-only) → <code>interrupt()</code> hiện full list kèm <code>text</code>, <code>theme</code>, <code>paper.url</code>. Resume value: <code>{"approved": [...ids], "removed": [...ids]}</code> → node merge vào đúng bucket. Claims <code>Contrasting</code> đứng đầu danh sách.<br>
+      <strong>KG Build:</strong> Lắp ráp dữ liệu đã có thành multi-layer graph (Topic→Theme→Paper→Claim). 4 edge types: <code>covers</code>, <code>belongs_to</code>, <code>evidenced_by</code>, <code>supports</code>/<code>contradicts</code>/<code>mentions</code>. Không có <code>cites</code> edges (snowball đã bỏ)
+    </td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Claims uncertain không nên tự động vào bài (rủi ro) cũng không tự động loại (có thể đúng) — cần user quyết định từng claim với đủ thông tin (link paper). Literature review văn xuôi tuyến tính khó nắm "ai đồng ý ai, ai phản bác ai" — xem <code>knowledge-graph.html</code></td></tr>
   </table>
+  <pre><code>async def route_claims_node(state):
+    verified = state.get("verified_claims", [])
+    included = [c for c in verified if c.status in ("supported","partial") and not c.low_confidence]
+    removed  = [c for c in verified if c.status == "unsupported"]
+    for_review = [c for c in verified if c.status == "uncertain" or c.low_confidence]
+    for_review.sort(key=lambda c: c.intent != "Contrasting")  # Contrasting first
 
-  <h3>Step ⑨ — Routing + Human Review</h3>
+    paper_lookup = {p.paper_id: p for p in state["papers"]}
+    resume = interrupt({"type": "claim_review", "claims": [
+        {"id": c.id, "text": c.text, "theme": c.theme,
+         "paper_url": paper_lookup.get(c.paper_id, {}).url}
+        for c in for_review   # full list, không truncate
+    ]})
+
+    approved_ids = set(resume.get("approved", []))
+    removed_ids  = set(resume.get("removed", []))
+    included += [c for c in for_review if c.id in approved_ids]
+    removed  += [c for c in for_review if c.id in removed_ids]
+    return {"included_claims": included, "removed_claims": removed}</code></pre>
+
+  <h3>Step ⑦ — Merge + LaTeX Export</h3>
   <table>
-    <tr><th>Công nghệ/API</th><td>Rule-based (không gọi thêm LLM), LangGraph <code>interrupt()</code></td></tr>
-    <tr><th>Thuật toán</th><td>Phân loại claim theo tổ hợp <strong>status verification</strong> (Supported/Refuted/Uncertain từ Step ⑧) × <strong>confidence</strong> × <strong>intent</strong> thành các nhóm xử lý: đưa thẳng vào bài (status hỗ trợ, confidence cao), loại bỏ (status không được hỗ trợ), đưa vào hàng đợi human review (vùng xám: partial/uncertain/confidence thấp) — claim mang intent <code>Contrasting</code> luôn được đẩy lên đầu hàng đợi review để con người xem trước (giá trị thông tin cao, rủi ro sai cũng cao nếu để tự động)</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Không phải claim verify-xong nào cũng nên tự động đưa thẳng vào bài — vùng xám cần con người quyết định, tránh rủi ro "tự động ghi đè" sai lệch học thuật</td></tr>
+    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code> <code>temperature=0.7</code></td></tr>
+    <tr><th>Thuật toán</th><td>LLM sinh Introduction + Conclusion từ theme sections → ghép vào template <code>.tex</code> + sinh <code>.bib</code>. <strong>Framing chống bịa:</strong> prompt bảo LLM <em>mô tả đúng nội dung các theme đang có</em>, KHÔNG đóng khung "viết review VỀ {query}" (khung này ép LLM nối mọi theme về query kể cả theme lạc → sinh narrative giả). Nếu <code>low_relevance</code> (từ Step ①bis) → chèn caveat thành thật ("ít tài liệu trực tiếp liên quan; gồm công trình lân cận") thay vì cố viết cho đầy. Convert citation: <code>[[PAPER_ID]]</code> → <code>\cite{cite_key}</code>. <strong>Thứ tự bắt buộc cho theme content:</strong> (1) <code>escape_latex(raw)</code> trước — tránh <code>&amp;</code>, <code>%</code>, <code>_</code>, <code>$</code> phá compile; (2) <code>_replace_source_tags()</code> sau — vì <code>\cite{key}</code> không được escape thêm</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Output compile được ngay bằng <code>pdflatex</code> hoặc Overleaf. Regex <code>_SOURCE_TAG_RE</code> phải khớp format mới: <code>r"\[\[([A-Za-z0-9_\-\.]+)\]\]"</code></td></tr>
   </table>
+  <pre><code># Thứ tự xử lý đúng:
+escaped = escape_latex(tc.get("content", ""))          # (1) escape trước
+content  = _replace_source_tags(escaped, paper_map, key_map)  # (2) replace sau
 
-  <h3>Step ⑨bis — Knowledge Graph Construction</h3>
-  <table>
-    <tr><th>Công nghệ/API</th><td><code>networkx</code> (MultiDiGraph), <code>python-slugify</code> — không gọi LLM</td></tr>
-    <tr><th>Thuật toán</th><td>Lắp ráp dữ liệu đã có (citation_edges, papers_per_theme, human_reviewed_claims) thành multi-layer graph hệ mặt trời (Topic→Theme→Paper→Claim)</td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Literature review văn xuôi tuyến tính khó nắm "ai đồng ý ai, ai phản bác ai" — chi tiết đầy đủ xem <code>knowledge-graph.html</code></td></tr>
-  </table>
-
-  <h3>Step ⑩ — Merge + LaTeX Export</h3>
-  <table>
-    <tr><th>Công nghệ/API</th><td><code>openai/gpt-oss-120b</code> <code>temperature=0.7</code>, <code>jinja2</code> template engine</td></tr>
-    <tr><th>Thuật toán</th><td>LLM sinh Introduction + Conclusion từ 8 theme section đã viết (dùng cú pháp <code>\cite{key}</code>) → ghép cùng theme content vào template <code>.tex</code> hoàn chỉnh (<code>\documentclass</code>, <code>natbib</code>, <code>hyperref</code>, <code>amsmath</code>) → sinh kèm <code>references.bib</code> từ <code>cited_papers</code></td></tr>
-    <tr><th>Vấn đề giải quyết</th><td>Output cần compile được ngay bằng <code>pdflatex</code> hoặc mở thẳng Overleaf, đúng chuẩn academic submission — không phải plain text/markdown thiếu cấu trúc bibliography</td></tr>
-  </table>
-  <pre><code>\documentclass[12pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage{natbib}
-\usepackage{hyperref}
-\usepackage{amsmath}
-\title{Literature Review: {query}}
-\begin{document}
-\maketitle
-\begin{abstract}{introduction_text}\end{abstract}
-\section{Introduction}{introduction_text}
-% ... 8 \section{} theo theme ...
-\section{Conclusion}{conclusion_text}
-\bibliographystyle{apalike}
-\bibliography{references}
-\end{document}
-
-@article{lewis2020rag,
-  title = {Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks},
-  author = {Lewis, Patrick and others}, year = {2020},
-  url = {https://arxiv.org/abs/2005.11401}}</code></pre>
-  <p><span class="badge cost">Chi phí</span> ~15K input + ~2K output ≈ <strong>$0.001/session</strong>.</p>
+_SOURCE_TAG_RE = re.compile(r"\[\[([A-Za-z0-9_\-\.]+)\]\]")  # format mới</code></pre>
+  <p><span class="badge cost">Chi phí</span> ~15K input + ~2K output ≈ <strong>$0.001/session</strong></p>
 
   <hr>
 
   <h2 id="compare">4. So sánh với các kỹ thuật hiện có</h2>
 
   <table>
-    <tr><th>Công cụ/Kỹ thuật</th><th>Cách làm</th><th>Điểm yếu (có ref)</th><th>Research Agent khác/tốt hơn ở đâu</th></tr>
+    <tr><th>Công cụ/Kỹ thuật</th><th>Cách làm</th><th>Điểm yếu</th><th>Research Agent khác/tốt hơn ở đâu</th></tr>
     <tr>
       <td><strong>Elicit</strong></td>
-      <td>1 database (Semantic Scholar), single-query, có dialog hỏi lại nhưng không sinh research plan cấu trúc</td>
-      <td>Không multi-source/multi-angle → bỏ sót paper (LSE Study: chỉ 20% overlap với expert ở single-query)</td>
-      <td>Step 0 sinh research plan có cấu trúc (sub_queries theo lens khác nhau) + Step ① multi-source song song (S2+OpenAlex+arXiv)</td>
+      <td>1 database (S2), single-query, có dialog nhưng không sinh research plan cấu trúc</td>
+      <td>Không multi-source → bỏ sót paper (LSE Study: 20% overlap với expert)</td>
+      <td>Step 0 sinh research plan + Step ① multi-source song song (S2+OA)</td>
     </tr>
     <tr>
       <td><strong>Consensus</strong></td>
-      <td>1 database, không multi-source, chỉ summarize per-paper</td>
-      <td>Không tổng hợp theo theme/structure — user vẫn phải tự ghép ý</td>
-      <td>Step ④-⑥ sinh outline theo theme rồi viết tổng hợp theo theme, không chỉ liệt kê tóm tắt rời rạc</td>
+      <td>1 database, chỉ summarize per-paper</td>
+      <td>Không tổng hợp theo theme — user vẫn phải tự ghép ý</td>
+      <td>Step ③ clustering tự tìm theme + Step ④ viết tổng hợp theo theme</td>
     </tr>
     <tr>
       <td><strong>Perplexity</strong></td>
-      <td>Search thẳng ngay khi nhận query, không có bước "suy nghĩ trước"</td>
-      <td>User không biết tool đang định search gì, dễ trật hướng với câu hỏi mơ hồ</td>
-      <td>Step 0 Intent Router phân loại greeting/clarify/search trước, hỏi lại nếu query quá ngắn/mơ hồ</td>
+      <td>Search thẳng ngay khi nhận query</td>
+      <td>User không biết tool định search gì, dễ trật hướng với query mơ hồ</td>
+      <td>Step 0 Intent Router phân loại greeting/clarify/search trước</td>
     </tr>
     <tr>
       <td><strong>OpenAI Deep Research</strong></td>
-      <td>Web crawl nhiều nguồn, mạnh tổng hợp tự do</td>
-      <td>Không có academic-specific database (S2/OpenAlex/arXiv) → thiếu metadata học thuật (citationCount, DOI, intent)</td>
-      <td>Dùng đúng 3 academic database + giữ metadata học thuật xuyên suốt pipeline (citation intent, isInfluential…)</td>
+      <td>Web crawl nhiều nguồn</td>
+      <td>Không có academic database → thiếu metadata học thuật (citationCount, DOI, intent)</td>
+      <td>Dùng đúng S2+OA + giữ metadata học thuật xuyên suốt pipeline</td>
     </tr>
     <tr>
       <td><strong>Gemini Deep Research</strong></td>
       <td>Generate plan → user confirm trước khi search</td>
       <td>—</td>
-      <td>Pattern tương đồng — xác nhận đây là hướng đúng cho deep-research tool; Step 0 áp dụng cùng pattern</td>
+      <td>Pattern tương đồng — xác nhận đây là hướng đúng; Step 0 áp dụng cùng pattern</td>
     </tr>
     <tr>
-      <td><strong>AutoSurvey</strong></td>
-      <td>1 LLM viết tuần tự qua từng theme</td>
-      <td>Chậm — không có gì ngăn cản chạy song song nhưng vẫn tuần tự</td>
-      <td>Step ⑥ Writer Agents + Step ⑧ Verifier Agents đều chạy <code>asyncio.gather</code> — nhanh hơn 5-20x cùng quy mô</td>
+      <td><strong>AutoSurvey</strong> (NeurIPS 2024)</td>
+      <td>Clustering-based theme discovery, 1 LLM sequential</td>
+      <td>Chậm — không parallel; không có human-in-loop để chỉnh theme</td>
+      <td>Step ③ dùng cùng clustering approach + interrupt user approve/merge/split; Step ④ Writer Agents chạy <code>asyncio.gather</code> — nhanh hơn 5-20x</td>
     </tr>
     <tr>
       <td><strong>Claude Sonnet / Haiku</strong> làm verifier</td>
-      <td>200 claims × Claude Sonnet ≈ $0.60/session, × Haiku ≈ $0.05/session</td>
-      <td>Đắt hơn đáng kể cho 1 task đơn giản (classification verdict Supported/Refuted/Uncertain)</td>
-      <td>Step ⑧ dùng <code>gpt-oss-120b</code> (MoE, 5.1B active params) ≈ $0.007/session — rẻ hơn Sonnet 85x, Haiku 7x, theo đúng pattern <strong>RouteLLM</strong>/<strong>LLM Cascade</strong></td>
+      <td>~$0.45/session (Sonnet), ~$0.04/session (Haiku)</td>
+      <td>Đắt hơn đáng kể cho 1 task classification đơn giản</td>
+      <td>Step ⑤ dùng <code>gpt-oss-120b</code> (MoE) ≈ $0.006/session — rẻ hơn Sonnet 75x, theo đúng pattern RouteLLM/LLM Cascade</td>
     </tr>
   </table>
 
@@ -483,14 +494,15 @@ POST .../chat/completions
   <h2 id="test">5. Phương pháp test, đánh giá so sánh</h2>
 
   <ul class="checklist">
-    <li>E2E test: query thật "RAG optimization techniques" → chạy full flow Step 0→⑩, kiểm tra mọi field state được populate đúng</li>
-    <li>Test interrupt/resume: outline approval + claim review — tắt server giữa chừng, restart, resume đúng <code>thread_id</code> qua checkpointer</li>
-    <li>Đo wall-clock: Step ⑥ (Writer) + Step ⑧ (Verifier) mục tiêu &lt; 2 phút tổng</li>
-    <li>Đo corpus size: mục tiêu 400-600 bài sau dedup (Step ①bis), 600-900 bài sau snowball (Step ②bis)</li>
+    <li>E2E test: query thật "RAG optimization techniques" → chạy full flow Step 0→⑦, kiểm tra mọi field state được populate đúng</li>
+    <li>Test interrupt/resume: cluster approval + claim review — tắt server giữa chừng, restart, resume đúng <code>thread_id</code> qua checkpointer</li>
+    <li>Đo wall-clock: Step ④ (Writer) + Step ⑤ (Verifier) mục tiêu &lt; 2 phút tổng</li>
+    <li>Đo corpus size: mục tiêu 400-500 bài sau dedup (Step ①)</li>
     <li>Đo hallucination rate: mục tiêu ~0% bịa paperId (RAG grounding)</li>
-    <li>Đo citation drift: mục tiêu giảm 65-70% sau 3-tier verification (Step ⑧)</li>
+    <li>Đo citation drift: mục tiêu giảm 65-70% sau 3-tier verification (Step ⑤)</li>
     <li>Test SSE: stream không block, token hiện đúng thứ tự, <code>step_start</code>/<code>step_done</code>/<code>llm_token</code> khớp schema</li>
-    <li>Test checkpointer: đảm bảo Postgres/SQLite checkpointer giữ đúng state qua nhiều lần resume liên tiếp</li>
+    <li>Test checkpointer: giữ đúng state qua nhiều lần resume liên tiếp</li>
+    <li>Test claim review interrupt: resume value <code>{"approved":[...], "removed":[...]}</code> được xử lý đúng, bucket không overlap</li>
   </ul>
 
   <hr>
@@ -499,27 +511,25 @@ POST .../chat/completions
 
   <table>
     <tr><th>Mục tiêu</th><th>Metric</th><th>Cách đạt được</th></tr>
-    <tr><td>Corpus coverage (trước snowball)</td><td><strong>400-600 bài</strong></td><td>Multi-agent parallel search, đa nguồn</td></tr>
-    <tr><td>Source diversity</td><td><strong>3 database</strong> (S2 + OpenAlex + arXiv, +PubMed nếu domain y sinh)</td><td>LLM tự chọn nguồn theo domain ở Step 0</td></tr>
-    <tr><td>Wall-clock Step ⑥+⑧</td><td><strong>~1-2 phút</strong></td><td>Parallel agents (asyncio.gather)</td></tr>
-    <tr><td>Query intent accuracy (không gửi "hello" vào search)</td><td><strong>~100%</strong></td><td>Intent router Step 0</td></tr>
-    <tr><td>User alignment (confirm research scope trước search)</td><td><strong>Có</strong> — research plan approval</td><td>Interrupt tại Plan Review</td></tr>
-    <tr><td>Hallucination cứng (bịa DOI/paperId)</td><td><strong>~0%</strong></td><td>RAG grounding — claim luôn neo vào paper thật trong corpus</td></tr>
-    <tr><td>Citation drift (claim suy diễn quá xa nguồn)</td><td><strong>giảm 65-70%</strong></td><td>3-tier verification (Step ⑧)</td></tr>
+    <tr><td>Corpus coverage (sau dedup)</td><td><strong>400-500 bài</strong></td><td>Parallel search, per-source ceiling</td></tr>
+    <tr><td>Source diversity</td><td><strong>2+ database</strong> (S2 + OA, +PubMed nếu y sinh)</td><td>LLM tự chọn nguồn theo domain ở Step 0</td></tr>
+    <tr><td>Wall-clock Step ④+⑤</td><td><strong>~1-2 phút</strong></td><td>Parallel agents (asyncio.gather)</td></tr>
+    <tr><td>Query intent accuracy</td><td><strong>~100%</strong></td><td>Intent router Step 0</td></tr>
+    <tr><td>Hallucination cứng (bịa DOI/paperId)</td><td><strong>~0%</strong></td><td>RAG grounding — claim luôn neo vào paper thật</td></tr>
+    <tr><td>Citation drift</td><td><strong>giảm 65-70%</strong></td><td>3-tier verification (Step ⑤)</td></tr>
   </table>
 
-  <h3>6.1 Chi phí ước tính/session (1 session: 600 paper, 8 theme, 200 claim)</h3>
+  <h3>6.1 Chi phí ước tính/session (1 session: ~450 paper, 5-8 cluster, ~150 claim)</h3>
   <table>
     <tr><th>Step</th><th>Task</th><th>Input tokens</th><th>Output tokens</th><th>Chi phí</th></tr>
     <tr><td>0</td><td>Intent Router + Research Plan</td><td>~500</td><td>~500</td><td>~$0.0001</td></tr>
-    <tr><td>④</td><td>MMR Outline (600 abstract → 8 theme)</td><td>~100K</td><td>~2K</td><td>~$0.004</td></tr>
-    <tr><td>⑥</td><td>8 Writer Agents (parallel)</td><td>~40K</td><td>~12K</td><td>~$0.004</td></tr>
-    <tr><td>⑦</td><td>Claim Extraction (200 claim)</td><td>~15K</td><td>~20K</td><td>~$0.004</td></tr>
-    <tr><td>⑧</td><td>200 Verifier Agents (parallel)</td><td>~120K</td><td>~10K</td><td>~$0.007</td></tr>
-    <tr><td>⑩</td><td>Intro + Conclusion</td><td>~15K</td><td>~2K</td><td>~$0.001</td></tr>
-    <tr><td colspan="4"><strong>TOTAL / session</strong></td><td><strong>~$0.020</strong></td></tr>
+    <tr><td>③</td><td>Cluster naming (5-8 clusters)</td><td>~10K</td><td>~1K</td><td>~$0.001</td></tr>
+    <tr><td>④</td><td>Writer Agents (parallel, 1/cluster)</td><td>~40K</td><td>~12K</td><td>~$0.004</td></tr>
+    <tr><td>⑤</td><td>Extract + Verify (~150 claim)</td><td>~115K</td><td>~23K</td><td>~$0.009</td></tr>
+    <tr><td>⑦</td><td>Intro + Conclusion</td><td>~15K</td><td>~2K</td><td>~$0.001</td></tr>
+    <tr><td colspan="4"><strong>TOTAL / session</strong></td><td><strong>~$0.015</strong></td></tr>
   </table>
-  <p class="note">Bước ①, ①bis, ②bis, ③, ⑤, ⑨ không dùng LLM (chỉ API search/embedding miễn phí hoặc rule-based) — toàn bộ chi phí LLM của 1 session nằm ở 6 bước trên. Quy mô <strong>~100 session/tháng ≈ $2/tháng</strong> nhờ kiến trúc MoE của <code>gpt-oss-120b</code> (chỉ activate 5.1B/116.8B params/token).</p>
+  <p class="note">Step ①, ②, ③ (clustering/scikit-learn), ⑥ (routing/networkx) không dùng LLM — toàn bộ chi phí LLM của 1 session nằm ở 5 bước trên. Quy mô <strong>~100 session/tháng ≈ $1.5/tháng</strong> nhờ MoE của <code>gpt-oss-120b</code> (5.1B active/116.8B total params).</p>
 
   <hr>
 
@@ -527,27 +537,37 @@ POST .../chat/completions
 
   <table>
     <tr><th>Method</th><th>Path</th><th>Mô tả</th></tr>
-    <tr><td><code>POST</code></td><td><code>/api/research/stream</code></td><td>Start session → SSE stream Step 0→⑩</td></tr>
-    <tr><td><code>POST</code></td><td><code>/api/research/resume</code></td><td>Resume sau interrupt (outline / claim review)</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/research/stream</code></td><td>Start session → SSE stream Step 0→⑦</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/research/resume</code></td><td>Resume sau interrupt (plan / cluster / claim review)</td></tr>
     <tr><td><code>GET</code></td><td><code>/api/review/export</code></td><td>Export literature review hoàn chỉnh (.tex/.bib)</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/research/graph</code></td><td>Lấy Knowledge Graph đã build ở Step ⑨bis</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/research/graph</code></td><td>Lấy Knowledge Graph đã build ở Step ⑥</td></tr>
   </table>
 
   <pre><code>type SSEEvent =
+  | { type: "thinking_token"; content: string }
+  | { type: "reply_token";    content: string }
+  | { type: "plan_token";     content: string }
   | { type: "step_start";  node: string; label: string }
   | { type: "step_done";   node: string; stats?: Record&lt;string, unknown&gt; }
-  | { type: "llm_token";   content: string }
   | { type: "search_start"; source: string; query: string }
   | { type: "search_done";  source: string; count: number }
-  | { type: "interrupt";    interrupt_type: "outline_approval" | "claim_review"; data: unknown }
-  | { type: "error";        message: string }
-  | { type: "done" }</code></pre>
+  | { type: "interrupt"; interrupt_type: "plan_approval" | "cluster_approval" | "claim_review"; data: unknown }
+  | { type: "error";   message: string }
+  | { type: "done" }
+
+// Resume values:
+// plan_approval:    { sub_queries: string[], sources: string[] }
+// cluster_approval: { themes: [{title, description, papers, action: "keep"|"rename"|"merge"|"split"}] }
+// claim_review:     { approved: string[], removed: string[] }  // claim IDs</code></pre>
 
   <pre><code>SYSTEM_GUARDRAILS = {
-    "max_sub_queries": 6, "max_papers_per_source": 200, "max_papers_total": 1500,
-    "max_search_calls": 15, "max_search_time_s": 300, "min_sources_required": 2,
-    "max_writer_agents": 8, "max_verifier_agents": 20, "verifier_batch_size": 10,
-    "writer_temperature": 0.7, "verifier_temperature": 0, "query_gen_temperature": 0,
+    "max_sub_queries": 5, "max_papers_total": 1500,
+    "max_search_time_s": 300, "min_sources_required": 2,
+    "relevance_top_k": 300, "relevance_min": 20,   # Step ①bis hybrid RRF gate
+    "cluster_k_min": 3, "cluster_k_max": 10,
+    "cluster_min_papers": 3, "cluster_max_papers_per_theme": 15,
+    "writer_temperature": 0.7, "verifier_temperature": 0,
+    "verifier_semaphore": 4, "s2_rps": 1.0,
 }</code></pre>
 
   <hr>
@@ -557,13 +577,14 @@ POST .../chat/completions
     <tr><th>Rủi ro</th><th>Giải pháp</th></tr>
     <tr><td>LangGraph <code>astream_events()</code> miss event từ subgraph</td><td>Dùng <code>version="v2"</code> + test từng node riêng trước khi ghép graph</td></tr>
     <tr><td>SSE connection timeout (pipeline 3-5 phút)</td><td>Set <code>keepalive_timeout=600</code> trong uvicorn; emit <code>{type:"heartbeat"}</code> mỗi 30s</td></tr>
-    <tr><td>OpenAlex rate limit (10 req/s polite pool)</td><td><code>tenacity</code> retry + <code>asyncio.sleep(0.1)</code> giữa requests</td></tr>
-    <tr><td>arXiv API unavailable</td><td>Fallback: skip nguồn arXiv, tiếp tục với S2 + OpenAlex</td></tr>
-    <tr><td>SPECTER v2 trả <code>null</code> cho paper mới</td><td>Fallback <code>specter_local.py</code> (adapter proximity local)</td></tr>
-    <tr><td><code>/snippet/search</code> S2 không trả kết quả</td><td>3-tier verification tự rơi xuống Tier B/C</td></tr>
+    <tr><td>S2 rate limit (1 req/s) cho cả Step ① search lẫn Step ⑤ snippet search</td><td><code>s2_rate_limiter</code> dùng nhất quán ở cả 2 bước; nên upgrade key tier</td></tr>
+    <tr><td>OpenAlex rate limit (10 req/s)</td><td><code>tenacity</code> retry + <code>asyncio.sleep(0.1)</code></td></tr>
+    <tr><td>OA/PubMed-only papers không có SPECTER vector</td><td>Chấp nhận — papers overlap với S2 đã merge lấy S2 paperId ở Step ①; chỉ papers thực sự không có trong S2 bị excluded khỏi clustering</td></tr>
+    <tr><td>Silhouette score không ổn định nếu corpus nhỏ (&lt;30 papers có embedding)</td><td>Fallback: dùng k=3 cố định nếu corpus &lt;30 papers embedded</td></tr>
+    <tr><td>Case B skip toàn bộ nếu <code>claim.arxiv_id</code> không được enrich</td><td>Enrich arxiv_id ngay sau Extract ở Step ⑤ — kiểm tra trong E2E test</td></tr>
     <tr><td><code>rapidfuzz</code> false positive title match</td><td>Threshold 90% + bắt buộc match năm nếu title ngắn (&lt;5 từ)</td></tr>
     <tr><td>LangGraph SQLite/Postgres lock khi nhiều session đồng thời</td><td>Mỗi session có <code>thread_id</code> riêng, connection pool per-thread an toàn</td></tr>
-    <tr><td><code>gpt-oss-120b</code> context overflow ở Step ④</td><td>131K context window đủ cho 600 abstract ~150 token/abstract</td></tr>
+    <tr><td>LaTeX compile error do special chars trong theme content</td><td>Step ⑦: <code>escape_latex()</code> trước, <code>_replace_source_tags()</code> sau — thứ tự này bắt buộc</td></tr>
   </table>
 
   <h3>Backing research — danh sách đầy đủ</h3>
@@ -575,6 +596,9 @@ POST .../chat/completions
     <li><strong>LSE Study</strong> — arXiv:2603.20235 (2026)</li>
     <li><strong>OpenAlex</strong> (Priem et al., 2022) — "A fully-open index of the world's research"</li>
     <li><strong>Reference Hallucination in Deep Research Agents</strong> — arXiv:2604.03173</li>
+    <li><strong>AutoSurvey</strong> (NeurIPS 2024) — arXiv:2406.10252</li>
+    <li><strong>Context rot / Lost in the middle</strong> (Chroma 2025; Liu et al. 2023)</li>
+    <li><strong>Silhouette score</strong> (Rousseeuw, 1987)</li>
     <li><strong>LLM Cascade</strong> (Dohan et al., 2022)</li>
     <li><strong>RouteLLM</strong> (Ong et al., 2024) — arXiv:2406.18665</li>
   </ul>
