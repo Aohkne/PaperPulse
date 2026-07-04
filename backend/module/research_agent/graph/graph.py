@@ -11,8 +11,8 @@ Routing after Step 0:
 
 Interrupt points:
   plan_review  (Step 0c) — user approves/edits the research plan before search
-  outline_gen  (Step ④) — user approves/edits research outline
-  route_claims (Step ⑨) — user reviews claim routing before export
+  cluster      (Step ③) — user approves/renames/merges clustered themes
+  route_claims (Step ⑥) — user approves/removes uncertain claims before export
 """
 
 from __future__ import annotations
@@ -26,17 +26,17 @@ from langgraph.graph.state import CompiledStateGraph
 
 from backend.config import get_settings
 from backend.module.research_agent.graph.nodes.build_graph import build_graph_node
+from backend.module.research_agent.graph.nodes.cluster import cluster_node
 from backend.module.research_agent.graph.nodes.dedup import dedup_node
 from backend.module.research_agent.graph.nodes.embed import embed_node
 from backend.module.research_agent.graph.nodes.export import export_node
 from backend.module.research_agent.graph.nodes.extract_claims import extract_claims_node
 from backend.module.research_agent.graph.nodes.intent_router import intent_router_node
-from backend.module.research_agent.graph.nodes.outline_gen import outline_gen_node
 from backend.module.research_agent.graph.nodes.parallel_search import parallel_search_node
 from backend.module.research_agent.graph.nodes.plan_review import plan_review_node
+from backend.module.research_agent.graph.nodes.relevance_filter import relevance_filter_node
 from backend.module.research_agent.graph.nodes.reply_generator import reply_generator_node
 from backend.module.research_agent.graph.nodes.route_claims import route_claims_node
-from backend.module.research_agent.graph.nodes.snowball import snowball_node
 from backend.module.research_agent.graph.nodes.verify_claims import verify_claims_node
 from backend.module.research_agent.graph.nodes.write_themes import write_themes_node
 from backend.module.research_agent.graph.state import ResearchState
@@ -46,15 +46,15 @@ _SEARCH_SEQUENCE = [
     ("plan_review", plan_review_node),  # Step 0c ← interrupt
     ("parallel_search", parallel_search_node),  # Step ①
     ("dedup", dedup_node),  # Step ①bis
-    ("snowball", snowball_node),  # Step ②bis
-    ("embed", embed_node),  # Step ③
-    ("outline_gen", outline_gen_node),  # Step ④ ← interrupt
-    ("write_themes", write_themes_node),  # Steps ⑤⑥
-    ("extract_claims", extract_claims_node),  # Step ⑦
-    ("verify_claims", verify_claims_node),  # Step ⑧
-    ("route_claims", route_claims_node),  # Step ⑨ ← interrupt
-    ("build_graph", build_graph_node),  # Step ⑨bis — knowledge graph
-    ("export", export_node),  # Step ⑩
+    ("relevance_filter", relevance_filter_node),  # Step ①bis — hybrid RRF relevance gate
+    ("embed", embed_node),  # Step ②
+    ("cluster", cluster_node),  # Step ③ ← interrupt (cluster approval)
+    ("write_themes", write_themes_node),  # Step ④
+    ("extract_claims", extract_claims_node),  # Step ⑤
+    ("verify_claims", verify_claims_node),  # Step ⑤ (verify)
+    ("route_claims", route_claims_node),  # Step ⑥ ← interrupt (claim review)
+    ("build_graph", build_graph_node),  # Step ⑥bis — knowledge graph
+    ("export", export_node),  # Step ⑦
 ]
 
 

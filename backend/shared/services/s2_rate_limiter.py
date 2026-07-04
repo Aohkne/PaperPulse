@@ -2,8 +2,12 @@
 
 Rate is auto-detected once (lazy) from environment:
   S2_RATE_LIMIT_RPS  — explicit override (float, req/s)
-  semantic_scholar_api_key present → 10.0 req/s  (paid tier default)
+  semantic_scholar_api_key present → 1.0 req/s  (introductory tier default)
   No key             → 1.0 req/s  (free tier default)
+
+The current key is on S2's introductory tier (1 req/s). Setting a higher rate
+than the key actually allows only causes 429s → tenacity retries → net slower.
+Upgrade the key at semanticscholar.org/product/api to raise this safely.
 
 All S2 HTTP callers (semantic_scholar._get, s2_client._s2_get, and
 get_embeddings_batch POST) must call ``await s2_acquire()`` before
@@ -22,7 +26,7 @@ import time
 logger = logging.getLogger(__name__)
 
 _DEFAULT_RPS_FREE = 1.0  # S2 free tier
-_DEFAULT_RPS_KEY = 10.0  # S2 with API key
+_DEFAULT_RPS_KEY = 1.0  # S2 introductory-tier key (upgrade tier to raise)
 
 
 class _TokenBucket:

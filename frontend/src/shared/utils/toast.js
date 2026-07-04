@@ -5,7 +5,7 @@ import { friendlyError } from '@/shared/utils/errorMessage';
 // paper/amber theme instead of sonner's defaults (see Toaster.jsx for the
 // shared color tokens, kept in sync with PDFAgentPage's prior inline Toast).
 const BASE_STYLE = {
-  fontFamily: "'Noto Serif', serif",
+  fontFamily: "'Newsreader', serif",
   fontSize: '14px',
   borderRadius: '4px',
   border: 'none',

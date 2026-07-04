@@ -35,18 +35,6 @@ export const useBillingStore = create((set, get) => ({
     }
   },
 
-  checkoutTopup: async (pack) => {
-    set({ checkoutLoading: true, checkoutError: null, pendingCheckout: null });
-    try {
-      const result = await billingApi.checkoutTopup(token(), pack);
-      set({ pendingCheckout: result, checkoutLoading: false });
-      return result;
-    } catch (e) {
-      set({ checkoutError: e.message, checkoutLoading: false });
-      throw e;
-    }
-  },
-
   downgrade: async (tier) => {
     await billingApi.downgrade(token(), tier);
     await get().fetchAccount();

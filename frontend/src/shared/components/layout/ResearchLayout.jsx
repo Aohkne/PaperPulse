@@ -84,7 +84,7 @@ const ResearchLayout = ({ left, center, right, papers }) => {
                 flex: 1, padding: '12px 8px', minHeight: 44,
                 border: 'none', borderBottom: mobileTab === tab.key ? '2px solid var(--color-paper-dark)' : '2px solid transparent',
                 background: 'none', cursor: 'pointer',
-                fontFamily: "'Noto Serif', serif", fontSize: '13px', fontWeight: mobileTab === tab.key ? 600 : 400,
+                fontFamily: "'Newsreader', serif", fontSize: '13px', fontWeight: mobileTab === tab.key ? 600 : 400,
                 color: mobileTab === tab.key ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
               }}
             >

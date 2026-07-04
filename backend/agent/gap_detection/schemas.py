@@ -114,6 +114,7 @@ class GapItem(BaseModel):
     quality_breakdown: dict[str, float] | None = None
     evidence_quotes: list[str] = Field(default_factory=list)
     analysis: str | None = None  # NFC-normalized per-gap narrative from synthesizer
+    low_confidence: bool = False  # self-consistency or other late-stage checks flagged this gap as unstable
 
     @model_validator(mode="after")
     def _warn_empty_limitation_citations(self) -> GapItem:

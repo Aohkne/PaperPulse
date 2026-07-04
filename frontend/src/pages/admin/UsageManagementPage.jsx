@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import {
@@ -36,126 +35,28 @@ function TierBadge({ tier }) {
   );
 }
 
-function QuotaCell({ quota, topup, used }) {
+function CreditCell({ balance, used }) {
+  const unlimited = balance === null || balance === undefined;
+  const usedN = Number(used || 0);
+  const total = unlimited ? null : Math.max(0, Number(balance)) + usedN;
+  const pct = total ? Math.min(100, Math.round((usedN / total) * 100)) : 0;
   return (
     <div style={{ fontSize: 12, lineHeight: 1.5 }}>
       <div style={{ color: 'var(--color-admin-text)' }}>
-        {quota === null ? '∞' : quota} sub <span style={{ color: 'var(--color-admin-muted)' }}>+ {topup} top-up</span>
+        {unlimited ? '∞ credits' : `${Math.max(0, Number(balance)).toFixed(1)} / ${total.toFixed(0)} left`}
       </div>
-      <div style={{ color: 'var(--color-admin-muted)' }}>{used} used this period</div>
-    </div>
-  );
-}
-
-// ── Top-up modal ──────────────────────────────────────────────────────────────
-
-function TopupModal({ account, onClose, onSubmit }) {
-  const [amounts, setAmounts] = useState({ lr: 0, pdf: 0, gap: 0 });
-  const [submitting, setSubmitting] = useState(false);
-
-  const setField = (key) => (e) => {
-    const v = parseInt(e.target.value, 10);
-    setAmounts((a) => ({ ...a, [key]: Number.isNaN(v) ? 0 : v }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!amounts.lr && !amounts.pdf && !amounts.gap) {
-      showError('Enter at least one non-zero amount.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await onSubmit(amounts);
-      onClose();
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const FIELDS = [
-    { key: 'lr', label: 'Literature Review' },
-    { key: 'pdf', label: 'PDF Agent' },
-    { key: 'gap', label: 'Research Gap' },
-  ];
-
-  return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-        style={{
-          background: 'var(--color-admin-surface)', border: '1px solid var(--color-admin-border)',
-          borderRadius: 12, padding: 22, width: 360, maxWidth: '90vw',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--color-admin-text)' }}>
-          Top up usage
-        </h3>
-        <p style={{ margin: '0 0 16px', fontSize: 12, color: 'var(--color-admin-mid)' }}>
-          {account.email}
-        </p>
-
-        <form onSubmit={handleSubmit}>
-          {FIELDS.map(({ key, label }) => (
-            <div key={key} style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-admin-mid)', marginBottom: 4 }}>
-                {label}
-              </label>
-              <input
-                type="number"
-                value={amounts[key]}
-                onChange={setField(key)}
-                style={{
-                  width: '100%', boxSizing: 'border-box', padding: '8px 10px',
-                  border: '1px solid var(--color-admin-border)', borderRadius: 6,
-                  background: 'var(--color-admin-input-bg)', color: 'var(--color-admin-text)',
-                  fontSize: 13, outline: 'none',
-                }}
-              />
-            </div>
-          ))}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 13, cursor: 'pointer',
-                border: '1px solid var(--color-admin-border)', background: 'transparent', color: 'var(--color-admin-mid)',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                cursor: submitting ? 'not-allowed' : 'pointer', border: 'none',
-                background: 'var(--color-admin-accent)', color: '#fff', opacity: submitting ? 0.7 : 1,
-              }}
-            >
-              {submitting ? 'Saving…' : 'Top up'}
-            </button>
-          </div>
-        </form>
-      </motion.div>
+      <div style={{ color: 'var(--color-admin-muted)' }}>
+        {unlimited ? `${usedN.toFixed(1)} used this period` : `${pct}% of monthly budget used`}
+      </div>
     </div>
   );
 }
 
 // ── table columns ─────────────────────────────────────────────────────────────
 
-function buildColumns(onReset, onTopup) {
+function buildColumns(onReset) {
   return [
-    { accessorKey: 'email', header: 'Email', size: 220 },
+    { accessorKey: 'email', header: 'Email', size: 240 },
     {
       accessorKey: 'tier',
       header: 'Tier',
@@ -163,60 +64,29 @@ function buildColumns(onReset, onTopup) {
       cell: ({ getValue }) => <TierBadge tier={getValue()} />,
     },
     {
-      id: 'lr',
-      header: 'Literature Review',
-      size: 150,
+      id: 'credit',
+      header: 'Credit pool (shared)',
+      size: 200,
       cell: ({ row }) => (
-        <QuotaCell
-          quota={row.original.subscription_lr_quota}
-          topup={row.original.topup_lr_balance}
-          used={row.original.lr_used_this_period}
-        />
-      ),
-    },
-    {
-      id: 'pdf',
-      header: 'PDF Agent',
-      size: 150,
-      cell: ({ row }) => (
-        <QuotaCell
-          quota={row.original.subscription_pdf_quota}
-          topup={row.original.topup_pdf_balance}
-          used={row.original.pdf_used_this_period}
-        />
-      ),
-    },
-    {
-      id: 'gap',
-      header: 'Research Gap',
-      size: 150,
-      cell: ({ row }) => (
-        <QuotaCell
-          quota={row.original.subscription_gap_quota}
-          topup={row.original.topup_gap_balance}
-          used={row.original.gap_used_this_period}
+        <CreditCell
+          balance={row.original.subscription_credit_balance}
+          used={row.original.credit_used_this_period}
         />
       ),
     },
     {
       accessorKey: 'tier_period_end',
       header: 'Period Ends',
-      size: 100,
+      size: 110,
       cell: ({ getValue }) => fmtDate(getValue()),
     },
     {
       id: 'actions',
       header: 'Actions',
-      size: 150,
-      cell: ({ row }) => {
-        const a = row.original;
-        return (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => onReset(a)} style={actionBtnStyle()}>Reset</button>
-            <button onClick={() => onTopup(a)} style={actionBtnStyle(true)}>Top up</button>
-          </div>
-        );
-      },
+      size: 100,
+      cell: ({ row }) => (
+        <button onClick={() => onReset(row.original)} style={actionBtnStyle()}>Reset</button>
+      ),
     },
   ];
 }
@@ -232,8 +102,8 @@ function actionBtnStyle(accent = false) {
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
-function UsageTable({ data, onReset, onTopup }) {
-  const columns = useMemo(() => buildColumns(onReset, onTopup), [onReset, onTopup]);
+function UsageTable({ data, onReset }) {
+  const columns = useMemo(() => buildColumns(onReset), [onReset]);
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
   return (
@@ -335,7 +205,6 @@ export default function UsageManagementPage() {
   const [search,      setSearch]      = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [loading,     setLoading]     = useState(true);
-  const [topupTarget, setTopupTarget] = useState(null);
 
   const [prevQuery, setPrevQuery] = useState([page, search]);
   if (page !== prevQuery[0] || search !== prevQuery[1]) {
@@ -371,17 +240,6 @@ export default function UsageManagementPage() {
     }
   };
 
-  const handleTopup = async (amounts) => {
-    try {
-      await adminApi.topupUsage(token, topupTarget.user_id, amounts);
-      showSuccess('Top-up applied.');
-      fetchAccounts(page, search);
-    } catch (e) {
-      showError(e, "Couldn't apply top-up — please try again.");
-      throw e;
-    }
-  };
-
   return (
     <div>
       {/* Header */}
@@ -395,7 +253,7 @@ export default function UsageManagementPage() {
           Usage Management
         </h1>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-admin-mid)' }}>
-          {total} billing accounts — reset or top up quota per user
+          {total} billing accounts — one shared monthly credit pool per user (token-weighted). Reset refills to the tier budget.
         </p>
       </motion.div>
 
@@ -449,24 +307,11 @@ export default function UsageManagementPage() {
             <Icon icon="mdi:loading" style={{ fontSize: 24, animation: 'spin 1s linear infinite' }} />
           </div>
         ) : (
-          <UsageTable data={data} onReset={handleReset} onTopup={setTopupTarget} />
+          <UsageTable data={data} onReset={handleReset} />
         )}
 
         <Pagination page={page} hasMore={hasMore} total={total} limit={LIMIT} onPage={setPage} />
       </motion.div>
-
-      {createPortal(
-        <AnimatePresence>
-          {topupTarget && (
-            <TopupModal
-              account={topupTarget}
-              onClose={() => setTopupTarget(null)}
-              onSubmit={handleTopup}
-            />
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
     </div>
   );
 }

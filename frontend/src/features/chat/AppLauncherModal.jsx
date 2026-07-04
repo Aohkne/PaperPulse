@@ -14,15 +14,16 @@ const overlayStyle = {
 };
 
 const cardStyle = {
-  background: 'var(--color-paper-bg)',
-  border: '1px solid var(--color-paper-light)',
-  borderRadius: '6px',
-  boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
-  width: '420px',
-  padding: '16px',
+  background: 'var(--color-paper-surface)',
+  border: '1px solid rgba(41, 17, 0, 0.08)',
+  borderRadius: '16px',
+  boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 16px 48px rgba(41, 17, 0, 0.18)',
+  width: '560px',
+  maxWidth: '90vw',
+  padding: '24px',
   display: 'flex',
   flexDirection: 'column',
-  gap: '12px',
+  gap: '16px',
 };
 
 // One entry per AI tool — adding a new app later is a one-line change here.
@@ -96,8 +97,8 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             style={cardStyle}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '8px 10px' }}>
-              <Icon icon="mdi:magnify" style={{ width: 16, height: 16, color: 'var(--color-paper-light)', flexShrink: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', border: '1px solid rgba(41, 17, 0, 0.12)', borderRadius: '10px', padding: '12px 14px', background: 'var(--color-paper-bg)' }}>
+              <Icon icon="mdi:magnify" style={{ width: 19, height: 19, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
               <input
                 ref={inputRef}
                 type="text"
@@ -105,40 +106,40 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search applications..."
                 style={{
-                  fontFamily: "'Noto Serif', serif", fontSize: '14px',
+                  fontFamily: "'Newsreader', serif", fontSize: '16px',
                   color: 'var(--color-paper-dark)', border: 'none', outline: 'none',
                   background: 'none', width: '100%',
                 }}
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {results.map((app) => (
                 <button
                   key={app.key}
                   onClick={() => handleSelect(app)}
                   style={{
-                    width: '100%', textAlign: 'left', padding: '10px 10px',
-                    background: 'none', border: 'none', borderRadius: '4px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '10px',
+                    width: '100%', textAlign: 'left', padding: '14px 14px',
+                    background: 'none', border: 'none', borderRadius: '10px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '14px',
                     transition: 'background 0.12s',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-bg)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                 >
-                  <Icon icon={app.icon} style={{ width: 20, height: 20, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
+                  <Icon icon={app.icon} style={{ width: 26, height: 26, color: 'var(--color-brand-500)', flexShrink: 0 }} />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '14px', fontFamily: "'Noto Serif', serif", color: 'var(--color-paper-dark)' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: "'Newsreader', serif", color: 'var(--color-paper-dark)' }}>
                       {app.label}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif" }}>
+                    <div style={{ fontSize: '14px', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", marginTop: '2px' }}>
                       {app.description}
                     </div>
                   </div>
                 </button>
               ))}
               {results.length === 0 && (
-                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif", padding: '12px 0' }}>
+                <p style={{ textAlign: 'center', fontSize: '14px', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", padding: '14px 0' }}>
                   No applications found.
                 </p>
               )}

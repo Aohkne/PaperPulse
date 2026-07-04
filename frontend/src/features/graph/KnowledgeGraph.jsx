@@ -264,7 +264,7 @@ export default function KnowledgeGraph({ papers }) {
                       textAnchor="middle"
                       fill={style.labelColor}
                       fontSize={style.fontSize}
-                      fontFamily="Noto Serif, serif"
+                      fontFamily="Newsreader, serif"
                       fontWeight={style.fontWeight}
                       style={{ pointerEvents: 'none', userSelect: 'none' }}
                     >
@@ -302,7 +302,7 @@ export default function KnowledgeGraph({ papers }) {
             <svg width="12" height="12">
               <circle cx="6" cy="6" r="5" fill={fill} stroke={stroke ?? 'none'} strokeWidth={stroke ? 1 : 0} />
             </svg>
-            <span style={{ fontSize: '12px', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif" }}>
+            <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif" }}>
               {label}
             </span>
           </div>

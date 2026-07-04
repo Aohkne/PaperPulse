@@ -69,7 +69,7 @@ const ResearchPlanCard = ({ planDescription = '', subQueries = [], sources = [],
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: 0 }}>
             Step 0 — Research plan ready
           </p>
-          <p style={{ fontSize: '11px', color: 'var(--color-paper-light)', margin: 0 }}>
+          <p style={{ fontSize: '11px', color: 'var(--color-paper-mid)', margin: 0 }}>
             Review or edit before any search API calls are made.
           </p>
         </div>
@@ -86,7 +86,7 @@ const ResearchPlanCard = ({ planDescription = '', subQueries = [], sources = [],
       )}
 
       {/* Sub-queries */}
-      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-paper-light)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-paper-mid)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         Sub-queries ({queries.length})
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
@@ -110,7 +110,7 @@ const ResearchPlanCard = ({ planDescription = '', subQueries = [], sources = [],
                 width: '26px', height: '26px', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: 'var(--color-paper-light)', borderRadius: '5px',
+                color: 'var(--color-paper-mid)', borderRadius: '5px',
               }}
             >
               <Icon icon="mdi:close" style={{ fontSize: '14px' }} />
@@ -132,7 +132,7 @@ const ResearchPlanCard = ({ planDescription = '', subQueries = [], sources = [],
       </div>
 
       {/* Sources */}
-      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-paper-light)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-paper-mid)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         Sources
       </p>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>

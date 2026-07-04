@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
 
 from backend.auth.dependencies import get_current_user
-from backend.module.payment.services import billing_db
+from backend.module.payment.services import billing_db, token_meter
 from backend.module.payment.services.billing_db import QuotaExceededError
 from backend.module.research_agent.graph.graph import get_research_graph
 from backend.shared.models.graph import GraphResponse
@@ -34,9 +34,9 @@ _HEARTBEAT_SECONDS = 15
 _SEARCH_NODES = {
     "parallel_search",
     "dedup",
-    "snowball",
+    "relevance_filter",
     "embed",
-    "outline_gen",
+    "cluster",
     "write_themes",
     "extract_claims",
     "verify_claims",
@@ -49,21 +49,35 @@ _NODE_STEP_NUM: dict[str, str] = {
     "intent_router": "0",
     "plan_review": "0",
     "parallel_search": "1",
-    "dedup": "2",
-    "snowball": "3",
-    "embed": "4",
-    "outline_gen": "5",
-    "write_themes": "6",
-    "extract_claims": "7",
-    "verify_claims": "8",
-    "route_claims": "9",
-    "build_graph": "10",
-    "export": "11",
+    "dedup": "1",
+    "relevance_filter": "1",
+    "embed": "2",
+    "cluster": "3",
+    "write_themes": "4",
+    "extract_claims": "5",
+    "verify_claims": "5",
+    "route_claims": "6",
+    "build_graph": "6",
+    "export": "7",
 }
 
 
 def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+async def _settle_lr(user_id: str, thread_id: str, errored: bool) -> None:
+    """Charge the actual token credits this request consumed (token-weighted
+    billing). Skipped on a system-error run — nothing is charged for our own
+    failures (token.html §4)."""
+    if errored:
+        return
+    try:
+        credits = token_meter.credits_used()
+        if credits > 0:
+            await billing_db.settle_session(user_id, "lr", thread_id, credits)
+    except Exception as exc:
+        log.warning("settle lr credits failed for thread_id=%s: %s", thread_id, exc)
 
 
 def _parse_sse(raw_event: str) -> dict[str, Any] | None:
@@ -170,22 +184,19 @@ async def _node_to_step_event(node_name: str, state_update: dict) -> str:
         count = len(state_update.get("papers", []))
         stat = f"{count} unique"
         content = f"Corpus after dedup: {count} papers."
-    elif node_name == "snowball":
+    elif node_name == "relevance_filter":
         count = len(state_update.get("papers", []))
-        stat = f"{count} corpus"
-        content = f"Corpus after snowball: {count} papers."
+        low = state_update.get("low_relevance", False)
+        stat = f"{count} relevant" + (" low_relevance" if low else "")
+        content = f"Kept {count} on-topic papers." + (" (few directly relevant)" if low else "")
     elif node_name == "embed":
         embed_stats = state_update.get("embed_stats", {})
-        stat = (
-            f"api={embed_stats.get('api_hit', 0)} "
-            f"fb={embed_stats.get('fallback_hit', 0)} "
-            f"stored={embed_stats.get('stored', 0)}"
-        )
+        stat = f"api={embed_stats.get('api_hit', 0)} stored={embed_stats.get('stored', 0)}"
         content = f"Embeddings ready. {stat}."
-    elif node_name == "outline_gen":
+    elif node_name == "cluster":
         count = len(state_update.get("themes", []))
         stat = f"{count} themes"
-        content = f"{count} themes generated."
+        content = f"{count} themes discovered by clustering."
     elif node_name == "write_themes":
         count = len(state_update.get("theme_contents", []))
         stat = f"{count} sections"
@@ -487,6 +498,8 @@ async def research_stream(
         final_content = ""
         final_bib: str | None = None
         event_counts: dict[str, int] = {}
+        errored = False
+        token_meter.start()  # begin per-request token accounting (token-weighted billing)
 
         yield _sse(
             {
@@ -637,6 +650,7 @@ async def research_stream(
                             last_message_at=chat_persistence._now_iso(),
                         )
                     elif event_type == "error":
+                        errored = True
                         final_content = final_content or payload.get("message") or "Research pipeline failed."
                         await _record_assistant_state(
                             token,
@@ -667,6 +681,8 @@ async def research_stream(
         except _DeletedChatTerminationError:
             yield _deleted_chat_sse(chat_id)
             return
+        finally:
+            await _settle_lr(str(user.id), thread_id, errored)
 
     return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
@@ -719,6 +735,8 @@ async def research_resume(
         final_content = "" if resume_from_pending_plan else (turn["assistant_message"].get("content") or "")
         final_bib = (turn["assistant_message"].get("metadata") or {}).get("bib")
         event_counts: dict[str, int] = {}
+        errored = False
+        token_meter.start()  # per-request token accounting for this resume turn
 
         if resume_from_pending_plan:
             pending_plan = None
@@ -897,6 +915,7 @@ async def research_resume(
                             last_message_at=chat_persistence._now_iso(),
                         )
                     elif event_type == "error":
+                        errored = True
                         final_content = final_content or payload.get("message") or "Research pipeline failed."
                         await _record_assistant_state(
                             token,
@@ -928,6 +947,8 @@ async def research_resume(
         except _DeletedChatTerminationError:
             yield _deleted_chat_sse(chat_id)
             return
+        finally:
+            await _settle_lr(str(user.id), body.thread_id, errored)
 
     return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)
 

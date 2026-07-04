@@ -110,19 +110,29 @@ async def get_or_create_account(user_id: str) -> dict:
 
 
 async def start_session(user_id: str, feature: str, session_id: str) -> dict:
-    """Raises QuotaExceededError if both subscription quota and topup balance are exhausted."""
+    """Pre-run gate (token-weighted billing). Raises QuotaExceededError when the
+    credit pool is exhausted. Does NOT deduct — actual cost is charged after the
+    run via settle_session()."""
     return await _rpc(
-        "billing_start_session",
+        "billing_gate_session",
         {"p_user_id": user_id, "p_feature": feature, "p_session_id": session_id},
+    )
+
+
+async def settle_session(user_id: str, feature: str, session_id: str, credits: float) -> dict:
+    """Charge the ACTUAL credits a run consumed (from real token usage). Skipped
+    entirely on a system-error run (nothing was charged, so nothing to refund)."""
+    return await _rpc(
+        "billing_charge_session",
+        {"p_user_id": user_id, "p_feature": feature, "p_session_id": session_id, "p_credits": credits},
     )
 
 
 async def refund_session(user_id: str, feature: str, session_id: str) -> dict:
-    """Idempotent — no-op if the session was never deducted or already refunded."""
-    return await _rpc(
-        "billing_refund_session",
-        {"p_user_id": user_id, "p_feature": feature, "p_session_id": session_id},
-    )
+    """No-op under token-weighted billing — the gate never deducted anything, and
+    a failed run is simply never settled. Kept so existing error paths still call
+    a valid function without special-casing."""
+    return {"refunded": False, "reason": "gate_charge_model_no_reserve"}
 
 
 async def apply_payment(transaction_id: str) -> dict:
@@ -148,7 +158,6 @@ async def create_transaction(
     amount_vnd: int,
     payos_order_code: int,
     tier: str | None = None,
-    topup_pack: str | None = None,
 ) -> dict:
     body = {
         "user_id": user_id,
@@ -156,7 +165,6 @@ async def create_transaction(
         "amount_vnd": amount_vnd,
         "payos_order_code": payos_order_code,
         "tier": tier,
-        "topup_pack": topup_pack,
     }
     rows = await _pg_write("payment_transactions", "POST", {}, body)
     return rows[0]

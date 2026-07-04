@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import SiteHeader from '@/shared/components/layout/SiteHeader';
 import ContentFooter from './_shared/ContentFooter';
+import { dotGridBg } from '@/shared/utils/dotGridBg';
 
 const NOTES = [
   {
@@ -94,7 +95,7 @@ const NoteCard = ({ rot, pin, bg, bgDark, title, body, delay }) => {
         {title}
       </p>
       <p style={{
-        fontFamily: "'Noto Serif', serif", fontSize: 14, lineHeight: 1.8,
+        fontFamily: "'Newsreader', serif", fontSize: 16, lineHeight: 1.8,
         color: 'var(--color-paper-mid)', margin: 0,
       }}>
         {body}
@@ -104,18 +105,21 @@ const NoteCard = ({ rot, pin, bg, bgDark, title, body, delay }) => {
 };
 
 const Divider = () => (
-  <div style={{ borderTop: '1px solid var(--color-paper-surface)', maxWidth: 720, margin: '0 auto' }} />
+  <div style={{ borderTop: '1px solid rgba(41, 17, 0, 0.08)', maxWidth: 720, margin: '0 auto' }} />
 );
 
 const AboutPage = () => (
-  <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+  // --color-landing-tone-1 + re-added dot-grain — matches
+  // SiteHeader/SiteFooter/ContentFooter in both themes now, so the page
+  // doesn't read as a separate strip sandwiched between them.
+  <div style={{ ...dotGridBg('--color-landing-tone-1'), fontFamily: "'Newsreader', serif", minHeight: '100vh' }}>
     <SiteHeader />
 
     <div style={{ paddingTop: 57 }}>
       {/* Hero */}
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '80px 24px 64px' }}>
         <motion.p {...fadeUp(0.1)} style={{
-          fontSize: 13, color: 'var(--color-paper-light)',
+          fontSize: 13, color: 'var(--color-paper-mid)',
           letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 16px',
         }}>
           About Us
@@ -187,14 +191,14 @@ const AboutPage = () => (
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px 20px',
-                border: '1px solid var(--color-paper-surface)',
+                border: '1px solid rgba(41, 17, 0, 0.08)',
                 borderRadius: 4,
               }}
             >
               <span style={{ fontSize: 16, color: 'var(--color-paper-dark)', fontWeight: 500 }}>
                 {name}
               </span>
-              <span style={{ fontSize: 13, color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif" }}>
+              <span style={{ fontSize: 13, color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif" }}>
                 {id}
               </span>
             </motion.div>
@@ -207,7 +211,7 @@ const AboutPage = () => (
       {/* Built at */}
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px 80px' }}>
         <motion.p {...inView()} style={{
-          fontSize: 15, lineHeight: 1.7, color: 'var(--color-paper-mid)', margin: 0,
+          fontSize: 16, lineHeight: 1.7, color: 'var(--color-paper-mid)', margin: 0,
           fontStyle: 'italic',
         }}>
           PaperPulse was built as part of an intensive 6-week AI in Action program Cohort 2 in 2026,

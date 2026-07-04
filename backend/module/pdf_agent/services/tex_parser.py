@@ -22,6 +22,7 @@ from pylatexenc.macrospec import MacroSpec
 
 from backend.module.pdf_agent.graph.state import Figure, RawCitation, Section
 from backend.module.pdf_agent.services.text_quote_selector import build_anchor
+from backend.shared.services.latex_utils import unescape_latex
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +158,28 @@ def parse_thebibliography(content: str) -> dict[str, str]:
     return entries
 
 
+def _clean_bib_title(text: str | None) -> str | None:
+    """Best-effort clean title from a raw \\bibitem body.
+
+    Used as guessed_title so citation_lookup searches/scores on the TITLE, not
+    the whole reference line (authors + year + \\url{} + LaTeX escapes). Without
+    this, a \\bibitem like "Authors (2022). \\textit{Title}. \\url{...}" is used
+    verbatim as the search query → polluted → real papers read as "Not Found".
+    """
+    if not text:
+        return None
+    # Titles are conventionally emphasised (\textit/\emph) — our LR export does
+    # exactly that; grab the emphasised span when present.
+    m = re.search(r"\\(?:textit|emph|textbf)\s*\{([^{}]+)\}", text)
+    candidate = m.group(1) if m else text
+    candidate = re.sub(r"\\url\s*\{[^{}]*\}", " ", candidate)  # drop URLs
+    candidate = re.sub(r"\\[a-zA-Z@]+\*?", " ", candidate)  # strip remaining macros (not \_ / \&)
+    candidate = candidate.replace("{", " ").replace("}", " ")
+    candidate = unescape_latex(candidate)  # \_ → _, \& → &, ...
+    candidate = re.sub(r"\s+", " ", candidate).strip(" .,;-")
+    return candidate or None
+
+
 def _find_field(entry_body: str, field: str) -> str | None:
     """Find `field = {...}` or `field = "..."` inside a BibTeX entry body (brace-depth aware)."""
     m = re.search(rf"{field}\s*=\s*([{{\"])", entry_body, re.IGNORECASE)
@@ -236,11 +259,14 @@ def extract_citations(content: str, bib_entries: dict[str, dict] | None = None) 
             end = min(len(body), node.pos + node.len + 80)
             context = re.sub(r"\s+", " ", body[start:end]).strip()
             enrich = bib_entries.get(key) or {}
-            raw_text = bibitem_text.get(key) or enrich.get("guessed_title") or context
+            bib_text = bibitem_text.get(key)
+            raw_text = bib_text or enrich.get("guessed_title") or context
             seen[key] = {
                 "key": key,
                 "raw_text": raw_text,
-                "guessed_title": enrich.get("guessed_title"),
+                # Fall back to a cleaned title from the \bibitem so lookup doesn't
+                # search/score on the whole markup-laden reference line.
+                "guessed_title": enrich.get("guessed_title") or _clean_bib_title(bib_text),
                 "guessed_authors": enrich.get("guessed_authors"),
                 "guessed_year": enrich.get("guessed_year"),
                 "guessed_doi_or_url": enrich.get("guessed_doi_or_url"),
@@ -254,7 +280,7 @@ def extract_citations(content: str, bib_entries: dict[str, dict] | None = None) 
             seen[key] = {
                 "key": key,
                 "raw_text": text,
-                "guessed_title": enrich.get("guessed_title"),
+                "guessed_title": enrich.get("guessed_title") or _clean_bib_title(text),
                 "guessed_authors": enrich.get("guessed_authors"),
                 "guessed_year": enrich.get("guessed_year"),
                 "guessed_doi_or_url": enrich.get("guessed_doi_or_url"),

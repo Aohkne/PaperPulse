@@ -47,7 +47,16 @@ const GapSection = () => {
   const { gapNarrative, gapReport, gapLoading, gapError, streamEvents, streamGaps } = useGapStore();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+    // No maxWidth cap (was 960px, before that 780px) — PDFAgentPage.jsx,
+    // the other split-panel page in this app, has no maxWidth at all and
+    // just fills the available space next to the sidebar; Research Gap
+    // still felt narrow/cramped by comparison even at 960px. Now it uses
+    // the same "fill the panel" approach, just with page-level padding
+    // (set on ResearchPage.jsx's body wrapper) standing in for margins.
+    // gap: '16px' keeps each rounded card visually separate — at 0 the
+    // cards' own border/shadow pressed flush against the next card's
+    // rounded top edge, reading as one glued-together block.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* ① Topic input — always visible, no paper-count gate */}
       <ColdStartInput onSubmit={streamGaps} />
 

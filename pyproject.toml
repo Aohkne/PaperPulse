@@ -54,8 +54,10 @@ dependencies = [
     "arxiv>=2.1.0",           # arXiv keyword search client
     "jinja2>=3.1.0",          # LaTeX template rendering
     "langgraph-checkpoint-postgres>=2.0.0",  # persistent checkpointer (Supabase Postgres — survives restarts AND Cloud Run scale-to-zero)
-    "networkx>=3.0",          # Knowledge Graph assembly (Step ⑨bis)
+    "networkx>=3.0",          # Knowledge Graph assembly (Step ⑥bis)
     "python-slugify>=8.0",    # stable theme node ids for the Knowledge Graph
+    "scikit-learn>=1.4.0",    # Step ③ clustering: KMeans + silhouette_score
+    "numpy>=1.26.0",          # Step ③ cluster vector math (centroid ranking)
 
     # Knowledge Graph (Step ⑨bis)
     "networkx>=3.0",          # in-memory graph assembly (paper/theme/claim layers)
@@ -63,6 +65,7 @@ dependencies = [
 
     # PDF Agent (pdf-agent_PLAN_2.0.md)
     "pylatexenc>=2.10",       # .tex parsing (LatexWalker) — sections/citations/figures
+    "beautifulsoup4>=4.12.0", # optional HTML parsing for OA/arXiv full-text extraction
 
     # Monitoring (optimize_Plan.html §5) — no-op if SENTRY_DSN is unset. No
     # extra needed: FastAPI support rides on Starlette, which FastAPI already

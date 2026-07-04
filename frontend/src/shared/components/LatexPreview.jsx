@@ -258,17 +258,17 @@ function renderInline(text, keyPrefix, bibliography) {
 // ── Typography ────────────────────────────────────────────────────────────
 
 const styles = {
-  h1: { fontFamily: "'Noto Serif', serif", fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '20px 0 10px' },
-  h2: { fontFamily: "'Noto Serif', serif", fontSize: '18px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '16px 0 8px' },
-  h3: { fontFamily: "'Noto Serif', serif", fontSize: '16px', fontWeight: 600, color: 'var(--color-paper-dark)', margin: '12px 0 6px' },
-  p: { fontFamily: "'Noto Serif', serif", fontSize: '15px', lineHeight: '1.75', color: 'var(--color-paper-dark)', margin: '0 0 12px' },
-  li: { fontFamily: "'Noto Serif', serif", fontSize: '15px', lineHeight: '1.7', color: 'var(--color-paper-dark)', marginBottom: '4px' },
+  h1: { fontFamily: "'Newsreader', serif", fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '20px 0 10px' },
+  h2: { fontFamily: "'Newsreader', serif", fontSize: '18px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '16px 0 8px' },
+  h3: { fontFamily: "'Newsreader', serif", fontSize: '17px', fontWeight: 600, color: 'var(--color-paper-dark)', margin: '12px 0 6px' },
+  p: { fontFamily: "'Newsreader', serif", fontSize: '16px', lineHeight: '1.75', color: 'var(--color-paper-dark)', margin: '0 0 12px' },
+  li: { fontFamily: "'Newsreader', serif", fontSize: '16px', lineHeight: '1.7', color: 'var(--color-paper-dark)', marginBottom: '4px' },
   list: { margin: '6px 0 12px', paddingLeft: '22px' },
   hr: { border: 'none', borderTop: '1px solid var(--color-paper-light)', margin: '18px 0' },
-  blockquote: { borderLeft: '3px solid var(--color-paper-light)', paddingLeft: '14px', margin: '10px 0', color: 'var(--color-paper-mid)', fontStyle: 'italic', fontFamily: "'Noto Serif', serif", fontSize: '15px' },
+  blockquote: { borderLeft: '3px solid var(--color-paper-light)', paddingLeft: '14px', margin: '10px 0', color: 'var(--color-paper-mid)', fontStyle: 'italic', fontFamily: "'Newsreader', serif", fontSize: '16px' },
   pre: { background: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '12px', overflowX: 'auto', margin: '10px 0' },
   code: { fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.6' },
-  empty: { fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-light)', fontStyle: 'italic' },
+  empty: { fontFamily: "'Newsreader', serif", fontSize: '14px', color: 'var(--color-paper-mid)', fontStyle: 'italic' },
 };
 
 const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
@@ -357,8 +357,8 @@ const LatexPreview = ({ content, emptyText = 'Nothing to preview yet.' }) => {
             <h2 style={styles.h1}>References</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
               {entries.map((entry, idx) => (
-                <div key={idx} id={`cite-${entry.key}`} style={{ display: 'flex', gap: '8px', fontSize: '13px', lineHeight: '1.6', fontFamily: "'Noto Serif', serif", color: 'var(--color-paper-dark)' }}>
-                  <span style={{ minWidth: '24px', color: 'var(--color-paper-light)', flexShrink: 0, paddingTop: '1px' }}>[{idx + 1}]</span>
+                <div key={idx} id={`cite-${entry.key}`} style={{ display: 'flex', gap: '8px', fontSize: '13px', lineHeight: '1.6', fontFamily: "'Newsreader', serif", color: 'var(--color-paper-dark)' }}>
+                  <span style={{ minWidth: '24px', color: 'var(--color-paper-mid)', flexShrink: 0, paddingTop: '1px' }}>[{idx + 1}]</span>
                   <span>{renderInline(entry.text, `bib-${key}-${idx}`, bibliography)}</span>
                 </div>
               ))}

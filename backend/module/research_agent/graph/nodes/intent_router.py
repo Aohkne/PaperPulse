@@ -59,13 +59,21 @@ or a single broad buzzword like "AI", "ML", "NLP", "RAG" alone):
 
 • Clear, specific research topic (3+ descriptive words, concrete domain):
     → intent = "search"
-    → create a research plan with 4–6 sub-queries covering different angles \
-(foundational, recent advances, evaluation, application, etc.).
+    → FIRST extract "core_terms": the distinguishing concepts of the topic that \
+a genuinely relevant paper MUST be about. Split into:
+        - "required": a list of concept groups; each group is a list of \
+SYNONYMS/equivalent phrasings for one distinguishing concept \
+(e.g. [["diffusion language model","non-autoregressive"],["drafter","speculative decoding","draft"]]).
+        - "context": broader background terms (e.g. ["LLM inference","latency"]).
+    → create 4–6 sub-queries. EVERY sub-query MUST contain at least one term from \
+the "required" groups — keep each query anchored to the specific method/task. \
+Do NOT emit generic queries (e.g. "edge deployment", "benchmarking generative AI") \
+that drop the core topic and pull in unrelated fields.
     → choose which academic sources to search, based on the topic domain:
         - "semantic_scholar": always include — broad CS/AI + all-fields coverage
-        - "arxiv": include for CS/AI/Physics/Math topics, or when recency matters
-        - "openalex": include for cross-disciplinary topics or a social-science angle
+        - "openalex": default second source — cross-disciplinary + social-science + also indexes arXiv content
         - "pubmed": include only for biomedical/health/clinical topics
+      (arXiv is not a search source — S2 and OpenAlex already index arXiv content.)
 
 ─── <thinking> content for intent = "search" ───
 Early in your reasoning, state plainly — ALWAYS IN ENGLISH regardless of the \
@@ -87,8 +95,9 @@ the rest of the reasoning may continue in the same language as the user ...
 
   // only if intent = "search":
   "refined_query": "<optimised academic search string>",
-  "sub_queries": ["<angle 1>", "<angle 2>", "<angle 3>", "<angle 4>"],
-  "sources": ["semantic_scholar", "arxiv"],
+  "core_terms": {"required": [["term","synonym"], ["term2","synonym2"]], "context": ["bg1","bg2"]},
+  "sub_queries": ["<angle 1 with a required term>", "<angle 2 with a required term>", "<angle 3>", "<angle 4>"],
+  "sources": ["semantic_scholar", "openalex"],
   "plan_description": "<the same 'User wants to search about X, I will start \
 from sources Y' sentence, ALWAYS IN ENGLISH — this is shown verbatim to the \
 user as the research plan summary>"
@@ -96,7 +105,7 @@ user as the research plan summary>"
 
 Output ONLY the <thinking> block followed by the JSON object. No other text."""
 
-_VALID_SOURCES = {"semantic_scholar", "openalex", "arxiv", "pubmed"}
+_VALID_SOURCES = {"semantic_scholar", "openalex", "pubmed"}
 
 
 def _parse_response(text: str) -> dict:
@@ -143,11 +152,28 @@ async def intent_router_node(state: ResearchState) -> dict:
         update["sub_queries"] = (data.get("sub_queries") or [query])[: settings.max_sub_queries]
         update["plan_description"] = data.get("plan_description", "")
 
+        # core_terms drive the Step ①bis relevance filter. Normalise into
+        # {"required": [[str,...],...], "context": [str,...]}, tolerating a flat
+        # list or missing field from the LLM.
+        ct = data.get("core_terms") or {}
+        required = ct.get("required") if isinstance(ct, dict) else None
+        context = ct.get("context") if isinstance(ct, dict) else None
+        norm_required = []
+        for grp in required or []:
+            if isinstance(grp, str):
+                norm_required.append([grp])
+            elif isinstance(grp, list):
+                norm_required.append([str(t) for t in grp if str(t).strip()])
+        update["core_terms"] = {
+            "required": [g for g in norm_required if g],
+            "context": [str(t) for t in (context or []) if str(t).strip()],
+        }
+
         sources = [s for s in (data.get("sources") or []) if s in _VALID_SOURCES]
         if "semantic_scholar" not in sources:
             sources.insert(0, "semantic_scholar")  # always included per SPEC 2.0
-        if len(sources) < settings.min_sources_required and "arxiv" not in sources:
-            sources.append("arxiv")
+        if len(sources) < settings.min_sources_required and "openalex" not in sources:
+            sources.append("openalex")  # arXiv dropped as a source (Step ①)
         update["sources"] = sources
 
     # reply and clarify_questions are NOT generated here —

@@ -4,7 +4,9 @@ import { motion } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import SiteHeader from '@/shared/components/layout/SiteHeader';
 import SiteFooter from '@/shared/components/layout/SiteFooter';
+import DotOrbitBackground from '@/shared/components/DotOrbitBackground';
 import { ROUTES } from '@/shared/constant/routes';
+import { dotGridBg } from '@/shared/utils/dotGridBg';
 
 // Animation helpers
 const fadeUp = (delay = 0) => ({
@@ -134,9 +136,8 @@ const Eyebrow = ({ icon, children }) => (
   <div style={{
     display: 'inline-flex', alignItems: 'center', gap: 7,
     padding: '6px 14px', borderRadius: 999,
-    border: '1px solid var(--color-paper-surface)',
     background: 'var(--color-paper-surface)',
-    fontFamily: "'Noto Serif', serif", fontSize: 13,
+    fontFamily: "'Newsreader', serif", fontSize: 13,
     color: 'var(--color-paper-mid)', letterSpacing: '0.08em',
     textTransform: 'uppercase',
   }}>
@@ -150,7 +151,7 @@ const PillButton = ({ children, onClick, variant = 'primary', arrow = false, sty
   const base = {
     display: 'inline-flex', alignItems: 'center', gap: 8,
     padding: '12px 26px', borderRadius: 999,
-    fontFamily: "'Noto Serif', serif", fontSize: 16,
+    fontFamily: "'Newsreader', serif", fontSize: 16,
     cursor: 'pointer', border: 'none', transition: 'opacity 0.15s, background 0.15s',
   };
   const variants = {
@@ -197,28 +198,51 @@ const LandingPage = () => {
   const howItWorksRef = useRef(null);
 
   return (
-    <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+    // No explicit background here — same fix as the login page: let body's
+    // dot-grain texture (index.css) show through instead of painting a flat
+    // solid color over it. Individual sections below re-add the texture with
+    // their own alternating tone via dotGridBg().
+    <div style={{ fontFamily: "'Newsreader', serif", minHeight: '100vh' }}>
       <SiteHeader />
 
       <div style={{ paddingTop: 57 }}>
 
-        {/* Hero */}
+        {/* Hero — uses --color-landing-tone-1, which resolves to paper-surface
+            (lighter) in light mode and paper-bg (darker) in dark mode, so the
+            sequence starts light→dark→light in light mode but dark→light→dark
+            in dark mode (see index.css for the per-theme token flip). */}
         <section style={{
+          ...dotGridBg('--color-landing-tone-1'),
           position: 'relative', overflow: 'hidden',
           minHeight: '84vh', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           textAlign: 'center', padding: '80px 24px 60px',
         }}>
-          {/* Soft background blobs */}
-          <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-            <div style={{
-              position: 'absolute', top: -140, left: '6%', width: 380, height: 380,
-              borderRadius: '50%', background: 'var(--color-brand-100)', opacity: 0.35, filter: 'blur(80px)',
-            }} />
-            <div style={{
-              position: 'absolute', top: 60, right: '4%', width: 340, height: 340,
-              borderRadius: '50%', background: 'var(--color-paper-light)', opacity: 0.25, filter: 'blur(90px)',
-            }} />
+          {/* Animated dot-orbit constellation, color-matched to the brand green
+              tokens (dotColor/lineColor resolve --color-brand-500/-100 at
+              runtime — see DotOrbitBackground.jsx). Replaces the old static
+              blur-blob pair: this already carries its own ambient color wash
+              + slow motion, so keeping both felt cluttered. Transparent
+              canvas background lets the page's paper-bg + dot-grain texture
+              show through underneath. */}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+            <DotOrbitBackground
+              mode="orbit"
+              tracking="global"
+              interaction="repel"
+              density={0.9}
+              speed={0.45}
+              dotSize={1.8}
+              linkDistance={130}
+              opacity={0.6}
+              alpha={1}
+              interactionRadius={150}
+              interactionStrength={14}
+              cursorEase={35}
+              background="rgba(0, 0, 0, 0)"
+              dotColor="--color-orbit-dot"
+              lineColor="--color-orbit-line"
+            />
           </div>
 
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -242,7 +266,7 @@ const LandingPage = () => {
             </h1>
 
             <motion.p {...fadeUp(0.52)} style={{
-              fontFamily: "'Noto Serif', serif", fontSize: 18,
+              fontFamily: "'Newsreader', serif", fontSize: 18,
               color: 'var(--color-paper-mid)', maxWidth: 560,
               margin: '24px auto', lineHeight: 1.7,
             }}>
@@ -267,7 +291,7 @@ const LandingPage = () => {
         {/* Demo Video */}
         <section
           id="demo"
-          style={{ background: 'var(--color-paper-surface)', padding: '88px 24px' }}
+          style={{ ...dotGridBg('--color-landing-tone-2'), padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
@@ -303,7 +327,7 @@ const LandingPage = () => {
         <section
           ref={howItWorksRef}
           id="how-it-works"
-          style={{ background: 'var(--color-paper-bg)', padding: '88px 24px' }}
+          style={{ ...dotGridBg('--color-landing-tone-1'), padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
@@ -346,7 +370,7 @@ const LandingPage = () => {
                   {title}
                 </p>
                 <p style={{
-                  fontFamily: "'Noto Serif', serif", fontSize: 15, lineHeight: 1.7,
+                  fontFamily: "'Newsreader', serif", fontSize: 17, lineHeight: 1.7,
                   color: 'var(--color-paper-mid)', margin: 0,
                 }}>
                   {body}
@@ -359,7 +383,7 @@ const LandingPage = () => {
         {/* Features */}
         <section
           id="features"
-          style={{ background: 'var(--color-paper-surface)', padding: '88px 24px' }}
+          style={{ ...dotGridBg('--color-landing-tone-2'), padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
@@ -383,8 +407,12 @@ const LandingPage = () => {
                 {...inView(i * 0.08)}
                 whileHover={{ y: -5, boxShadow: '0 12px 30px rgba(41,17,0,0.08)' }}
                 style={{
-                  background: 'var(--color-paper-bg)',
-                  border: '1px solid var(--color-paper-surface)',
+                  // Uses the tone-1/tone-2 pair (not the raw paper-surface/
+                  // paper-bg tokens) so this card's contrast against its
+                  // section stays correct automatically in both themes, even
+                  // though dark mode flips which physical color is "first".
+                  background: 'var(--color-landing-tone-1)',
+                  border: '1px solid var(--color-landing-tone-2)',
                   borderRadius: 14, padding: 28, cursor: 'default',
                 }}
               >
@@ -396,7 +424,7 @@ const LandingPage = () => {
                   {title}
                 </p>
                 <p style={{
-                  fontFamily: "'Noto Serif', serif", fontSize: 15, lineHeight: 1.7,
+                  fontFamily: "'Newsreader', serif", fontSize: 17, lineHeight: 1.7,
                   color: 'var(--color-paper-mid)', margin: 0,
                 }}>
                   {body}
@@ -409,7 +437,7 @@ const LandingPage = () => {
         {/* Pricing */}
         <section
           id="pricing"
-          style={{ background: 'var(--color-paper-bg)', padding: '88px 24px' }}
+          style={{ ...dotGridBg('--color-landing-tone-1'), padding: '88px 24px' }}
         >
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
@@ -422,7 +450,7 @@ const LandingPage = () => {
               Simple, transparent pricing
             </motion.h2>
             <motion.p {...inView(0.16)} style={{
-              fontFamily: "'Noto Serif', serif", fontSize: 16,
+              fontFamily: "'Newsreader', serif", fontSize: 16,
               color: 'var(--color-paper-mid)', margin: 0,
             }}>
               Start free. Pay only when you need more.
@@ -438,8 +466,9 @@ const LandingPage = () => {
                 key={plan.id}
                 {...inView(i * 0.1)}
                 style={{
-                  background: 'var(--color-paper-bg)',
-                  border: plan.highlight ? `2px solid ${PAYG_BORDER}` : '1px solid var(--color-paper-surface)',
+                  // Same tone-1/tone-2 token pair as the feature cards above.
+                  background: 'var(--color-landing-tone-1)',
+                  border: plan.highlight ? `2px solid ${PAYG_BORDER}` : '1px solid var(--color-landing-tone-2)',
                   borderRadius: 16, padding: 28, position: 'relative',
                   boxShadow: plan.highlight ? '0 16px 40px rgba(111,31,6,0.12)' : 'none',
                   transform: plan.highlight ? 'translateY(-6px)' : 'none',
@@ -476,7 +505,7 @@ const LandingPage = () => {
                   {plan.price}
                 </p>
                 <p style={{
-                  fontFamily: "'Noto Serif', serif", fontSize: 13,
+                  fontFamily: "'Newsreader', serif", fontSize: 13,
                   color: 'var(--color-paper-mid)', margin: '0 0 20px',
                 }}>
                   {plan.sub}
@@ -488,7 +517,7 @@ const LandingPage = () => {
                   style={{
                     width: '100%', padding: '11px 0', marginBottom: 20,
                     borderRadius: 999, cursor: 'pointer',
-                    fontFamily: "'Noto Serif', serif", fontSize: 15,
+                    fontFamily: "'Newsreader', serif", fontSize: 15,
                     background: plan.ctaOutline ? 'transparent' : PAYG_BORDER,
                     color: plan.ctaOutline ? 'var(--color-paper-mid)' : '#fff',
                     border: plan.ctaOutline ? '1px solid var(--color-paper-mid)' : 'none',
@@ -507,7 +536,7 @@ const LandingPage = () => {
                         style={{ fontSize: 18, flexShrink: 0, color: ok ? 'var(--color-paper-mid)' : '#CDBFAD' }}
                       />
                       <span style={{
-                        fontFamily: "'Noto Serif', serif", fontSize: 14,
+                        fontFamily: "'Newsreader', serif", fontSize: 15,
                         color: 'var(--color-paper-mid)',
                       }}>
                         {label}
@@ -521,7 +550,7 @@ const LandingPage = () => {
 
           <p style={{
             textAlign: 'center', marginTop: 28,
-            fontFamily: "'Noto Serif', serif", fontSize: 13,
+            fontFamily: "'Newsreader', serif", fontSize: 14,
             color: 'var(--color-paper-mid)',
           }}>
             Need more mid-cycle? Top up Literature Review / PDF Agent right inside the app.

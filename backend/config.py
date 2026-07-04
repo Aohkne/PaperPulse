@@ -50,14 +50,13 @@ class Settings(BaseSettings):
     # mode, port 6543). Used directly by psycopg for: (1) the LangGraph
     # checkpointers (research_agent/graph/graph.py, pdf_agent/graph/graph.py)
     # — that library talks raw SQL, not PostgREST, so it can't go through
-    # supabase_url. paper_embeddings/search_cache (pgvector) still go through
+    # supabase_url. paper_embeddings (pgvector) still go through
     # PostgREST/RPC via supabase_url + supabase_service_key, matching the
     # admin.py convention (see WORKLOG.md re: supabase-py + sb_publishable_ keys).
     supabase_db_url: str = ""
 
     # Per-role LLM temperatures (SPEC 2.0 §temperature routing)
     intent_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    outline_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     claim_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     verifier_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     export_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
@@ -65,18 +64,31 @@ class Settings(BaseSettings):
     # LaTeX output directory (research pipeline v2)
     latex_output_dir: str = "./data/output"
 
-    # MMR (Maximal Marginal Relevance) — SPEC 2.0 §Step ④⑤
-    mmr_lambda: float = Field(default=0.5, ge=0.0, le=1.0)
-    mmr_prefetch_outline: int = 150  # fetch_k before MMR for Step ④ (outline, k=20)
-    mmr_prefetch_theme: int = 50  # fetch_k before MMR for Step ⑤ (per-theme, k=10)
-
-    # Search guardrails — SPEC 2.0 §System Guardrails
+    # Search guardrails — SPEC 2.0 §System Guardrails. No max_search_calls cap:
+    # search is I/O-bound (asyncio.gather), so the full sub_query×source fan-out
+    # runs concurrently without a meaningful slowdown.
     max_sub_queries: int = 6
     max_papers_per_source: int = 200
     max_papers_total: int = 1500
-    max_search_calls: int = 15
     min_sources_required: int = 2
-    arxiv_search_max_workers: int = 2  # ThreadPoolExecutor size for the arxiv CLI subprocess
+    # arXiv is no longer a research search source, but arxiv_search.py still
+    # serves the PDF Agent's single-paper citation lookup — keep its worker pool.
+    arxiv_search_max_workers: int = 2
+
+    # Relevance filter — Step ①bis (extension). Hybrid BM25 ∥ NIM-semantic → RRF
+    # → keep top-K relevant papers before clustering. Drops off-topic papers a
+    # broad multi-source search pulls in.
+    relevance_top_k: int = 300
+    relevance_min: int = 20  # floor: fewer survivors → low_relevance flag
+    relevance_rrf_k: int = 60  # RRF constant (Cormack et al. 2009)
+
+    # Clustering guardrails — Step ③ (AutoSurvey, arXiv:2406.10252). Replaces MMR
+    # outline + per-theme hybrid search with k-means over SPECTER v2 vectors.
+    cluster_k_min: int = 3
+    cluster_k_max: int = 10
+    cluster_min_papers: int = 3  # clusters smaller than this are discarded as outliers
+    cluster_max_papers_per_theme: int = 15  # cap papers/cluster before LLM naming (context rot)
+    cluster_temperature: float = Field(default=0.7, ge=0.0, le=2.0)  # LLM cluster naming
 
     # Research Agent LLM call timeout — same protection pdf_agent already has
     # via ainvoke_with_timeout() (optimize_Plan.html §2.3); without it an SSE
@@ -125,7 +137,11 @@ class Settings(BaseSettings):
     pdf_agent_max_pages: int = 60
     pdf_agent_max_citations_verify: int = 150
     pdf_agent_max_sections_critic: int = 20
-    pdf_agent_citation_lookup_timeout_s: float = 10.0
+    pdf_agent_citation_lookup_timeout_s: float = 15.0
+    # Max citations verified concurrently. Kept small because every lookup shares
+    # the global 1 req/s Semantic Scholar rate limiter — firing all citations at
+    # once makes each wait far longer than the per-call timeout and ALL time out.
+    pdf_agent_citation_verify_concurrency: int = 4
     pdf_agent_link_check_timeout_s: float = 5.0
     pdf_agent_anchor_context_chars: int = 32
     pdf_agent_match_threshold_high: float = 0.85
@@ -151,7 +167,12 @@ def get_settings() -> Settings:
 
 
 def get_llm(temperature: float | None = None, streaming: bool = True):
-    """Return a configured LangChain ChatOpenAI instance for the current provider."""
+    """Return a configured LangChain ChatOpenAI instance for the current provider.
+
+    stream_usage=True + a TokenMeterCallback make every call report its exact
+    token usage into the per-request token meter (token.html §4) — used for
+    token-weighted billing without threading a counter through each node.
+    """
     from langchain_openai import ChatOpenAI
 
     s = get_settings()
@@ -161,7 +182,17 @@ def get_llm(temperature: float | None = None, streaming: bool = True):
         "api_key": s.llm_api_key,
         "temperature": effective_temp,
         "streaming": streaming,
+        "stream_usage": True,
     }
     if s.llm_base_url:
         kwargs["base_url"] = s.llm_base_url
+
+    try:
+        from backend.module.payment.services.token_meter import TokenMeterCallback
+
+        if TokenMeterCallback is not None:
+            kwargs["callbacks"] = [TokenMeterCallback()]
+    except Exception:
+        pass  # metering is best-effort — never block LLM construction
+
     return ChatOpenAI(**kwargs)

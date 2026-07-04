@@ -22,7 +22,7 @@ const cardShell = {
 };
 
 const CloseButton = ({ onClose }) => (
-  <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-light)' }}>
+  <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)' }}>
     <Icon icon="mdi:close" style={{ fontSize: 16 }} />
   </button>
 );
@@ -52,7 +52,7 @@ const TopicCard = ({ node, stats, onClose }) => (
             <Icon icon={icon} style={{ fontSize: 13 }} />
             <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-paper-dark)' }}>{value}</span>
           </div>
-          <span style={{ fontSize: 10, color: 'var(--color-paper-light)' }}>{label}</span>
+          <span style={{ fontSize: 10, color: 'var(--color-paper-mid)' }}>{label}</span>
         </div>
       ))}
     </div>
@@ -98,7 +98,7 @@ const ThemeCard = ({ node, themeId, raw, onClose }) => {
         ))}
       </div>
 
-      <p style={{ fontSize: 11, color: 'var(--color-paper-light)', margin: '0 0 4px', fontWeight: 600 }}>
+      <p style={{ fontSize: 11, color: 'var(--color-paper-mid)', margin: '0 0 4px', fontWeight: 600 }}>
         Papers ({papers.length})
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -165,7 +165,7 @@ const ClaimCard = ({ node, raw, onClose }) => {
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 11, color: 'var(--color-paper-light)' }}>Confidence</span>
+        <span style={{ fontSize: 11, color: 'var(--color-paper-mid)' }}>Confidence</span>
         <div style={{ flex: 1, height: 5, background: 'var(--color-paper-surface)', borderRadius: 3, overflow: 'hidden' }}>
           <div style={{ width: `${(node.confidence ?? 0) * 100}%`, height: '100%', background: cfg.color }} />
         </div>
@@ -191,7 +191,7 @@ const ClaimCard = ({ node, raw, onClose }) => {
       )}
 
       {sourcePaper && (
-        <p style={{ fontSize: 10, color: 'var(--color-paper-light)', margin: '8px 0 0' }}>
+        <p style={{ fontSize: 10, color: 'var(--color-paper-mid)', margin: '8px 0 0' }}>
           source: {sourcePaper.label}
         </p>
       )}
@@ -212,6 +212,7 @@ const NodeDetailCard = ({ node, nodeId, raw, stats, onClose }) => {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
+      className="themed-scroll"
       style={cardShell}
     >
       {node.type === 'topic' && <TopicCard node={node} stats={stats} onClose={onClose} />}

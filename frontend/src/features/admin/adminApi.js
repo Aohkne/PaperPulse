@@ -44,8 +44,6 @@ export const adminApi = {
   getBillingAccounts: (token, { page = 1, limit = 10, search } = {}) =>
     get(E.BILLING_ACCOUNTS, token, { page, limit, search }),
   resetUsage: (token, id) => post(E.USAGE_RESET(id), token, {}),
-  topupUsage: (token, id, { lr = 0, pdf = 0, gap = 0 } = {}) =>
-    post(E.USAGE_TOPUP(id), token, { lr, pdf, gap }),
 
   getContributions: (token, { status, page = 1, limit = 20 } = {}) =>
     get(E.CONTRIBUTIONS, token, { status, page, limit }),

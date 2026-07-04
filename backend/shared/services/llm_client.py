@@ -7,6 +7,27 @@ from backend.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+def _record_usage(usage) -> None:
+    """Feed OpenAI-style usage into the per-request token meter (best-effort)."""
+    if usage is None:
+        return
+    try:
+        from backend.module.payment.services import token_meter
+
+        token_meter.record(getattr(usage, "prompt_tokens", 0) or 0, getattr(usage, "completion_tokens", 0) or 0)
+    except Exception as exc:
+        logger.debug("token metering (openai) failed: %s", exc)
+
+
+def _record_usage_anthropic(usage) -> None:
+    try:
+        from backend.module.payment.services import token_meter
+
+        token_meter.record(getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0)
+    except Exception as exc:
+        logger.debug("token metering (anthropic) failed: %s", exc)
+
+
 def _make_openai_client(base_url: str | None = None):
     from openai import AsyncOpenAI
 
@@ -42,6 +63,7 @@ async def chat_completion(
             temperature=effective_temp,
             **kwargs,
         )
+        _record_usage(getattr(response, "usage", None))
         choices = response.choices
         if not choices:
             logger.warning("llm_client: response.choices is None/empty — returning empty string")
@@ -58,6 +80,9 @@ async def chat_completion(
             messages=user_msgs,
             max_tokens=kwargs.get("max_tokens", 4096),
         )
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            _record_usage_anthropic(usage)
         return response.content[0].text
 
     raise ValueError(f"Unsupported provider: {provider}")

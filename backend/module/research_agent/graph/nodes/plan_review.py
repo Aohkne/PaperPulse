@@ -20,7 +20,7 @@ from backend.module.research_agent.graph.state import ResearchState
 
 log = logging.getLogger(__name__)
 
-_VALID_SOURCES = {"semantic_scholar", "openalex", "arxiv", "pubmed"}
+_VALID_SOURCES = {"semantic_scholar", "openalex", "pubmed"}
 
 
 async def plan_review_node(state: ResearchState) -> dict:

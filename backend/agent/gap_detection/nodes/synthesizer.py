@@ -19,6 +19,9 @@ import re
 import unicodedata
 from typing import Any
 
+from backend.agent.gap_detection.gap_critique import critique_top_gaps
+from backend.agent.gap_detection.gap_diversity import analyze_gaps_llm
+from backend.agent.gap_detection.gap_self_consistency import confirm_gaps
 from backend.agent.gap_detection.novelty import compute_novelty_score
 from backend.agent.gap_detection.quality_scorer import rank_gaps_by_quality
 from backend.agent.gap_detection.schemas import (
@@ -31,7 +34,21 @@ from backend.agent.gap_detection.schemas import (
     GapType,
     PaperRef,
 )
-from backend.agent.gap_detection.settings import get_intent_off_penalty, get_top_k_gaps
+from backend.agent.gap_detection.settings import (
+    get_counter_critique_moderate_penalty,
+    get_detector_sample_temperature,
+    get_gap_dedup_jaccard,
+    get_gap_diversity_pool,
+    get_intent_off_penalty,
+    get_self_consistency_k,
+    get_self_consistency_min_votes,
+    get_self_consistency_penalty,
+    get_top_k_gaps,
+    is_counter_critique_backfill_enabled,
+    is_counter_critique_enabled,
+    is_gap_diversity_enabled,
+    is_self_consistency_enabled,
+)
 from backend.shared.services.llm_client import chat_completion
 
 logger = logging.getLogger(__name__)
@@ -114,9 +131,14 @@ def _gap_aligned_with_intent(gap: GapItem, user_intent: str) -> bool:
     return any(stem in gap_text for stem in stems)
 
 
+def _adjusted_intent_score(base_score: float, aligned: bool, penalty: float) -> float:
+    """Return the score after applying the intent penalty at most once."""
+    return base_score if aligned else base_score * penalty
+
+
 def _intent_rescore(
     gaps: list[GapItem],
-    user_intent: str,
+    intent_alignment: dict[int, bool],
     penalty: float,
 ) -> list[GapItem]:
     """Re-sort gaps using quality_score × penalty for off-intent gaps.
@@ -125,11 +147,67 @@ def _intent_rescore(
     the sort key used for top-k selection.
     """
 
-    def _key(g: GapItem) -> float:
-        base = g.quality_score or 0.0
-        return base if _gap_aligned_with_intent(g, user_intent) else base * penalty
+    indexed = list(enumerate(gaps))
+    indexed.sort(
+        key=lambda item: (
+            _adjusted_intent_score(item[1].quality_score or 0.0, intent_alignment.get(item[0], True), penalty),
+            -(item[0]),
+        ),
+        reverse=True,
+    )
+    return [gap for _, gap in indexed]
 
-    return sorted(gaps, key=_key, reverse=True)
+
+def _stem_intent_alignment_map(gaps: list[GapItem], user_intent: str | None) -> dict[int, bool]:
+    """Build the legacy keyword-stem alignment map for the current gap order."""
+    if not user_intent:
+        return {index: True for index in range(len(gaps))}
+    return {index: _gap_aligned_with_intent(gap, user_intent) for index, gap in enumerate(gaps)}
+
+
+def _apply_self_consistency_results(
+    gaps: list[GapItem],
+    confirmations: dict[int, dict[str, int | bool]],
+) -> None:
+    """Downgrade unstable top-N gaps in place without removing them."""
+    penalty = get_self_consistency_penalty()
+    for index, gap in enumerate(gaps):
+        gap.low_confidence = False
+        verdict = confirmations.get(index)
+        if not verdict or bool(verdict.get("stable", True)):
+            continue
+
+        gap.low_confidence = True
+        if gap.quality_score is not None:
+            gap.quality_score = max(0.0, min(1.0, gap.quality_score * penalty))
+        gap.confidence = max(0.0, min(1.0, gap.confidence * penalty))
+
+
+def _apply_counter_critique(
+    gaps: list[GapItem],
+    critiques: dict[int, dict[str, str | bool]],
+    *,
+    moderate_penalty: float,
+) -> list[GapItem]:
+    """Apply critique verdicts to the current top gaps without inventing new ones."""
+    kept: list[GapItem] = []
+    for index, gap in enumerate(gaps):
+        if index >= 3:
+            kept.append(gap)
+            continue
+
+        verdict = critiques.get(index, {"level": "none", "already_solved": False, "reason": ""})
+        level = str(verdict.get("level", "none"))
+        already_solved = bool(verdict.get("already_solved", False))
+        if already_solved:
+            continue
+        if level in {"moderate", "strong"}:
+            gap.low_confidence = True
+            if gap.quality_score is not None:
+                gap.quality_score = max(0.0, min(1.0, gap.quality_score * moderate_penalty))
+            gap.confidence = max(0.0, min(1.0, gap.confidence * moderate_penalty))
+        kept.append(gap)
+    return kept
 
 
 # ── Unicode normalization ────────────────────────────────────────────
@@ -215,20 +293,92 @@ async def synthesizer_node(
         all_ranked = sorted(emittable, key=lambda g: -g.confidence)
 
     gap_query: GapQuery | None = state.get("gap_query")  # type: ignore[assignment]
-    if gap_query is not None and gap_query.user_intent is not None:
-        penalty = get_intent_off_penalty()
-        off_count = sum(1 for g in all_ranked if not _gap_aligned_with_intent(g, gap_query.user_intent))
-        all_ranked = _intent_rescore(all_ranked, gap_query.user_intent, penalty)
-        logger.info(
-            "synthesizer_node: intent re-score applied (intent=%r, penalty=%.2f, off_intent=%d/%d)",
-            gap_query.user_intent,
-            penalty,
-            off_count,
-            len(all_ranked),
-        )
+    user_intent = gap_query.user_intent if gap_query is not None else None
+    facets = gap_query.facets if gap_query is not None else []
+    penalty = get_intent_off_penalty()
+    stem_alignment = _stem_intent_alignment_map(all_ranked, user_intent)
+    off_count = sum(1 for aligned in stem_alignment.values() if not aligned)
+    defer_intent_penalty = bool(user_intent and is_gap_diversity_enabled())
 
-    all_ranked = _dedup_gaps_by_jaccard(all_ranked)
-    top_gaps = all_ranked[: get_top_k_gaps()]
+    if user_intent:
+        if defer_intent_penalty:
+            logger.info(
+                "synthesizer_node: intent penalty deferred to diversity stage (intent=%r, penalty=%.2f, stem_off_intent=%d/%d)",
+                user_intent,
+                penalty,
+                off_count,
+                len(all_ranked),
+            )
+        else:
+            all_ranked = _intent_rescore(all_ranked, stem_alignment, penalty)
+            logger.info(
+                "synthesizer_node: intent re-score applied via keyword stems (intent=%r, penalty=%.2f, off_intent=%d/%d)",
+                user_intent,
+                penalty,
+                off_count,
+                len(all_ranked),
+            )
+
+    all_ranked = _dedup_gaps_by_jaccard(all_ranked, threshold=get_gap_dedup_jaccard())
+    top_gaps = await _select_top_gaps_with_diversity(
+        all_ranked,
+        user_intent=user_intent,
+        facets=facets,
+        intent_penalty=penalty,
+        fallback_intent_alignment=_stem_intent_alignment_map(all_ranked, user_intent),
+    )
+
+    if top_gaps and is_self_consistency_enabled():
+        try:
+            confirmations = await confirm_gaps(
+                top_gaps,
+                k=get_self_consistency_k(),
+                temperature=get_detector_sample_temperature(),
+                min_votes=get_self_consistency_min_votes(),
+            )
+            _apply_self_consistency_results(top_gaps, confirmations)
+            unstable = sum(1 for verdict in confirmations.values() if not bool(verdict.get("stable", True)))
+            logger.info(
+                "synthesizer_node: self-consistency judged %d top gap(s), unstable=%d",
+                len(top_gaps),
+                unstable,
+            )
+        except Exception:
+            logger.debug("synthesizer_node: self-consistency failed; leaving top gaps unchanged", exc_info=True)
+            for gap in top_gaps:
+                gap.low_confidence = False
+    else:
+        for gap in top_gaps:
+            gap.low_confidence = False
+
+    if top_gaps and is_counter_critique_enabled():
+        try:
+            critiques = await critique_top_gaps(top_gaps[:3])
+            top_gaps = _apply_counter_critique(
+                top_gaps,
+                critiques,
+                moderate_penalty=get_counter_critique_moderate_penalty(),
+            )
+            if is_counter_critique_backfill_enabled():
+                logger.debug(
+                    "synthesizer_node: counter-critique backfill requested but not implemented; showing fewer gaps by design"
+                )
+            removed = sum(1 for verdict in critiques.values() if bool(verdict.get("already_solved", False)))
+            moderated = sum(
+                1
+                for verdict in critiques.values()
+                if str(verdict.get("level", "none")) in {"moderate", "strong"}
+                and not bool(verdict.get("already_solved", False))
+            )
+            logger.info(
+                "synthesizer_node: counter-critique reviewed %d top gap(s), removed=%d, moderated=%d",
+                min(3, len(critiques)),
+                removed,
+                moderated,
+            )
+        except Exception:
+            logger.debug("synthesizer_node: counter-critique failed; leaving top gaps unchanged", exc_info=True)
+
     ordered = sorted(top_gaps, key=lambda g: (_TYPE_ORDER.get(g.gap_type, 99), -(g.quality_score or g.confidence)))
     main_gaps = [g for g in ordered if g.confidence >= min_confidence]
     weak_gaps = [g for g in ordered if g.confidence < min_confidence]
@@ -278,6 +428,84 @@ async def synthesizer_node(
 
 
 # ── Narrative assembly ──────────────────────────────────────────────
+
+
+async def _select_top_gaps_with_diversity(
+    gaps: list[GapItem],
+    *,
+    user_intent: str | None = None,
+    facets: list[str] | None = None,
+    intent_penalty: float | None = None,
+    fallback_intent_alignment: dict[int, bool] | None = None,
+) -> list[GapItem]:
+    """Select top-k gaps with LLM-grouped diversity and semantic intent alignment."""
+    top_k = get_top_k_gaps()
+    if len(gaps) <= top_k or not is_gap_diversity_enabled():
+        return gaps[:top_k]
+
+    penalty = intent_penalty if intent_penalty is not None else get_intent_off_penalty()
+
+    try:
+        analysis = await analyze_gaps_llm(
+            gaps,
+            user_intent=user_intent,
+            facets=facets,
+            pool_size=get_gap_diversity_pool(),
+        )
+        clusters = analysis.get("groups")
+        if not isinstance(clusters, list) or not clusters:
+            logger.debug("synthesizer_node: analyze_gaps_llm returned no groups; falling back to stem-ranked top-k")
+            fallback_ranked = _intent_rescore(gaps, fallback_intent_alignment or {}, penalty)
+            return fallback_ranked[:top_k]
+
+        llm_intent_alignment_raw = analysis.get("intent_aligned")
+        llm_intent_alignment = llm_intent_alignment_raw if isinstance(llm_intent_alignment_raw, dict) else {}
+        effective_intent_alignment = (
+            llm_intent_alignment if user_intent else {index: True for index in range(len(gaps))}
+        )
+        adjusted_scores = {
+            index: _adjusted_intent_score(
+                gap.quality_score or 0.0, effective_intent_alignment.get(index, True), penalty
+            )
+            for index, gap in enumerate(gaps)
+        }
+
+        representative_indices: list[int] = []
+        selected_index_set: set[int] = set()
+        for cluster in clusters:
+            if not isinstance(cluster, list) or not cluster:
+                continue
+            representative_index = max(cluster, key=lambda index: (adjusted_scores.get(index, 0.0), -index))
+            if representative_index in selected_index_set:
+                continue
+            representative_indices.append(representative_index)
+            selected_index_set.add(representative_index)
+
+        if not representative_indices:
+            logger.debug("synthesizer_node: no diversity representatives found; falling back to stem-ranked top-k")
+            fallback_ranked = _intent_rescore(gaps, fallback_intent_alignment or {}, penalty)
+            return fallback_ranked[:top_k]
+
+        representative_indices.sort(key=lambda index: (adjusted_scores.get(index, 0.0), -index), reverse=True)
+        remaining_indices = sorted(
+            (index for index in range(len(gaps)) if index not in selected_index_set),
+            key=lambda index: (adjusted_scores.get(index, 0.0), -index),
+            reverse=True,
+        )
+        ordered_indices = representative_indices + remaining_indices
+        selected = [gaps[index] for index in ordered_indices[:top_k]]
+        logger.debug(
+            "synthesizer_node: diversity selection kept %d/%d gaps across %d groups (semantic_intent=%s)",
+            len(selected),
+            len(gaps),
+            len(clusters),
+            bool(user_intent),
+        )
+        return selected
+    except Exception:
+        logger.debug("synthesizer_node: diversity selection failed; falling back to stem-ranked top-k", exc_info=True)
+        fallback_ranked = _intent_rescore(gaps, fallback_intent_alignment or {}, penalty)
+        return fallback_ranked[:top_k]
 
 
 async def _build_narrative(
@@ -380,7 +608,7 @@ def _jaccard(a: set[str], b: set[str]) -> float:
     return len(a & b) / len(union)
 
 
-def _dedup_gaps_by_jaccard(gaps: list[GapItem], threshold: float = 0.6) -> list[GapItem]:
+def _dedup_gaps_by_jaccard(gaps: list[GapItem], threshold: float) -> list[GapItem]:
     """Keep the best gap per Jaccard cluster and merge evidence quotes."""
     if not gaps:
         return []

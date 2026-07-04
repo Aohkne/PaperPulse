@@ -106,18 +106,18 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Icon icon="mdi:bookmark-plus-outline" style={{ width: 18, height: 18, color: 'var(--color-paper-mid)' }} />
-                  <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', fontWeight: 600, color: 'var(--color-paper-dark)' }}>
+                  <span style={{ fontFamily: "'Newsreader', serif", fontSize: '15px', fontWeight: 600, color: 'var(--color-paper-dark)' }}>
                     Save to My Reviews
                   </span>
                 </div>
-                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-light)', padding: 0, display: 'flex' }}>
+                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: 0, display: 'flex' }}>
                   <Icon icon="mdi:close" style={{ width: 18, height: 18 }} />
                 </button>
               </div>
 
               {/* Title input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <label style={{ fontFamily: "'Newsreader', serif", fontSize: '12px', color: 'var(--color-paper-mid)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Review name
                 </label>
                 <input
@@ -128,7 +128,7 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
                   onKeyDown={handleKeyDown}
                   placeholder="Enter a review name..."
                   style={{
-                    fontFamily: "'Noto Serif', serif", fontSize: '14px',
+                    fontFamily: "'Newsreader', serif", fontSize: '14px',
                     color: 'var(--color-paper-dark)',
                     border: '1px solid var(--color-paper-light)',
                     borderRadius: '4px',
@@ -147,8 +147,8 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
                   border: '1px solid var(--color-paper-light)',
                   borderRadius: '4px',
                   padding: '8px 10px',
-                  fontFamily: "'Noto Serif', serif", fontSize: '12px',
-                  color: 'var(--color-paper-light)',
+                  fontFamily: "'Newsreader', serif", fontSize: '12px',
+                  color: 'var(--color-paper-mid)',
                   lineHeight: '1.5',
                   maxHeight: '60px', overflow: 'hidden',
                 }}>
@@ -161,7 +161,7 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
                 <button
                   onClick={onClose}
                   style={{
-                    fontFamily: "'Noto Serif', serif", fontSize: '13px',
+                    fontFamily: "'Newsreader', serif", fontSize: '13px',
                     color: 'var(--color-paper-mid)',
                     border: '1px solid var(--color-paper-light)',
                     borderRadius: '4px', padding: '7px 16px',
@@ -174,7 +174,7 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
                   onClick={handleSave}
                   disabled={!title.trim() || saveLoading}
                   style={{
-                    fontFamily: "'Noto Serif', serif", fontSize: '13px',
+                    fontFamily: "'Newsreader', serif", fontSize: '13px',
                     color: 'var(--color-paper-bg)',
                     background: title.trim() && !saveLoading ? 'var(--color-paper-dark)' : 'var(--color-paper-light)',
                     border: 'none', borderRadius: '4px', padding: '7px 16px',

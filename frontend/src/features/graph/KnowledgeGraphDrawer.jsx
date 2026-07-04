@@ -72,14 +72,14 @@ const KnowledgeGraphDrawer = ({ open, onClose, threadId }) => (
             </div>
 
             {/* Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+            <div className="themed-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
               {threadId ? (
                 <KnowledgeGraphViewer threadId={threadId} />
               ) : (
                 <div style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   justifyContent: 'center', height: '100%', textAlign: 'center',
-                  color: 'var(--color-paper-light)', gap: 8, padding: '40px 20px',
+                  color: 'var(--color-paper-mid)', gap: 8, padding: '40px 20px',
                 }}>
                   <Icon icon="mdi:graph-outline" style={{ fontSize: 32 }} />
                   <p style={{ fontSize: 13, margin: 0 }}>

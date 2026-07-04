@@ -6,7 +6,7 @@ import { useBillingStore } from '@/shared/store/useBillingStore';
 import { friendlyError } from '@/shared/utils/errorMessage';
 
 // Lora has full Vietnamese Unicode support — fixes "đ" rendering
-const PRICE_FONT = "'Lora', 'Noto Serif', serif";
+const PRICE_FONT = "'Lora', 'Newsreader', serif";
 
 const TIERS = [
   { key: 'free',      label: 'Free',      price: '0đ',              lr: 3,   pdf: 5,   gap: 3   },
@@ -14,15 +14,8 @@ const TIERS = [
   { key: 'unlimited', label: 'Unlimited', price: '299.000đ/month',  lr: '∞', pdf: '∞', gap: '∞' },
 ];
 
-const TOPUP_PACKS = [
-  { key: 'pdf_5',  label: '5 PDF Agent',          price: '10.000đ' },
-  { key: 'lr_5',   label: '5 Literature Review',   price: '10.000đ' },
-  { key: 'gap_5',  label: '5 Research Gap',         price: '10.000đ' },
-  { key: 'combo',  label: 'Combo (5 PDF + 5 LR)',   price: '18.000đ', combo: true },
-];
-
 const sectionTitle = {
-  fontFamily: "'Lora', 'Noto Serif', serif",
+  fontFamily: "'Lora', 'Newsreader', serif",
   fontSize: '16px',
   fontWeight: 600,
   color: 'var(--color-paper-dark)',
@@ -99,7 +92,7 @@ const CheckoutModal = ({ checkout, onClose }) => {
               <p style={{ marginTop: 14, fontFamily: PRICE_FONT, fontSize: 16, fontWeight: 600, color: 'var(--color-paper-dark)' }}>
                 Payment successful
               </p>
-              <p style={{ marginTop: 4, fontFamily: PRICE_FONT, fontSize: 13, color: 'var(--color-paper-light)' }}>
+              <p style={{ marginTop: 4, fontFamily: PRICE_FONT, fontSize: 13, color: 'var(--color-paper-mid)' }}>
                 Your account has been updated.
               </p>
             </motion.div>
@@ -142,7 +135,7 @@ const CheckoutModal = ({ checkout, onClose }) => {
                   transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                   style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-paper-light)', display: 'inline-block', flexShrink: 0 }}
                 />
-                <p style={{ fontSize: 12, color: 'var(--color-paper-light)', fontFamily: PRICE_FONT, margin: 0 }}>
+                <p style={{ fontSize: 12, color: 'var(--color-paper-mid)', fontFamily: PRICE_FONT, margin: 0 }}>
                   {status === 'pending' ? 'Waiting for payment...' : `Status: ${status}`}
                 </p>
               </div>
@@ -165,7 +158,6 @@ const BillingPanel = () => {
   const account = useBillingStore((s) => s.account);
   const fetchAccount = useBillingStore((s) => s.fetchAccount);
   const checkoutSubscription = useBillingStore((s) => s.checkoutSubscription);
-  const checkoutTopup = useBillingStore((s) => s.checkoutTopup);
   const downgrade = useBillingStore((s) => s.downgrade);
   const pendingCheckout = useBillingStore((s) => s.pendingCheckout);
   const clearPendingCheckout = useBillingStore((s) => s.clearPendingCheckout);
@@ -231,7 +223,7 @@ const BillingPanel = () => {
               )}
 
               <p style={{
-                fontFamily: "'Inknut Antiqua', 'Noto Serif', serif",
+                fontFamily: "'Fraunces', 'Newsreader', serif",
                 fontWeight: 500, fontSize: '15px',
                 color: 'var(--color-paper-dark)', margin: '0 0 4px',
               }}>
@@ -259,7 +251,7 @@ const BillingPanel = () => {
                     color: 'var(--color-paper-mid)',
                     display: 'flex', alignItems: 'center', gap: 6,
                   }}>
-                    <Icon icon="mdi:check" style={{ fontSize: 14, color: 'var(--color-paper-light)', flexShrink: 0 }} />
+                    <Icon icon="mdi:check" style={{ fontSize: 14, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
                     {line}
                   </p>
                 ))}
@@ -297,54 +289,9 @@ const BillingPanel = () => {
         })}
       </div>
 
-      <h2 style={sectionTitle}>Top-up</h2>
-      <p style={{ fontSize: 13, color: 'var(--color-paper-light)', fontFamily: PRICE_FONT, marginTop: '-8px', marginBottom: 12 }}>
-        Available for Free/Plus only — Unlimited does not need top-ups.
+      <p style={{ fontSize: 13, color: 'var(--color-paper-mid)', fontFamily: PRICE_FONT, marginTop: 4 }}>
+        All features share one monthly credit pool. When it runs out, upgrade or wait for the next period — there is no top-up.
       </p>
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-        {TOPUP_PACKS.map((pack) => (
-          <div key={pack.key} style={{
-            border: pack.combo
-              ? '1.5px solid var(--color-brand-600)'
-              : '1px solid var(--color-paper-surface)',
-            borderRadius: '4px',
-            padding: '16px 18px',
-            background: pack.combo ? 'var(--color-brand-50)' : 'var(--color-paper-bg)',
-            flex: 1, minWidth: '150px',
-          }}>
-            <p style={{ fontFamily: "'Inknut Antiqua', 'Noto Serif', serif", fontWeight: 500, fontSize: 14, margin: '0 0 2px', color: 'var(--color-paper-dark)' }}>
-              {pack.label}
-            </p>
-            <p style={{ fontFamily: PRICE_FONT, fontSize: 17, fontWeight: 600, color: 'var(--color-brand-600)', margin: '0 0 6px' }}>
-              {pack.price}
-            </p>
-            {pack.combo && (
-              <p style={{ fontSize: 11, fontFamily: PRICE_FONT, color: 'var(--color-brand-600)', margin: '0 0 4px', fontStyle: 'italic' }}>
-                Bundle and save
-              </p>
-            )}
-            <button
-              style={{
-                ...baseButtonStyle,
-                ...(pack.combo ? {
-                  background: 'var(--color-brand-600)',
-                  border: '1px solid var(--color-brand-600)',
-                  color: '#fff',
-                } : {}),
-              }}
-              onClick={() => checkoutTopup(pack.key)}
-              onMouseEnter={(e) => {
-                if (!pack.combo) e.currentTarget.style.borderColor = 'var(--color-paper-dark)';
-              }}
-              onMouseLeave={(e) => {
-                if (!pack.combo) e.currentTarget.style.borderColor = 'var(--color-paper-surface)';
-              }}
-            >
-              Buy
-            </button>
-          </div>
-        ))}
-      </div>
 
       <AnimatePresence>
         {pendingCheckout && <CheckoutModal checkout={pendingCheckout} onClose={clearPendingCheckout} />}

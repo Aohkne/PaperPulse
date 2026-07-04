@@ -10,6 +10,10 @@ class Claim(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     text: str
     paper_id: str = Field(alias="paperId")
+    # ArXiv ID enriched from paper.external_ids at extract time (Step ⑤) so the
+    # verifier's Case B (ar5iv full-text fetch) can run — without it every claim
+    # falls through to Case C (abstract-only, never "Supported").
+    arxiv_id: str | None = None
     status: Literal["pending", "supported", "partial", "unsupported", "uncertain"] = "pending"
     # Citation intent from Semantic Scholar snowball metadata (SPEC_1.0.1 §⑦)
     intent: Literal["Supporting", "Contrasting", "Mentioning"] | None = None

@@ -59,7 +59,7 @@ const TopicDeleteConfirmModal = ({ isOpen, topicLabel, deleting, onCancel, onCon
             style={{
               marginTop: '10px',
               fontSize: '12px',
-              color: 'var(--color-paper-light)',
+              color: 'var(--color-paper-mid)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -145,6 +145,7 @@ const NotificationPanel = ({
 
   return (
     <div
+      className="themed-scroll"
       style={{
         position: 'absolute',
         top: 'calc(100% + 8px)',
@@ -153,20 +154,23 @@ const NotificationPanel = ({
         maxWidth: 'calc(100vw - 32px)',
         maxHeight: '75vh',
         overflowY: 'auto',
-        border: '1px solid var(--color-paper-light)',
-        borderRadius: '8px',
-        background: 'var(--color-paper-bg)',
-        boxShadow: '0 18px 40px rgba(46, 39, 31, 0.12)',
+        // Login-card convention: hairline border + paper-surface bg + soft
+        // double-layer shadow, instead of the older olive border-light +
+        // flat paper-bg + heavy single drop shadow this panel had before.
+        border: '1px solid rgba(41, 17, 0, 0.08)',
+        borderRadius: '16px',
+        background: 'var(--color-paper-surface)',
+        boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
         zIndex: 30,
       }}
     >
-      <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid var(--color-paper-surface)' }}>
+      <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(41, 17, 0, 0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
           <div>
             <div style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: 'var(--color-paper-dark)' }}>
               Notifications
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--color-paper-light)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)' }}>
               {pauseAllInApp ? 'Paused globally' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
             </div>
           </div>
@@ -174,7 +178,7 @@ const NotificationPanel = ({
             onClick={onMarkAllRead}
             disabled={unreadCount === 0}
             style={{
-              border: '1px solid var(--color-paper-light)',
+              border: '1px solid rgba(41, 17, 0, 0.12)',
               borderRadius: '999px',
               background: 'transparent',
               padding: '4px 9px',
@@ -188,10 +192,10 @@ const NotificationPanel = ({
         </div>
       </div>
 
-      <div style={{ padding: '12px 14px 14px', borderBottom: '1px solid var(--color-paper-surface)' }}>
+      <div style={{ padding: '12px 14px 14px', borderBottom: '1px solid rgba(41, 17, 0, 0.08)' }}>
         <div
           style={{
-            border: '1px solid var(--color-paper-surface)',
+            border: '1px solid rgba(41, 17, 0, 0.08)',
             borderRadius: '8px',
             background: 'rgba(196, 166, 122, 0.08)',
             padding: '12px',
@@ -200,7 +204,7 @@ const NotificationPanel = ({
             gap: '12px',
           }}
         >
-          <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-paper-light)' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-paper-mid)' }}>
             Controls
           </div>
 
@@ -209,14 +213,14 @@ const NotificationPanel = ({
               <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)' }}>
                 Pause in-app alerts
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--color-paper-light)', marginTop: '2px', lineHeight: 1.45 }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginTop: '2px', lineHeight: 1.45 }}>
                 Keep topic scoring running, but stop materializing alerts for now.
               </div>
             </div>
             <button
               onClick={() => onTogglePause(!pauseAllInApp)}
               style={{
-                border: '1px solid var(--color-paper-light)',
+                border: '1px solid rgba(41, 17, 0, 0.12)',
                 borderRadius: '999px',
                 background: pauseAllInApp ? 'var(--color-paper-dark)' : 'transparent',
                 color: pauseAllInApp ? 'var(--color-paper-bg)' : 'var(--color-paper-mid)',
@@ -230,7 +234,7 @@ const NotificationPanel = ({
             </button>
           </div>
 
-          <div style={{ borderTop: '1px solid var(--color-paper-surface)', paddingTop: '12px' }}>
+          <div style={{ borderTop: '1px solid rgba(41, 17, 0, 0.08)', paddingTop: '12px' }}>
             <button
               onClick={() => setTopicControlsExpanded((value) => !value)}
               style={{
@@ -250,7 +254,7 @@ const NotificationPanel = ({
                 <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)' }}>
                   Topic controls
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--color-paper-light)', marginTop: '2px', lineHeight: 1.45 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginTop: '2px', lineHeight: 1.45 }}>
                   {topicSummary}
                 </div>
               </div>
@@ -264,7 +268,7 @@ const NotificationPanel = ({
 
             {topicControlsExpanded && (
               <div style={{ marginTop: '12px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--color-paper-light)', marginBottom: '10px', lineHeight: 1.45 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginBottom: '10px', lineHeight: 1.45 }}>
                   Mute, restore, or remove tracked topics without leaving the chat shell.
                 </div>
 
@@ -275,26 +279,26 @@ const NotificationPanel = ({
                 )}
 
                 {topicInterestsLoading ? (
-                  <div style={{ fontSize: '12px', color: 'var(--color-paper-light)' }}>Loading topics...</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-paper-mid)' }}>Loading topics...</div>
                 ) : topicInterests.length === 0 ? (
-                  <div style={{ fontSize: '12px', color: 'var(--color-paper-light)' }}>No tracked topics yet.</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-paper-mid)' }}>No tracked topics yet.</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {topicInterests.map((topic) => {
                       const topicPending = Boolean(topicInterestPendingById[topic.topic_id]);
                       return (
-                      <div key={topic.topic_id} style={{ border: '1px solid var(--color-paper-surface)', borderRadius: '6px', padding: '10px', background: 'var(--color-paper-bg)', opacity: topicPending ? 0.72 : 1 }}>
+                      <div key={topic.topic_id} style={{ border: '1px solid rgba(41, 17, 0, 0.08)', borderRadius: '6px', padding: '10px', background: 'var(--color-paper-bg)', opacity: topicPending ? 0.72 : 1 }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)', lineHeight: 1.35 }}>
                               {topic.label}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '10px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '999px', padding: '2px 7px' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--color-paper-mid)', border: '1px solid rgba(41, 17, 0, 0.12)', borderRadius: '999px', padding: '2px 7px' }}>
                                 {stateLabel(topic.state)}
                               </span>
                               {topic.auto_watch_reason && (
-                                <span style={{ fontSize: '10px', color: 'var(--color-paper-light)' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--color-paper-mid)' }}>
                                   {topic.auto_watch_reason}
                                 </span>
                               )}
@@ -303,23 +307,23 @@ const NotificationPanel = ({
                           <button
                             onClick={() => onDeleteTopic(topic.topic_id)}
                             disabled={topicPending}
-                            style={{ border: 'none', background: 'transparent', padding: 0, color: 'var(--color-paper-light)', cursor: topicPending ? 'not-allowed' : 'pointer', opacity: topicPending ? 0.6 : 1 }}
+                            style={{ border: 'none', background: 'transparent', padding: 0, color: 'var(--color-paper-mid)', cursor: topicPending ? 'not-allowed' : 'pointer', opacity: topicPending ? 0.6 : 1 }}
                             title="Delete topic interest"
                           >
                             <Icon icon="mdi:trash-can-outline" style={{ width: 14, height: 14 }} />
                           </button>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginTop: '8px' }}>
-                          <div style={{ fontSize: '11px', color: 'var(--color-paper-light)' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)' }}>
                             Score {Number(topic.interest_score ?? 0).toFixed(1)}
                           </div>
                           <button
                             onClick={() => onToggleTopicState(topic.topic_id, topic.state === 'muted' ? 'candidate' : 'muted')}
                             disabled={topicPending}
                             style={{
-                              border: '1px solid var(--color-paper-light)',
+                              border: '1px solid rgba(41, 17, 0, 0.12)',
                               borderRadius: '999px',
-                              background: topicPending ? 'var(--color-paper-surface)' : 'transparent',
+                              background: topicPending ? 'var(--color-paper-bg)' : 'transparent',
                               padding: '4px 9px',
                               fontSize: '11px',
                               color: 'var(--color-paper-mid)',
@@ -341,11 +345,11 @@ const NotificationPanel = ({
         </div>
       </div>
 
-      <div style={{ padding: '12px 14px 8px', borderBottom: notifications.length > 0 ? '1px solid var(--color-paper-surface)' : 'none' }}>
-        <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-paper-light)' }}>
+      <div style={{ padding: '12px 14px 8px', borderBottom: notifications.length > 0 ? '1px solid rgba(41, 17, 0, 0.08)' : 'none' }}>
+        <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-paper-mid)' }}>
           Alert feed
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--color-paper-light)', marginTop: '3px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginTop: '3px' }}>
           Recent paper matches for your watched topics.
         </div>
       </div>
@@ -357,7 +361,7 @@ const NotificationPanel = ({
       )}
 
       {notifications.length === 0 ? (
-        <div style={{ padding: '16px 14px 18px', fontSize: '12px', color: 'var(--color-paper-light)', lineHeight: 1.5 }}>
+        <div style={{ padding: '16px 14px 18px', fontSize: '12px', color: 'var(--color-paper-mid)', lineHeight: 1.5 }}>
           No paper alerts yet.
         </div>
       ) : (
@@ -369,13 +373,13 @@ const NotificationPanel = ({
               key={item.id}
               style={{
                 padding: '12px 14px',
-                borderTop: '1px solid var(--color-paper-surface)',
+                borderTop: '1px solid rgba(41, 17, 0, 0.08)',
                 background: item.is_read ? 'transparent' : 'rgba(196, 166, 122, 0.08)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: '11px', color: 'var(--color-paper-light)', marginBottom: '3px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginBottom: '3px' }}>
                     {topicLine}
                   </div>
                   <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)', lineHeight: 1.35 }}>
@@ -384,7 +388,7 @@ const NotificationPanel = ({
                   <div style={{ fontSize: '12px', color: 'var(--color-paper-mid)', lineHeight: 1.45, marginTop: '5px' }}>
                     {item.reason || 'Matched your watched topic.'}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '7px', fontSize: '11px', color: 'var(--color-paper-light)', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '7px', fontSize: '11px', color: 'var(--color-paper-mid)', flexWrap: 'wrap' }}>
                     <span>{formatTime(item.created_at)}</span>
                     {item.score != null && <span>Score {Number(item.score).toFixed(2)}</span>}
                   </div>
@@ -434,7 +438,13 @@ const NotificationPanel = ({
  * top-level chat actions are grouped together instead of the bell being
  * anchored inside the sidebar header, far from the graph button.
  */
-const NotificationsButton = () => {
+// size/iconSize default to the 28px / 14px round-icon-button spec shared
+// with the "?" help button on PDFAgentPage/ResearchPage (desktop). The
+// mobile header passes size=44/iconSize=16 instead — that's a deliberate
+// exception, not leftover inconsistency: 44px is the standard minimum
+// touch-target size (Apple HIG / Material both recommend it), so shrinking
+// tap targets to match desktop's tighter 28px would hurt thumb accuracy.
+const NotificationsButton = ({ size = 28, iconSize = 14 }) => {
   const notifications = useChatStore((s) => s.notifications);
   const notificationsLoaded = useChatStore((s) => s.notificationsLoaded);
   const notificationsLoading = useChatStore((s) => s.notificationsLoading);
@@ -507,17 +517,23 @@ const NotificationsButton = () => {
         style={{
           position: 'relative',
           background: 'var(--color-paper-bg)',
+          // Matches the "?" help button on PDFAgentPage/ResearchPage exactly:
+          // same border color, same 28px circle, same 14px icon — one shared
+          // round-icon-button size/color spec used everywhere in the app.
           border: '1px solid var(--color-paper-light)',
-          borderRadius: '4px',
+          borderRadius: '50%',
           cursor: 'pointer',
-          padding: '4px 6px',
+          width: `${size}px`,
+          height: `${size}px`,
+          padding: 0,
           color: 'var(--color-paper-mid)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0,
         }}
       >
-        <Icon icon="mdi:bell-outline" style={{ fontSize: '15px' }} />
+        <Icon icon="mdi:bell-outline" style={{ width: iconSize, height: iconSize }} />
         {unreadNotificationCount > 0 && (
           <span
             style={{

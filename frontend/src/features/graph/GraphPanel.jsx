@@ -31,10 +31,10 @@ const GraphPanel = ({ onClose, papers = [] }) => {
           Knowledge Graph
         </p>
         <p style={{
-          color: 'var(--color-paper-light)',
+          color: 'var(--color-paper-mid)',
           fontSize: '12px',
           margin: '3px 0 0',
-          fontFamily: "'Noto Serif', serif",
+          fontFamily: "'Newsreader', serif",
         }}>
           {statsLabel}
         </p>

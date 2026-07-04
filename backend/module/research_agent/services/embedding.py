@@ -7,9 +7,6 @@ import httpx
 
 from backend.agent.gap_detection.settings import get_nim_backoff_base, get_nim_retry_max
 from backend.config import get_settings
-from backend.module.research_agent.services.vector_store import upsert_papers
-from backend.shared.models.paper import EmbedResponse
-from backend.shared.services.semantic_scholar import get_embeddings_batch
 
 
 async def embed_text(text: str, input_type: str = "query") -> list[float] | None:
@@ -62,27 +59,3 @@ async def embed_text(text: str, input_type: str = "query") -> list[float] | None
             return None
 
     return None  # fail-safe: max_retries exhausted via 429 loop
-
-
-async def fetch_and_store_embeddings(paper_ids: list[str]) -> EmbedResponse:
-    """③ Fetch SPECTER v2 for all paper_ids, fallback to abstract embed, store in ChromaDB."""
-    from backend.module.research_agent.services.vector_store import get_papers_by_ids
-
-    specter_map = await get_embeddings_batch(paper_ids)
-
-    papers = await get_papers_by_ids(paper_ids)
-    embedded = 0
-
-    for paper in papers:
-        if paper.paper_id in specter_map:
-            paper.embedding = specter_map[paper.paper_id]
-            embedded += 1
-        elif paper.abstract:
-            fallback = await embed_text(paper.abstract, input_type="passage")
-            if fallback:
-                paper.embedding = fallback
-                embedded += 1
-                logging.warning("SPECTER v2 missing for %s — used fallback embedding", paper.paper_id)
-
-    stored = await upsert_papers(papers)
-    return EmbedResponse(embedded=embedded, stored=stored)

@@ -24,7 +24,7 @@ const PDFUploadZone = ({ onFile, disabled = false }) => {
         margin: '32px',
         border: `2px dashed ${dragOver ? 'var(--color-paper-mid)' : 'var(--color-paper-light)'}`,
         borderRadius: '10px',
-        background: dragOver ? 'var(--color-paper-surface)' : 'transparent',
+        background: 'var(--color-paper-surface)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -43,11 +43,11 @@ const PDFUploadZone = ({ onFile, disabled = false }) => {
         style={{ display: 'none' }}
         onChange={(e) => handleFiles(e.target.files)}
       />
-      <Icon icon="mdi:file-upload-outline" style={{ width: 48, height: 48, color: 'var(--color-paper-light)' }} />
-      <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '16px', color: 'var(--color-paper-dark)', fontWeight: 600 }}>
+      <Icon icon="mdi:file-upload-outline" style={{ width: 48, height: 48, color: 'var(--color-paper-mid)' }} />
+      <div style={{ fontFamily: "'Newsreader', serif", fontSize: '18px', color: 'var(--color-paper-dark)', fontWeight: 600 }}>
         {disabled ? 'Quota used up for this period' : 'Drag and drop a file here, or click to select'}
       </div>
-      <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-mid)' }}>
+      <div style={{ fontFamily: "'Newsreader', serif", fontSize: '15px', color: 'var(--color-paper-mid)' }}>
         Supports .pdf, .tex, .zip (Overleaf project export) — up to 20MB
       </div>
     </div>

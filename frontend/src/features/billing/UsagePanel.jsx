@@ -2,20 +2,17 @@ import { useEffect } from 'react';
 import { useBillingStore } from '@/shared/store/useBillingStore';
 
 const TIER_LABELS = { free: 'Free', plus: 'Plus', unlimited: 'Unlimited' };
+const SOFT_CAP_CREDIT = 1500; // Unlimited soft cap (mirrors pricing.SOFT_CAP_CREDIT)
 
 const cardStyle = {
-  border: '1px solid var(--color-paper-light)',
+  border: '1px solid var(--color-hairline-border)',
   borderRadius: '8px',
   padding: '20px',
   background: 'var(--color-paper-bg)',
 };
 
-const QuotaRow = ({ label, used, remaining, total }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-    <span>{label}</span>
-    <span>{total === null ? `${used} used` : `${remaining}/${total}`}</span>
-  </div>
-);
+// <70% green / 70-90% amber / >90% red (token.html §4 UI).
+const barColor = (pct) => (pct > 90 ? '#A93E3E' : pct > 70 ? '#A8672A' : 'var(--color-brand-600)');
 
 const UsagePanel = () => {
   const account = useBillingStore((s) => s.account);
@@ -27,9 +24,15 @@ const UsagePanel = () => {
   if (accountLoading && !account) return <p>Loading...</p>;
   if (!account) return null;
 
+  const used = Number(account.credit_used_this_period ?? 0);
+  const balance = account.subscription_credit_balance; // null = unlimited
+  const unlimited = balance === null || balance === undefined;
+  const budget = unlimited ? SOFT_CAP_CREDIT : Math.max(0, Number(balance)) + used;
+  const pct = budget > 0 ? Math.min(100, Math.round((used / budget) * 100)) : 0;
+
   return (
     <div style={cardStyle}>
-      <p style={{ fontFamily: "'Noto Serif', serif", fontWeight: 600 }}>
+      <p style={{ fontFamily: "'Newsreader', serif", fontWeight: 600, marginBottom: 12 }}>
         Current plan: {TIER_LABELS[account.tier] ?? account.tier}
         {account.pending_downgrade_tier && (
           <span style={{ fontSize: 12, color: 'var(--color-paper-mid)', fontWeight: 400 }}>
@@ -37,30 +40,26 @@ const UsagePanel = () => {
           </span>
         )}
       </p>
-      <div style={{ marginTop: '8px' }}>
-        <QuotaRow
-          label="Literature Review"
-          used={account.lr_used_this_period}
-          remaining={account.subscription_lr_quota}
-          total={account.subscription_lr_quota === null ? null : account.lr_used_this_period + account.subscription_lr_quota}
-        />
-        <QuotaRow
-          label="PDF Agent"
-          used={account.pdf_used_this_period}
-          remaining={account.subscription_pdf_quota}
-          total={account.subscription_pdf_quota === null ? null : account.pdf_used_this_period + account.subscription_pdf_quota}
-        />
-        <QuotaRow
-          label="Research Gap"
-          used={account.gap_used_this_period}
-          remaining={account.subscription_gap_quota}
-          total={account.subscription_gap_quota === null ? null : account.gap_used_this_period + account.subscription_gap_quota}
-        />
+
+      {/* Single shared credit budget bar (all features draw from one pool). */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 13.5, marginBottom: 6 }}>
+        <span style={{ color: 'var(--color-paper-mid)' }}>
+          {unlimited ? 'Usage this period' : 'Monthly budget used'}
+        </span>
+        <span style={{ fontWeight: 700, color: barColor(pct), fontVariantNumeric: 'tabular-nums' }}>
+          {unlimited ? `${used.toFixed(1)} credits` : `${pct}%`}
+        </span>
       </div>
-      <p style={{ fontSize: 13, color: 'var(--color-paper-light)', marginTop: '8px' }}>
-        Top-up balance: {account.topup_lr_balance} LR · {account.topup_pdf_balance} PDF · {account.topup_gap_balance} Gap
+      <div style={{ height: 10, borderRadius: 999, background: 'var(--color-hairline-border)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${unlimited ? Math.min(100, (used / SOFT_CAP_CREDIT) * 100) : pct}%`, background: barColor(pct), borderRadius: 999 }} />
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--color-paper-mid)', marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
+        {unlimited
+          ? `Unlimited plan — soft cap ${SOFT_CAP_CREDIT} credits`
+          : `${used.toFixed(1)} / ${budget.toFixed(0)} credits used · ${Math.max(0, Number(balance)).toFixed(1)} left`}
       </p>
-      <p style={{ fontSize: 13, color: 'var(--color-paper-light)' }}>
+
+      <p style={{ fontSize: 13, color: 'var(--color-paper-mid)', marginTop: 8 }}>
         Renews: {new Date(account.tier_period_end).toLocaleDateString('vi-VN')}
       </p>
     </div>

@@ -123,7 +123,7 @@ const ReviewDetailPage = () => {
   if (detailLoading) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Icon icon="mdi:loading" style={{ width: 28, height: 28, color: 'var(--color-paper-light)', animation: 'spin 1s linear infinite' }} />
+        <Icon icon="mdi:loading" style={{ width: 28, height: 28, color: 'var(--color-paper-mid)', animation: 'spin 1s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -132,8 +132,8 @@ const ReviewDetailPage = () => {
   if (detailError) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-        <span style={{ fontFamily: "'Noto Serif', serif", color: '#c0392b' }}>{friendlyError(detailError, "Couldn't load this review.")}</span>
-        <button onClick={() => navigate(-1)} style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', cursor: 'pointer', color: 'var(--color-paper-mid)', background: 'none', border: 'none' }}>
+        <span style={{ fontFamily: "'Newsreader', serif", color: '#c0392b' }}>{friendlyError(detailError, "Couldn't load this review.")}</span>
+        <button onClick={() => navigate(-1)} style={{ fontFamily: "'Newsreader', serif", fontSize: '14px', cursor: 'pointer', color: 'var(--color-paper-mid)', background: 'none', border: 'none' }}>
           ← Back
         </button>
       </div>
@@ -148,22 +148,22 @@ const ReviewDetailPage = () => {
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div style={{
         flexShrink: 0,
-        borderBottom: '1px solid var(--color-paper-light)',
+        boxShadow: '0 1px 3px rgba(41, 17, 0, 0.08)',
         padding: '10px 20px',
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '16px',
         background: 'var(--color-paper-bg)',
+        position: 'relative',
+        zIndex: 1,
       }}>
         <button
           onClick={() => navigate(ROUTES.MY_REVIEWS)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '13px', flexShrink: 0 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: 0, display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Newsreader', serif", fontSize: '13px', flexShrink: 0 }}
         >
           <Icon icon="mdi:arrow-left" style={{ width: 15, height: 15 }} />
           My Reviews
         </button>
-
-        <div style={{ width: '1px', height: '16px', background: 'var(--color-paper-light)', flexShrink: 0 }} />
 
         {/* Title — editable inline when in edit mode */}
         {editMode ? (
@@ -172,30 +172,40 @@ const ReviewDetailPage = () => {
             onChange={(e) => setEditTitle(e.target.value)}
             style={{
               flex: 1, minWidth: 0,
-              fontFamily: "'Noto Serif', serif", fontSize: '14px', fontWeight: 600,
+              fontFamily: "'Newsreader', serif", fontSize: '14px', fontWeight: 600,
               color: 'var(--color-paper-dark)',
-              border: '1px solid var(--color-paper-light)',
-              borderRadius: '4px', padding: '4px 8px',
+              border: 'none',
+              borderRadius: '8px', padding: '5px 10px',
               background: 'var(--color-paper-surface)', outline: 'none',
+              boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 3px 10px rgba(41, 17, 0, 0.08)',
             }}
           />
         ) : (
-          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Noto Serif', serif", fontSize: '14px', fontWeight: 600, color: 'var(--color-paper-dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: "'Newsreader', serif", fontSize: '14px', fontWeight: 600, color: 'var(--color-paper-dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {current.title}
           </span>
         )}
 
+        {/* Toolbar buttons — filled pill style (background only, no border)
+            instead of the previous olive 1px outline on every button, which
+            read as heavy/unrefined once there were 4-5 of them in a row. */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
           {/* Export dropdown */}
           <div style={{ position: 'relative' }} ref={exportMenuRef}>
             <button
               onClick={() => setExportMenuOpen((v) => !v)}
               disabled={exportLoading}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: exportLoading ? 'wait' : 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Newsreader', serif", fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', border: 'none', borderRadius: '6px', padding: '5px 10px', background: 'var(--color-paper-surface)', cursor: exportLoading ? 'wait' : 'pointer' }}
             >
               {exportLoading
                 ? <Icon icon="mdi:loading" style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} />
-                : <Icon icon="mdi:download-outline" style={{ width: 13, height: 13 }} />}
+                : (
+                  // mdi:export-variant (arrow pointing out/up), not
+                  // mdi:download-outline (arrow pointing down) — the old
+                  // icon paired with the dropdown's own down-chevron read as
+                  // two "down" arrows stacked next to each other.
+                  <Icon icon="mdi:export-variant" style={{ width: 13, height: 13 }} />
+                )}
               Export
               <Icon icon="mdi:chevron-down" style={{ width: 12, height: 12 }} />
             </button>
@@ -206,7 +216,7 @@ const ReviewDetailPage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.12 }}
-                  style={{ position: 'absolute', right: 0, top: '32px', background: 'var(--color-paper-bg)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', boxShadow: '0 6px 20px rgba(0,0,0,0.1)', minWidth: '148px', zIndex: 200, overflow: 'hidden' }}
+                  style={{ position: 'absolute', right: 0, top: '32px', background: 'var(--color-paper-bg)', borderRadius: '8px', boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.14)', minWidth: '148px', zIndex: 200, overflow: 'hidden' }}
                 >
                   {[
                     { icon: 'mdi:file-code-outline', label: 'LaTeX (.tex)', format: 'tex' },
@@ -217,7 +227,7 @@ const ReviewDetailPage = () => {
                     <button
                       key={format}
                       onClick={() => handleExport(format)}
-                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-paper-dark)' }}
+                      style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Newsreader', serif", fontSize: '13px', color: 'var(--color-paper-dark)' }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                     >
@@ -233,7 +243,7 @@ const ReviewDetailPage = () => {
           {current.source_type === 'uploaded' && current.content_format === 'tex' && !editMode && (
             <button
               onClick={() => navigate(`${ROUTES.PDF_AGENT}?resume=${id}`)}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Newsreader', serif", fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', border: 'none', borderRadius: '6px', padding: '5px 10px', background: 'var(--color-paper-surface)', cursor: 'pointer' }}
             >
               <Icon icon="mdi:file-search-outline" style={{ width: 13, height: 13 }} />
               Continue with PDF Agent
@@ -244,14 +254,18 @@ const ReviewDetailPage = () => {
             <>
               <button
                 onClick={handleCancel}
-                style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+                style={{ fontFamily: "'Newsreader', serif", fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', border: 'none', borderRadius: '6px', padding: '5px 10px', background: 'var(--color-paper-surface)', cursor: 'pointer' }}
               >
                 Cancel
               </button>
+              {/* Save uses the brand green key color — the app's primary
+                  action color everywhere else (send buttons, Find Gaps,
+                  etc.) — instead of the near-black paper-dark, which read
+                  as an unrelated one-off color for the toolbar's main CTA. */}
               <button
                 onClick={handleSave}
                 disabled={saving}
-                style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-bg)', background: 'var(--color-paper-dark)', border: 'none', borderRadius: '4px', padding: '4px 11px', cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                style={{ fontFamily: "'Newsreader', serif", fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-bg)', background: 'var(--color-brand-500)', border: 'none', borderRadius: '6px', padding: '5px 12px', cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
                 {saving && <Icon icon="mdi:loading" style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />}
                 Save
@@ -260,7 +274,7 @@ const ReviewDetailPage = () => {
           ) : (
             <button
               onClick={() => setEditMode(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Newsreader', serif", fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', border: 'none', borderRadius: '6px', padding: '5px 10px', background: 'var(--color-paper-surface)', cursor: 'pointer' }}
             >
               <Icon icon="mdi:pencil-outline" style={{ width: 13, height: 13 }} />
               Edit
@@ -269,7 +283,7 @@ const ReviewDetailPage = () => {
 
           <button
             onClick={handleDelete}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Noto Serif', serif", fontSize: '12px', color: '#c0392b', border: '1px solid #e0b0b0', borderRadius: '4px', padding: '4px 9px', background: 'none', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Newsreader', serif", fontSize: '12px', fontWeight: 600, color: '#c0392b', border: 'none', borderRadius: '6px', padding: '5px 10px', background: 'rgba(139, 74, 47, 0.08)', cursor: 'pointer' }}
           >
             <Icon icon="mdi:delete-outline" style={{ width: 13, height: 13 }} />
             Delete
@@ -289,11 +303,15 @@ const ReviewDetailPage = () => {
             transition={{ duration: 0.15 }}
             style={{ flex: 1, display: 'flex', overflow: 'hidden' }}
           >
-            {/* Left: editor */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--color-paper-light)' }}>
-              <div style={{ flexShrink: 0, padding: '8px 14px', borderBottom: '1px solid var(--color-paper-light)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-paper-surface)' }}>
+            {/* Left: editor — border restored, but as a barely-there
+                rgba(41,17,0,0.08) hairline instead of the old solid
+                --color-paper-light (olive) line. Fully removing it made the
+                panes hard to tell apart at a glance; this keeps a boundary
+                without it reading as a heavy rule. */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid rgba(41, 17, 0, 0.08)' }}>
+              <div style={{ flexShrink: 0, padding: '8px 14px', borderBottom: '1px solid rgba(41, 17, 0, 0.08)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-paper-surface)' }}>
                 <Icon icon="mdi:code-tags" style={{ width: 13, height: 13, color: 'var(--color-paper-mid)' }} />
-                <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>LaTeX</span>
+                <span style={{ fontFamily: "'Newsreader', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>LaTeX</span>
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
                 <Editor
@@ -313,32 +331,46 @@ const ReviewDetailPage = () => {
               </div>
             </div>
 
-            {/* Right: preview */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ flexShrink: 0, padding: '8px 14px', borderBottom: '1px solid var(--color-paper-light)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-paper-bg)' }}>
+            {/* Right: preview — sits on the brighter paper-surface tone
+                (instead of the page's dot-grain bg) so it doesn't read as
+                noticeably dingier next to the editor's white Monaco pane. */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--color-paper-surface)' }}>
+              <div style={{ flexShrink: 0, padding: '8px 14px', borderBottom: '1px solid rgba(41, 17, 0, 0.08)', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-paper-surface)' }}>
                 <Icon icon="mdi:eye-outline" style={{ width: 13, height: 13, color: 'var(--color-paper-mid)' }} />
-                <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Preview</span>
+                <span style={{ fontFamily: "'Newsreader', serif", fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Preview</span>
               </div>
-              <div ref={previewRef} onScroll={handlePreviewScroll} style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+              <div ref={previewRef} onScroll={handlePreviewScroll} className="themed-scroll" style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
                 <LatexPreview content={editContent} emptyText="Start typing to see the preview..." />
               </div>
             </div>
           </motion.div>
         ) : (
-          /* View mode: centered single column */
+          /* View mode: centered single column, on a brightened paper-surface
+             card (matching the app's other card surfaces) instead of sitting
+             directly on the page's dot-grain bg — easier to read long text. */
           <motion.div
             key="view"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
+            className="themed-scroll"
             style={{ flex: 1, overflowY: 'auto', padding: '32px 24px' }}
           >
-            <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-              <h1 style={{ fontFamily: "'Noto Serif', serif", fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '0 0 4px' }}>
+            {/* No maxWidth cap — same "fill the panel, no hard column limit"
+                approach used on the Research Gap page, to match how wide
+                PDFAgentPage.jsx reads (that page has no maxWidth at all). */}
+            <div style={{
+              background: 'var(--color-paper-surface)',
+              border: '1px solid rgba(41, 17, 0, 0.08)',
+              borderRadius: '16px',
+              boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
+              padding: '36px 40px',
+            }}>
+              <h1 style={{ fontFamily: "'Newsreader', serif", fontSize: '22px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: '0 0 4px' }}>
                 {current.title}
               </h1>
-              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)', marginBottom: '24px' }}>
+              <div style={{ fontFamily: "'Newsreader', serif", fontSize: '12px', color: 'var(--color-paper-mid)', marginBottom: '24px' }}>
                 {new Date(current.updated_at).toLocaleString()} · {current.query}
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid var(--color-paper-light)', marginBottom: '24px' }} />

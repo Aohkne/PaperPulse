@@ -52,17 +52,24 @@ const ChatLayout = ({ children }) => {
     window.addEventListener('mouseup', onUp);
   }, []);
 
+  // Transparent drag handle (was a solid 0.5px --color-paper-light line —
+  // that olive tone read as a bold, blunt-looking rule running the full
+  // sidebar height). The actual visual separation now comes from the soft
+  // boxShadow on the sidebar panel below; this stays a wider *invisible*
+  // hit-target (easier to grab than 0.5px) that only tints faintly on hover.
   const dividerStyle = {
-    width: '0.5px',
+    width: '4px',
     flexShrink: 0,
     cursor: 'col-resize',
-    background: 'var(--color-paper-light)',
-    transition: 'background 0.15s',
+    background: 'transparent',
+    transition: 'background-color 0.15s',
   };
 
   if (isMobile) {
+    // No explicit background — lets body's dot-grain texture (index.css)
+    // show through instead of painting flat solid color over it.
     return (
-      <div style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-paper-bg)' }}>
+      <div style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '6px 8px', borderBottom: '1px solid var(--color-paper-light)', flexShrink: 0,
@@ -79,12 +86,12 @@ const ChatLayout = ({ children }) => {
           </button>
           {isChatHome && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <NotificationsButton />
+              <NotificationsButton size={44} iconSize={16} />
               <button
                 onClick={() => setGraphOpen(true)}
                 title="Open Knowledge Graph"
                 style={{
-                  background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
+                  background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '50%',
                   cursor: 'pointer', color: 'var(--color-paper-mid)',
                   width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
@@ -95,18 +102,21 @@ const ChatLayout = ({ children }) => {
                 onClick={() => window.Supademo?.open('cmqxx7bw404ymw60j7qcvkb48')}
                 title="How it works"
                 style={{
-                  background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '4px',
+                  background: 'none', border: '1px solid var(--color-paper-light)', borderRadius: '50%',
                   cursor: 'pointer', color: 'var(--color-paper-mid)',
                   width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
-                <Icon icon="mdi:help-circle-outline" style={{ fontSize: '16px' }} />
+                {/* Plain "?" glyph — mdi:help-circle-outline already draws
+                    its own circle, which clashed with this button's own
+                    rounded-square border into a nested double-ring look. */}
+                <Icon icon="mdi:help" style={{ fontSize: '14px' }} />
               </button>
             </div>
           )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, overflow: 'auto', position: 'relative' }}>
+        <div className="themed-scroll" style={{ flex: 1, minWidth: 0, overflow: 'auto', position: 'relative' }}>
           {children}
         </div>
 
@@ -140,25 +150,37 @@ const ChatLayout = ({ children }) => {
     );
   }
 
+  // No explicit background — lets body's dot-grain texture (index.css) show
+  // through instead of painting flat solid color over it.
   return (
     <div
       ref={containerRef}
       style={{
         display: 'flex',
         height: '100vh',
-        background: 'var(--color-paper-bg)',
         userSelect: isDragging ? 'none' : 'auto',
       }}
     >
-      <div style={{ width: sidebarCollapsed ? '52px' : `${sidebarW}%`, flexShrink: 0, overflow: 'hidden', transition: 'width 0.2s ease' }}>
+      <div style={{
+        width: sidebarCollapsed ? '52px' : `${sidebarW}%`, flexShrink: 0, overflow: 'hidden',
+        transition: 'width 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease', position: 'relative', zIndex: 1,
+        // Gemini reference (both collapsed AND expanded): no drawn divider,
+        // or one so faint it barely registers. A blurred boxShadow spreads
+        // over ~3px and reads heavier than it measures on paper, so swap it
+        // for an actual 1px hairline at the same low opacity already used
+        // for card borders app-wide (rgba(41,17,0,0.08)) — a true thin line
+        // instead of a soft glow. Collapsed still drops it entirely so the
+        // 52px icon rail stays fully seamless.
+        borderRight: sidebarCollapsed ? 'none' : '1px solid rgba(41, 17, 0, 0.08)',
+      }}>
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(v => !v)} />
       </div>
 
       <div
         style={dividerStyle}
         onMouseDown={onMouseDown('left')}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-paper-mid)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'var(--color-paper-light)'}
+        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(41, 17, 0, 0.10)'}
+        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
       />
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'visible', position: 'relative' }}>
@@ -170,17 +192,23 @@ const ChatLayout = ({ children }) => {
               title="Open Knowledge Graph"
               style={{
                 background: 'var(--color-paper-bg)',
+                // Same border color, size (28px), and icon size (14px) as
+                // the "?" help button on PDFAgentPage/ResearchPage — one
+                // shared round-icon-button spec used everywhere in the app.
                 border: '1px solid var(--color-paper-light)',
-                borderRadius: '4px',
+                borderRadius: '50%',
                 cursor: 'pointer',
-                padding: '4px 6px',
+                width: '28px',
+                height: '28px',
+                padding: 0,
                 color: 'var(--color-paper-mid)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
-              <Icon icon="mdi:graph-outline" style={{ fontSize: '15px' }} />
+              <Icon icon="mdi:graph-outline" style={{ width: 14, height: 14 }} />
             </button>
             <button
               onClick={() => window.Supademo?.open('cmqxx7bw404ymw60j7qcvkb48')}
@@ -188,16 +216,20 @@ const ChatLayout = ({ children }) => {
               style={{
                 background: 'var(--color-paper-bg)',
                 border: '1px solid var(--color-paper-light)',
-                borderRadius: '4px',
+                borderRadius: '50%',
                 cursor: 'pointer',
-                padding: '4px 6px',
+                width: '28px',
+                height: '28px',
+                padding: 0,
                 color: 'var(--color-paper-mid)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
-              <Icon icon="mdi:help-circle-outline" style={{ fontSize: '15px' }} />
+              {/* Plain "?" glyph, same reasoning as the mobile button above. */}
+              <Icon icon="mdi:help" style={{ width: 14, height: 14 }} />
             </button>
           </div>
         )}

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import SiteHeader from '@/shared/components/layout/SiteHeader';
 import ContentFooter from './_shared/ContentFooter';
+import { dotGridBg } from '@/shared/utils/dotGridBg';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 22 },
@@ -72,7 +73,7 @@ const FaqItem = ({ q, a }) => {
   const [open, setOpen] = useState(false);
 
   return (
-    <div style={{ borderBottom: '1px solid var(--color-paper-surface)' }}>
+    <div style={{ borderBottom: '1px solid rgba(41, 17, 0, 0.08)' }}>
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -83,7 +84,7 @@ const FaqItem = ({ q, a }) => {
         }}
       >
         <span style={{
-          fontFamily: "'Noto Serif', serif", fontSize: 16,
+          fontFamily: "'Newsreader', serif", fontSize: 16,
           color: 'var(--color-paper-dark)', fontWeight: 500, lineHeight: 1.5,
         }}>
           {q}
@@ -104,7 +105,7 @@ const FaqItem = ({ q, a }) => {
             style={{ overflow: 'hidden' }}
           >
             <p style={{
-              fontFamily: "'Noto Serif', serif", fontSize: 15, lineHeight: 1.8,
+              fontFamily: "'Newsreader', serif", fontSize: 17, lineHeight: 1.8,
               color: 'var(--color-paper-mid)', margin: '0 0 20px', paddingRight: 32,
             }}>
               {a}
@@ -117,14 +118,17 @@ const FaqItem = ({ q, a }) => {
 };
 
 const FaqPage = () => (
-  <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+  // --color-landing-tone-1 + re-added dot-grain — matches
+  // SiteHeader/SiteFooter/ContentFooter in both themes now, so the page
+  // doesn't read as a separate strip between them.
+  <div style={{ ...dotGridBg('--color-landing-tone-1'), fontFamily: "'Newsreader', serif", minHeight: '100vh' }}>
     <SiteHeader />
 
     <div style={{ paddingTop: 57 }}>
       {/* Header */}
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '80px 24px 32px' }}>
         <motion.p {...fadeUp(0.1)} style={{
-          fontSize: 13, color: 'var(--color-paper-light)',
+          fontSize: 13, color: 'var(--color-paper-mid)',
           letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 16px',
         }}>
           FAQ

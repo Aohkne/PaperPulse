@@ -22,7 +22,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from backend.auth.dependencies import get_current_user
 from backend.config import get_settings
-from backend.module.payment.services import billing_db
+from backend.module.payment.services import billing_db, token_meter
 from backend.module.payment.services.billing_db import QuotaExceededError
 from backend.module.pdf_agent.api._common import pdf_agent_config
 from backend.module.pdf_agent.graph.graph import get_pdf_agent_graph
@@ -167,9 +167,10 @@ async def upload_document(
 
     async def generator():
         global _inflight_uploads
+        token_meter.start()  # per-request token accounting (token-weighted billing)
+        error_occurred = False
         try:
             yield _sse({"type": "doc_id", "doc_id": doc_id})
-            error_occurred = False
             async for raw in _stream_pdf_graph(graph, initial_state, config):
                 if '"type": "error"' in raw:  # cheap check - avoids re-parsing every event's JSON
                     error_occurred = True
@@ -180,11 +181,16 @@ async def upload_document(
             # frontend call GET /content on a state that doesn't have it yet (KeyError 500).
             if not error_occurred:
                 yield _sse({"type": "done", "doc_id": doc_id})
-            else:
-                # System pipeline error (no interrupts in PDF Agent, so this is the
-                # only refund path needed - payment_SPEC_2.0.md refund table).
-                await billing_db.refund_session(str(user.id), "pdf", doc_id)
         finally:
             _inflight_uploads -= 1
+            # Charge the ACTUAL token credits on a successful run only — a system
+            # pipeline error is never charged (token-weighted billing, token.html §4).
+            if not error_occurred:
+                try:
+                    credits = token_meter.credits_used()
+                    if credits > 0:
+                        await billing_db.settle_session(str(user.id), "pdf", doc_id, credits)
+                except Exception as exc:
+                    log.warning("settle pdf credits failed for doc_id=%s: %s", doc_id, exc)
 
     return StreamingResponse(generator(), media_type="text/event-stream", headers=_SSE_HEADERS)

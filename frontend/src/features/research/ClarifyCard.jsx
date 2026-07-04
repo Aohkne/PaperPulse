@@ -40,7 +40,7 @@ const ClarifyCard = ({ questions = [], onSubmit, onNewTopic }) => {
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: 0 }}>
             Need a bit more context
           </p>
-          <p style={{ fontSize: '11px', color: 'var(--color-paper-light)', margin: 0 }}>
+          <p style={{ fontSize: '11px', color: 'var(--color-paper-mid)', margin: 0 }}>
             Please answer one or more of the questions below so I can build the right research plan.
           </p>
         </div>
@@ -115,7 +115,7 @@ const ClarifyCard = ({ questions = [], onSubmit, onNewTopic }) => {
                 padding: '7px 14px',
                 fontSize: '12px',
                 background: 'transparent',
-                color: 'var(--color-paper-light)',
+                color: 'var(--color-paper-mid)',
                 border: '1px solid var(--color-paper-surface)',
                 borderRadius: '6px',
                 cursor: 'pointer',

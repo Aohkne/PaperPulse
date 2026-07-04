@@ -80,13 +80,13 @@ const SubmitModal = ({ onClose, modalRef }) => {
       {done ? (
         <div style={{ textAlign: 'center', padding: '24px 8px' }}>
           <Icon icon="mdi:check-circle-outline" style={{ fontSize: 36, color: 'var(--color-paper-mid)' }} />
-          <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, color: 'var(--color-paper-dark)', margin: '12px 0 20px' }}>
+          <p style={{ fontFamily: "'Newsreader', serif", fontSize: 15, color: 'var(--color-paper-dark)', margin: '12px 0 20px' }}>
             Your contribution is awaiting admin approval
           </p>
           <button onClick={onClose} style={{
             padding: '8px 20px', borderRadius: 999, border: 'none',
             background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
-            fontFamily: "'Noto Serif', serif", fontSize: 14, cursor: 'pointer',
+            fontFamily: "'Newsreader', serif", fontSize: 14, cursor: 'pointer',
           }}>
             Close
           </button>
@@ -94,7 +94,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
       ) : (
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h3 style={{ fontFamily: "'Noto Serif', serif", fontSize: 17, color: 'var(--color-paper-dark)', margin: 0 }}>Contribute</h3>
+            <h3 style={{ fontFamily: "'Newsreader', serif", fontSize: 17, color: 'var(--color-paper-dark)', margin: 0 }}>Contribute</h3>
             <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)' }}>
               <Icon icon="mdi:close" style={{ fontSize: 18 }} />
             </button>
@@ -108,7 +108,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
             style={{
               width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 10,
               border: '1px solid var(--color-paper-light)', borderRadius: 6,
-              fontFamily: "'Noto Serif', serif", fontSize: 14, color: 'var(--color-paper-dark)',
+              fontFamily: "'Newsreader', serif", fontSize: 14, color: 'var(--color-paper-dark)',
               background: 'var(--color-paper-surface)', outline: 'none',
             }}
           />
@@ -122,7 +122,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
             style={{
               width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 10,
               border: '1px solid var(--color-paper-light)', borderRadius: 6,
-              fontFamily: "'Noto Serif', serif", fontSize: 14, color: 'var(--color-paper-dark)',
+              fontFamily: "'Newsreader', serif", fontSize: 14, color: 'var(--color-paper-dark)',
               background: 'var(--color-paper-surface)', outline: 'none', resize: 'vertical',
             }}
           />
@@ -134,7 +134,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
               style={{
                 width: '100%', boxSizing: 'border-box', padding: '9px 12px', marginBottom: 14,
                 border: '1px solid var(--color-paper-light)', borderRadius: 6,
-                fontFamily: "'Noto Serif', serif", fontSize: 13, color: 'var(--color-paper-mid)',
+                fontFamily: "'Newsreader', serif", fontSize: 13, color: 'var(--color-paper-mid)',
                 background: 'var(--color-paper-surface)',
               }}
             >
@@ -146,7 +146,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
           )}
 
           {submitError && (
-            <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 13, color: '#c0392b', margin: '0 0 10px' }}>{friendlyError(submitError, "Couldn't submit your contribution — please try again.")}</p>
+            <p style={{ fontFamily: "'Newsreader', serif", fontSize: 13, color: '#c0392b', margin: '0 0 10px' }}>{friendlyError(submitError, "Couldn't submit your contribution — please try again.")}</p>
           )}
 
           <button
@@ -155,7 +155,7 @@ const SubmitModal = ({ onClose, modalRef }) => {
             style={{
               width: '100%', padding: '10px 0', borderRadius: 999, border: 'none',
               background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
-              fontFamily: "'Noto Serif', serif", fontSize: 15, cursor: submitLoading ? 'wait' : 'pointer',
+              fontFamily: "'Newsreader', serif", fontSize: 15, cursor: submitLoading ? 'wait' : 'pointer',
             }}
           >
             {submitLoading ? 'Submitting...' : 'Submit contribution'}
@@ -202,10 +202,10 @@ const ContributionCard = ({ contribution, onVote, isAuthenticated, isOwn }) => (
 
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-        <h3 style={{ fontFamily: "'Noto Serif', serif", fontSize: 16, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
+        <h3 style={{ fontFamily: "'Newsreader', serif", fontSize: 16, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
           {contribution.title}
         </h3>
-        <span style={{ fontSize: 12, color: 'var(--color-paper-light)' }}>
+        <span style={{ fontSize: 12, color: 'var(--color-paper-mid)' }}>
           {contribution.author_name || 'Anonymous'} · {relativeDate(contribution.created_at)}
         </span>
       </div>
@@ -224,14 +224,14 @@ const LeaderboardPanel = ({ rows, loading }) => (
     border: '1px solid var(--color-paper-light)', borderRadius: 8,
     padding: '16px 18px', background: 'var(--color-paper-bg)',
   }}>
-    <h3 style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, fontWeight: 500, color: 'var(--color-paper-dark)', margin: '0 0 14px' }}>
+    <h3 style={{ fontFamily: "'Newsreader', serif", fontSize: 15, fontWeight: 500, color: 'var(--color-paper-dark)', margin: '0 0 14px' }}>
       🏆 Leaderboard
     </h3>
-    {loading && <Icon icon="mdi:loading" style={{ fontSize: 18, color: 'var(--color-paper-light)' }} />}
+    {loading && <Icon icon="mdi:loading" style={{ fontSize: 18, color: 'var(--color-paper-mid)' }} />}
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {rows.map((row, i) => (
         <div key={row.user_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: "'Noto Serif', serif", fontSize: 13, color: 'var(--color-paper-light)', width: 20, flexShrink: 0 }}>
+          <span style={{ fontFamily: "'Newsreader', serif", fontSize: 13, color: 'var(--color-paper-mid)', width: 20, flexShrink: 0 }}>
             #{i + 1}
           </span>
           <div style={{
@@ -245,7 +245,7 @@ const LeaderboardPanel = ({ rows, loading }) => (
             <div style={{ fontSize: 13, color: 'var(--color-paper-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {row.full_name || 'Anonymous'}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--color-paper-light)' }}>
+            <div style={{ fontSize: 11, color: 'var(--color-paper-mid)' }}>
               {row.contributions_count} contributions
             </div>
           </div>
@@ -255,7 +255,7 @@ const LeaderboardPanel = ({ rows, loading }) => (
         </div>
       ))}
       {!loading && rows.length === 0 && (
-        <p style={{ fontSize: 13, color: 'var(--color-paper-light)', margin: 0 }}>No data yet.</p>
+        <p style={{ fontSize: 13, color: 'var(--color-paper-mid)', margin: 0 }}>No data yet.</p>
       )}
     </div>
   </div>
@@ -292,17 +292,17 @@ const CommunityPage = () => {
   };
 
   return (
-    <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Newsreader', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
       <SiteHeader />
 
       <div style={{ padding: '32px 24px 60px', paddingTop: 89 }}>
       <div style={{ maxWidth: 920, margin: '0 auto' }}>
         {/* Page title */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <h1 style={{ fontFamily: "'Noto Serif', serif", fontSize: 40, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
+          <h1 style={{ fontFamily: "'Newsreader', serif", fontSize: 40, fontWeight: 500, color: 'var(--color-paper-dark)', margin: 0 }}>
             Built Together
           </h1>
-          <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 15, color: 'var(--color-paper-mid)', margin: '8px 0 0' }}>
+          <p style={{ fontFamily: "'Newsreader', serif", fontSize: 15, color: 'var(--color-paper-mid)', margin: '8px 0 0' }}>
             Contribute, vote, and help build PaperPulse together.
           </p>
         </div>
@@ -315,7 +315,7 @@ const CommunityPage = () => {
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '10px 20px', borderRadius: 999, border: 'none',
               background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
-              fontFamily: "'Noto Serif', serif", fontSize: 15, cursor: 'pointer',
+              fontFamily: "'Newsreader', serif", fontSize: 15, cursor: 'pointer',
             }}
           >
             <Icon icon="mdi:plus" style={{ fontSize: 16 }} />
@@ -334,7 +334,7 @@ const CommunityPage = () => {
                 border: sort === key ? '1px solid var(--color-brand-500)' : '1px solid var(--color-paper-light)',
                 background: sort === key ? 'var(--color-brand-50)' : 'transparent',
                 color: sort === key ? 'var(--color-brand-600)' : 'var(--color-paper-mid)',
-                fontFamily: "'Noto Serif', serif", fontSize: 14, fontWeight: sort === key ? 600 : 400,
+                fontFamily: "'Newsreader', serif", fontSize: 14, fontWeight: sort === key ? 600 : 400,
               }}
             >
               {label}
@@ -345,7 +345,7 @@ const CommunityPage = () => {
         {/* Two-column layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 24, alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {listError && <p style={{ fontFamily: "'Noto Serif', serif", fontSize: 14, color: '#c0392b' }}>{friendlyError(listError, "Couldn't load contributions.")}</p>}
+            {listError && <p style={{ fontFamily: "'Newsreader', serif", fontSize: 14, color: '#c0392b' }}>{friendlyError(listError, "Couldn't load contributions.")}</p>}
 
             <AnimatePresence initial={false}>
               {items.map((c) => (
@@ -360,7 +360,7 @@ const CommunityPage = () => {
             </AnimatePresence>
 
             {!listLoading && items.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif", fontSize: 15 }}>
+              <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", fontSize: 15 }}>
                 No contributions have been approved yet.
               </div>
             )}
@@ -372,7 +372,7 @@ const CommunityPage = () => {
                 style={{
                   padding: '10px', border: '1px solid var(--color-paper-light)', borderRadius: 6,
                   background: 'none', cursor: listLoading ? 'wait' : 'pointer',
-                  fontFamily: "'Noto Serif', serif", fontSize: 13, color: 'var(--color-paper-mid)',
+                  fontFamily: "'Newsreader', serif", fontSize: 13, color: 'var(--color-paper-mid)',
                 }}
               >
                 {listLoading ? 'Loading...' : 'Load more'}

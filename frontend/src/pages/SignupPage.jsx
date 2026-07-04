@@ -9,6 +9,94 @@ import { showError, showSuccess } from '@/shared/utils/toast';
 
 const RESEND_COOLDOWN_S = 60;
 
+// Card chrome shared with LoginPage — kept as plain style objects (not a
+// shared component) since that's how LoginPage already does it. If a third
+// auth page needs this, worth extracting into a shared AuthCard component.
+const cardStyle = {
+  width: '100%',
+  maxWidth: '440px',
+  background: 'var(--color-paper-surface)',
+  border: '1px solid rgba(41, 17, 0, 0.08)',
+  borderRadius: '16px',
+  boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
+  padding: '40px',
+  boxSizing: 'border-box',
+};
+
+const pageStyle = {
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '24px',
+  position: 'relative',
+};
+
+const backLinkStyle = {
+  position: 'absolute',
+  top: 24,
+  left: 28,
+  background: 'none',
+  border: 'none',
+  fontFamily: "'Lora', 'Newsreader', serif",
+  fontSize: '13px',
+  color: 'var(--color-paper-mid)',
+  cursor: 'pointer',
+};
+
+// Uppercase, letter-spaced labels — Lora instead of a sans-serif UI font
+// (Thư's call on the login page, carried over here so both auth pages match).
+const labelStyle = {
+  display: 'block',
+  fontFamily: "'Lora', 'Newsreader', serif",
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--color-paper-mid)',
+  marginBottom: '6px',
+};
+
+const inputStyle = {
+  border: '1px solid rgba(41, 17, 0, 0.12)',
+  borderRadius: '8px',
+  padding: '11px 14px',
+  background: 'var(--color-paper-bg)',
+  fontFamily: "'Newsreader', serif",
+  fontSize: '16px',
+  color: 'var(--color-paper-dark)',
+  width: '100%',
+  boxSizing: 'border-box',
+  outline: 'none',
+  transition: 'border-color 0.15s ease',
+};
+
+const linkStyle = {
+  fontFamily: "'Lora', 'Newsreader', serif",
+  fontSize: '13px',
+  color: 'var(--color-brand-500)',
+  textDecoration: 'underline',
+  cursor: 'pointer',
+};
+
+const primaryButtonStyle = (loading) => ({
+  width: '100%',
+  background: 'var(--color-paper-dark)',
+  color: 'var(--color-paper-surface)',
+  border: 'none',
+  borderRadius: '10px',
+  padding: '13px',
+  fontFamily: "'Lora', 'Newsreader', serif",
+  fontSize: '15px',
+  fontWeight: 600,
+  cursor: loading ? 'not-allowed' : 'pointer',
+  marginTop: '8px',
+  opacity: loading ? 0.7 : 1,
+});
+
+const focusBrand = (e) => (e.target.style.borderColor = 'var(--color-brand-500)');
+const blurDefault = (e) => (e.target.style.borderColor = 'rgba(41, 17, 0, 0.12)');
+
 const SignupPage = () => {
   const navigate = useNavigate();
   const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
@@ -28,19 +116,6 @@ const SignupPage = () => {
   const isDark =
     theme === 'dark' ||
     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-  const inputStyle = {
-    border: '1px solid var(--color-paper-surface)',
-    borderRadius: '2px',
-    padding: '10px 12px',
-    background: 'var(--color-paper-bg)',
-    fontFamily: "'Noto Serif', serif",
-    fontSize: '16px',
-    color: 'var(--color-paper-dark)',
-    width: '100%',
-    boxSizing: 'border-box',
-    outline: 'none',
-  };
 
   const { prompt: promptGoogle } = useGoogleIdentity(async (idToken, nonce) => {
     setGoogleLoading(true);
@@ -114,12 +189,12 @@ const SignupPage = () => {
 
   if (showVerification) {
     return (
-      <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: "'Noto Serif', serif", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ maxWidth: '420px', width: '100%', padding: '48px 24px', textAlign: 'center' }}>
+      <div style={pageStyle}>
+        <div style={{ ...cardStyle, textAlign: 'center' }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
-            background: 'var(--color-paper-surface)',
-            border: '1px solid var(--color-paper-surface)',
+            background: 'var(--color-paper-bg)',
+            border: '1px solid rgba(41, 17, 0, 0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 24px', fontSize: '28px',
           }}>
@@ -128,13 +203,13 @@ const SignupPage = () => {
           <h1 style={{ fontFamily: 'var(--font-inknut)', fontSize: '24px', color: 'var(--color-paper-dark)', margin: '0 0 12px', fontWeight: 500 }}>
             Check your email
           </h1>
-          <p style={{ fontSize: '15px', color: 'var(--color-paper-mid)', margin: '0 0 8px', lineHeight: 1.6 }}>
+          <p style={{ fontFamily: "'Newsreader', serif", fontSize: '15px', color: 'var(--color-paper-mid)', margin: '0 0 8px', lineHeight: 1.6 }}>
             We sent a verification link to
           </p>
-          <p style={{ fontSize: '15px', color: 'var(--color-paper-dark)', fontWeight: 600, margin: '0 0 24px' }}>
+          <p style={{ fontFamily: "'Newsreader', serif", fontSize: '15px', color: 'var(--color-paper-dark)', fontWeight: 600, margin: '0 0 24px' }}>
             {email}
           </p>
-          <p style={{ fontSize: '14px', color: 'var(--color-paper-mid)', lineHeight: 1.6, margin: '0 0 32px' }}>
+          <p style={{ fontFamily: "'Newsreader', serif", fontSize: '14px', color: 'var(--color-paper-mid)', lineHeight: 1.6, margin: '0 0 32px' }}>
             Click the link in your email to activate your account. If you don't see it, check your spam folder.
           </p>
 
@@ -144,15 +219,16 @@ const SignupPage = () => {
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)',
-                border: 'none', borderRadius: '2px',
-                padding: '10px 28px', fontFamily: "'Noto Serif', serif", fontSize: '16px',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--color-paper-dark)', color: 'var(--color-paper-surface)',
+                border: 'none', borderRadius: '10px',
+                padding: '13px', fontFamily: "'Lora', 'Newsreader', serif", fontSize: '15px', fontWeight: 600,
                 cursor: 'pointer', textDecoration: 'none',
               }}
             >
               <Icon icon="mdi:email-outline" style={{ fontSize: '18px' }} />
-              Open email app →
+              Open email app
             </a>
             <button
               type="button"
@@ -160,9 +236,9 @@ const SignupPage = () => {
               disabled={resendCooldown > 0 || resending}
               style={{
                 background: 'none', border: 'none',
-                color: resendCooldown > 0 || resending ? 'var(--color-paper-light)' : 'var(--color-paper-mid)',
+                color: resendCooldown > 0 || resending ? 'var(--color-paper-light)' : 'var(--color-brand-500)',
                 textDecoration: resendCooldown > 0 || resending ? 'none' : 'underline',
-                fontFamily: "'Noto Serif', serif", fontSize: '14px',
+                fontFamily: "'Lora', 'Newsreader', serif", fontSize: '13px',
                 cursor: resendCooldown > 0 || resending ? 'not-allowed' : 'pointer',
                 padding: '4px',
               }}
@@ -176,18 +252,19 @@ const SignupPage = () => {
             <button
               onClick={() => navigate('/login')}
               style={{
-                background: 'transparent', color: 'var(--color-paper-mid)',
-                border: '1px solid var(--color-paper-surface)', borderRadius: '2px',
-                padding: '10px 28px', fontFamily: "'Noto Serif', serif", fontSize: '16px', cursor: 'pointer',
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--color-paper-bg)', color: 'var(--color-paper-dark)',
+                border: '1px solid rgba(41, 17, 0, 0.12)', borderRadius: '10px',
+                padding: '11px', fontFamily: "'Lora', 'Newsreader', serif", fontSize: '14px', cursor: 'pointer',
               }}
             >
               Go to sign in
             </button>
           </div>
 
-          <p style={{ fontSize: '13px', color: 'var(--color-paper-mid)', marginTop: '20px' }}>
+          <p style={{ fontFamily: "'Lora', 'Newsreader', serif", fontSize: '13px', color: 'var(--color-paper-mid)', marginTop: '20px' }}>
             Wrong email?{' '}
-            <span onClick={() => setShowVerification(false)} style={{ color: 'var(--color-paper-dark)', textDecoration: 'underline', cursor: 'pointer' }}>
+            <span onClick={() => setShowVerification(false)} style={linkStyle}>
               Go back
             </span>
           </p>
@@ -197,77 +274,65 @@ const SignupPage = () => {
   }
 
   return (
-    <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: "'Noto Serif', serif" }}>
-      <button
-        onClick={() => navigate('/')}
-        style={{
-          position: 'absolute', top: 0, left: 0, padding: '20px 28px',
-          background: 'none', border: 'none', fontFamily: "'Noto Serif', serif",
-          fontSize: '15px', color: 'var(--color-paper-mid)', cursor: 'pointer',
-        }}
-      >
+    // No explicit background — lets body's dot-grain texture (index.css)
+    // show through around the card, same as LoginPage.
+    <div style={pageStyle}>
+      <button onClick={() => navigate('/')} style={backLinkStyle}>
         ← PaperPulse
       </button>
 
-      <div style={{ maxWidth: '400px', margin: '0 auto', paddingTop: '80px', paddingBottom: '60px', paddingLeft: '24px', paddingRight: '24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <img
-            src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
-            alt="PaperPulse"
-            style={{ height: '48px', width: 'auto' }}
-          />
-        </div>
+      <div style={cardStyle}>
+        <img
+          src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
+          alt="PaperPulse"
+          style={{ height: '32px', width: 'auto', display: 'block', marginBottom: '20px' }}
+        />
 
         <h1 style={{
-          fontFamily: 'var(--font-inknut)', fontSize: '26px', color: 'var(--color-paper-dark)',
-          textAlign: 'center', margin: '20px 0 8px', fontWeight: 500,
+          fontFamily: 'var(--font-inknut)',
+          fontSize: '24px',
+          fontWeight: 500,
+          color: 'var(--color-paper-dark)',
+          margin: '0 0 24px',
         }}>
-          Start your research
+          Start your research.
         </h1>
-        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', margin: '0 0 32px' }}>
-          Create your PaperPulse account
-        </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-              Full name
-            </label>
+            <label style={labelStyle}>Full name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onFocus={(e) => e.target.style.borderColor = 'var(--color-paper-mid)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--color-paper-surface)'}
+              onFocus={focusBrand}
+              onBlur={blurDefault}
               style={inputStyle}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-              Email
-            </label>
+            <label style={labelStyle}>Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onFocus={(e) => e.target.style.borderColor = 'var(--color-paper-mid)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--color-paper-surface)'}
+              placeholder="you@example.com"
+              onFocus={focusBrand}
+              onBlur={blurDefault}
               style={inputStyle}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-              Password
-            </label>
+            <label style={labelStyle}>Password</label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onFocus={(e) => e.target.style.borderColor = 'var(--color-paper-mid)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--color-paper-surface)'}
+                onFocus={focusBrand}
+                onBlur={blurDefault}
                 style={{ ...inputStyle, paddingRight: '40px' }}
               />
               <button
@@ -286,16 +351,14 @@ const SignupPage = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-              Confirm password
-            </label>
+            <label style={labelStyle}>Confirm password</label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showConfirm ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                onFocus={(e) => e.target.style.borderColor = 'var(--color-paper-mid)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--color-paper-surface)'}
+                onFocus={focusBrand}
+                onBlur={blurDefault}
                 style={{ ...inputStyle, paddingRight: '40px' }}
               />
               <button
@@ -313,25 +376,16 @@ const SignupPage = () => {
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%', background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)', border: 'none',
-              borderRadius: '2px', padding: '11px', fontFamily: "'Noto Serif', serif",
-              fontSize: '17px', cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: '4px', opacity: loading ? 0.7 : 1,
-            }}
-          >
-            {loading ? 'Creating account…' : 'Create account →'}
+          <button type="submit" disabled={loading} style={primaryButtonStyle(loading)}>
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
-            <span style={{ fontSize: '13px', color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif" }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(41, 17, 0, 0.08)' }} />
+            <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)', fontFamily: "'Lora', 'Newsreader', serif" }}>
               or continue with
             </span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'rgba(41, 17, 0, 0.08)' }} />
           </div>
 
           <button
@@ -339,11 +393,19 @@ const SignupPage = () => {
             onClick={handleGoogleLogin}
             disabled={googleLoading}
             style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: '10px', padding: '10px', background: 'var(--color-paper-bg)',
-              border: '1px solid var(--color-paper-surface)', borderRadius: '2px',
-              cursor: googleLoading ? 'not-allowed' : 'pointer', opacity: googleLoading ? 0.7 : 1,
-              fontFamily: "'Noto Serif', serif", fontSize: '15px',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '11px',
+              background: 'var(--color-paper-bg)',
+              border: '1px solid rgba(41, 17, 0, 0.12)',
+              borderRadius: '10px',
+              cursor: googleLoading ? 'not-allowed' : 'pointer',
+              opacity: googleLoading ? 0.7 : 1,
+              fontFamily: "'Lora', 'Newsreader', serif",
+              fontSize: '14px',
               color: 'var(--color-paper-dark)',
             }}
           >
@@ -357,12 +419,9 @@ const SignupPage = () => {
           </button>
         </form>
 
-        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '20px' }}>
+        <p style={{ fontFamily: "'Lora', 'Newsreader', serif", fontSize: '13px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '24px' }}>
           Already have an account?{' '}
-          <span
-            onClick={() => navigate('/login')}
-            style={{ color: 'var(--color-paper-dark)', textDecoration: 'underline', cursor: 'pointer' }}
-          >
+          <span onClick={() => navigate('/login')} style={linkStyle}>
             Sign in
           </span>
         </p>

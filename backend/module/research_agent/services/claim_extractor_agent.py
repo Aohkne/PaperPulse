@@ -1,7 +1,7 @@
-"""Step ⑦ — LLM agent: extract factual claims with source paper IDs.
+"""Step ⑤ — LLM agent: extract factual claims with source paper IDs.
 
 Strategy:
-  1. Regex fast-path: parse "(Source: PAPER_ID)" citations inline  → O(n), no LLM call
+  1. Regex fast-path: parse "[[PAPER_ID]]" citations inline  → O(n), no LLM call
   2. LLM fallback   : used when content has no inline citations
 
 Input : raw content string from content agent
@@ -16,7 +16,9 @@ import re
 from backend.shared.models.claim import Claim
 from backend.shared.services.llm_client import chat_completion
 
-_INLINE_RE = re.compile(r"\(Source:\s*([A-Za-z0-9]+)\)")
+# Matches the hard [[PAPER_ID]] citation token emitted by content_agent. The
+# char class includes '_' to cover OpenAlex synthetic ids (OA_...).
+_INLINE_RE = re.compile(r"\[\[([A-Za-z0-9_]+)\]\]")
 
 _SYSTEM = "You are a claim extractor. Extract every factual claim from the text and its source paper ID."
 
@@ -32,7 +34,7 @@ Respond ONLY with the JSON array, no extra text."""
 
 
 def _regex_fast_path(content: str) -> list[Claim]:
-    """Parse (Source: ID) inline citations without an LLM call."""
+    """Parse [[ID]] inline citations without an LLM call."""
     claims: list[Claim] = []
     for sentence in re.split(r"(?<=[.!?])\s+", content):
         m = _INLINE_RE.search(sentence)

@@ -1,5 +1,5 @@
-"""POST/GET /api/billing/* — subscription + top-up checkout via PayOS,
-quota status, and the PayOS webhook (payment_SPEC_2.0.md).
+"""POST/GET /api/billing/* — subscription checkout via PayOS, credit-pool
+status, and the PayOS webhook (token-weighted billing — no top-up).
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from backend.module.payment.schemas import (
     BillingAccountResponse,
     CheckoutResponse,
     CheckoutSubscriptionRequest,
-    CheckoutTopupRequest,
     DowngradeRequest,
     TransactionStatusResponse,
 )
@@ -53,25 +52,12 @@ async def checkout_subscription(body: CheckoutSubscriptionRequest, user: Any = D
     )
 
 
-@router.post("/checkout/topup", response_model=CheckoutResponse)
-async def checkout_topup(body: CheckoutTopupRequest, user: Any = Depends(get_current_user)):
-    pack = pricing.TOPUP_PACKS[body.pack]
-    return await _checkout(
-        user_id=str(user.id),
-        type_="topup",
-        amount_vnd=pack["price_vnd"],
-        description=pricing.TOPUP_DESCRIPTIONS[body.pack],
-        topup_pack=body.pack,
-    )
-
-
 async def _checkout(
     user_id: str,
     type_: str,
     amount_vnd: int,
     description: str,
     tier: str | None = None,
-    topup_pack: str | None = None,
 ) -> CheckoutResponse:
     settings = get_settings()
     order_code = await billing_db.next_order_code()
@@ -81,7 +67,6 @@ async def _checkout(
         amount_vnd=amount_vnd,
         payos_order_code=order_code,
         tier=tier,
-        topup_pack=topup_pack,
     )
 
     return_url = f"{settings.frontend_base_url}/app/billing?status=success"

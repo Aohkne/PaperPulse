@@ -30,53 +30,58 @@ const ColdStartInput = ({ onSubmit }) => {
   };
 
   return (
+    // No border — paper-surface is near-white, so a 1px border in that
+    // color read as a plain white outline. The boxShadow alone already
+    // separates this card from the page behind it.
     <section style={{
-      border: '1px solid var(--color-paper-surface)',
       borderRadius: '14px',
       background: 'var(--color-paper-bg)',
       boxShadow: '0 10px 28px rgba(41, 17, 0, 0.05)',
       overflow: 'hidden',
     }}>
-      <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--color-paper-surface)' }}>
+      <div style={{ padding: '18px 20px 14px' }}>
         <UsageExhaustedBanner feature="gap" />
-        <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-paper-light)', marginBottom: '6px' }}>
+        <div style={{ fontFamily: 'var(--font-inknut)', fontSize: '13px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--color-paper-mid)', marginBottom: '6px' }}>
           Topic
         </div>
-        <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-dark)', marginBottom: '10px' }}>
+        <div style={{ fontFamily: "'Newsreader', serif", fontSize: '15px', color: 'var(--color-paper-dark)', marginBottom: '10px' }}>
           Describe the research area you want to analyze.
         </div>
 
+        {/* Same color treatment as ChatInput.jsx: paper-surface bg (bright,
+            distinct from the card's own paper-bg) + a barely-there border
+            instead of a visible outline + focus glow. No focus-ring swap
+            either — matches how the chat box handles focus (it doesn't
+            visually react at all; the pill shape itself is the affordance). */}
         <textarea
           id="gap-topic-input"
+          className="themed-scroll"
           value={topic}
           onChange={(e) => { setTopic(e.target.value); if (gapRejected) useGapStore.setState({ gapRejected: null }); }}
           onKeyDown={handleKeyDown}
           disabled={gapLoading || quotaExhausted}
           placeholder={quotaExhausted ? 'Quota used up for this period…' : 'Enter research topic... (e.g. transformer long-context NLP)'}
-          rows={4}
+          rows={2}
           style={{
             width: '100%',
-            minHeight: '110px',
+            minHeight: '56px',
             padding: '12px 14px',
-            fontSize: '14px',
+            fontSize: '15px',
             lineHeight: '1.65',
-            border: '1px solid var(--color-paper-surface)',
-            borderRadius: '10px',
+            border: '1px solid rgba(41, 17, 0, 0.08)',
+            borderRadius: '14px',
             resize: 'vertical',
-            fontFamily: "'Noto Serif', serif",
+            fontFamily: "'Newsreader', serif",
             color: 'var(--color-paper-dark)',
-            background: gapLoading || quotaExhausted ? 'var(--color-paper-surface)' : 'var(--color-paper-bg)',
+            background: 'var(--color-paper-surface)',
             outline: 'none',
             boxSizing: 'border-box',
-            transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
-          onFocus={(e) => { e.target.style.borderColor = 'var(--color-paper-light)'; e.target.style.boxShadow = '0 0 0 3px rgba(181, 162, 63, 0.16)'; }}
-          onBlur={(e) => { e.target.style.borderColor = 'var(--color-paper-surface)'; e.target.style.boxShadow = 'none'; }}
         />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, fontFamily: "'Noto Serif', serif", fontSize: '12px', color: 'var(--color-paper-light)' }}>
+            <p style={{ margin: 0, fontFamily: "'Newsreader', serif", fontSize: '13px', color: 'var(--color-paper-mid)' }}>
             Ctrl+Enter to submit
             </p>
           </div>
@@ -92,16 +97,24 @@ const ColdStartInput = ({ onSubmit }) => {
               justifyContent: 'center',
               gap: '6px',
               padding: '9px 16px',
-              fontFamily: "'Noto Serif', serif",
-              fontSize: '13px',
+              fontFamily: "'Newsreader', serif",
+              fontSize: '14px',
               fontWeight: 600,
-              background: disabled ? 'var(--color-paper-surface)' : 'var(--color-paper-mid)',
-              color: disabled ? 'var(--color-paper-light)' : 'var(--color-paper-bg)',
-              border: disabled ? '1px solid var(--color-paper-surface)' : '1px solid var(--color-paper-mid)',
+              // Always the same brand-green fill as the Send button in the
+              // chat UI (ChatInput.jsx) — same background/text color family
+              // whether ready, loading, or not-yet-valid — so "Find Gaps"
+              // reads as the same primary-action control everywhere in the
+              // app. Not-ready state is communicated with opacity instead of
+              // swapping to a different (and low-contrast) color scheme —
+              // same disabled convention LoginPage's "Sign in" button uses.
+              background: 'var(--color-paper-mid)',
+              color: 'var(--color-paper-bg)',
+              border: '1px solid var(--color-paper-mid)',
               borderRadius: '10px',
-              cursor: disabled ? 'default' : 'pointer',
-              transition: 'background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s',
-              boxShadow: disabled ? 'none' : '0 8px 18px rgba(90, 107, 51, 0.18)',
+              opacity: disabled && !gapLoading ? 0.55 : 1,
+              cursor: gapLoading ? 'wait' : disabled ? 'not-allowed' : 'pointer',
+              transition: 'background 0.15s, border-color 0.15s, opacity 0.15s, box-shadow 0.15s',
+              boxShadow: disabled && !gapLoading ? 'none' : '0 8px 18px rgba(90, 107, 51, 0.18)',
             }}
             onMouseEnter={(e) => {
               if (!disabled) {
@@ -117,8 +130,8 @@ const ColdStartInput = ({ onSubmit }) => {
             }}
           >
             {gapLoading
-              ? <><Icon icon="mdi:loading" style={{ fontSize: '13px', color: 'var(--color-paper-bg)', animation: 'spin 1s linear infinite' }} /> Analyzing...</>
-              : <><Icon icon="mdi:lightbulb-search-outline" style={{ fontSize: '13px' }} /> Find Gaps</>
+              ? <><Icon icon="mdi:loading" style={{ fontSize: '14px', color: 'var(--color-paper-bg)', animation: 'spin 1s linear infinite', flexShrink: 0 }} /> Analyzing...</>
+              : <><Icon icon="mdi:lightbulb-search-outline" style={{ fontSize: '14px' }} /> Find Gaps</>
             }
           </button>
         </div>
@@ -138,9 +151,9 @@ const ColdStartInput = ({ onSubmit }) => {
           }}>
             <Icon
               icon={gapRejected.reason === 'injection' ? 'mdi:shield-alert-outline' : 'mdi:information-outline'}
-              style={{ fontSize: '16px', color: gapRejected.reason === 'injection' ? '#8B4A2F' : 'var(--color-paper-mid)', flexShrink: 0, marginTop: '1px' }}
+              style={{ fontSize: '17px', color: gapRejected.reason === 'injection' ? '#8B4A2F' : 'var(--color-paper-mid)', flexShrink: 0, marginTop: '1px' }}
             />
-            <p style={{ margin: 0, fontFamily: "'Noto Serif', serif", fontSize: '13px', lineHeight: '1.6', color: 'var(--color-paper-dark)' }}>
+            <p style={{ margin: 0, fontFamily: "'Newsreader', serif", fontSize: '14px', lineHeight: '1.6', color: 'var(--color-paper-dark)' }}>
               {gapRejected.message}
             </p>
           </div>

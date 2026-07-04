@@ -31,7 +31,6 @@ async def build_graph_node(state: ResearchState) -> dict:
         knowledge_graph = build_knowledge_graph(
             query=query,
             papers=papers,
-            citation_edges=state.get("citation_edges", []),
             theme_contents=state.get("theme_contents", []),
             included_claims=included,
             review_claims=review,

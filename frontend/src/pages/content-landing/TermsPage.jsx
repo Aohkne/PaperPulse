@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import SiteHeader from '@/shared/components/layout/SiteHeader';
 import ContentFooter from './_shared/ContentFooter';
+import { dotGridBg } from '@/shared/utils/dotGridBg';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 22 },
@@ -15,20 +16,23 @@ const scrollUp = (delay = 0) => ({
   transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1], delay },
 });
 
-const prose = { fontSize: 16, lineHeight: 1.85, color: 'var(--color-paper-mid)', margin: '0 0 16px' };
+const prose = { fontSize: 17, lineHeight: 1.85, color: 'var(--color-paper-mid)', margin: '0 0 16px' };
 const h2Style = {
   fontFamily: 'var(--font-inknut)', fontSize: 20, fontWeight: 500,
   color: 'var(--color-paper-dark)', margin: '40px 0 12px',
 };
 
 const TermsPage = () => (
-  <div style={{ fontFamily: "'Noto Serif', serif", background: 'var(--color-paper-bg)', minHeight: '100vh' }}>
+  // --color-landing-tone-1 + re-added dot-grain — matches
+  // SiteHeader/SiteFooter/ContentFooter in both themes now, so the page
+  // doesn't read as a separate strip between them.
+  <div style={{ ...dotGridBg('--color-landing-tone-1'), fontFamily: "'Newsreader', serif", minHeight: '100vh' }}>
     <SiteHeader />
 
     <div style={{ paddingTop: 57 }}>
       <article style={{ maxWidth: 720, margin: '0 auto', padding: '80px 24px 80px' }}>
         <motion.p {...fadeUp(0.1)} style={{
-          fontSize: 13, color: 'var(--color-paper-light)',
+          fontSize: 13, color: 'var(--color-paper-mid)',
           letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 16px',
         }}>
           Legal
@@ -42,12 +46,12 @@ const TermsPage = () => (
         </motion.h1>
 
         <motion.p {...fadeUp(0.3)} style={{
-          fontSize: 14, color: 'var(--color-paper-light)', margin: '0 0 48px',
+          fontSize: 14, color: 'var(--color-paper-mid)', margin: '0 0 48px',
         }}>
           Last updated: June 23, 2026
         </motion.p>
 
-        <div style={{ borderTop: '1px solid var(--color-paper-surface)', marginBottom: 8 }} />
+        <div style={{ borderTop: '1px solid rgba(41, 17, 0, 0.08)', marginBottom: 8 }} />
 
         <motion.div {...scrollUp(0.1)}>
           <h2 style={h2Style}>1. Acceptance of Terms</h2>

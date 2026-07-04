@@ -2,11 +2,11 @@ import { Icon } from '@iconify/react';
 import GapSection from '@/features/gap/GapSection';
 
 const ResearchPage = () => (
-  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
+  <div className="themed-scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
     {/* Toolbar */}
     <div style={{
       position: 'sticky', top: 0, zIndex: 10,
-      flexShrink: 0, borderBottom: '1px solid var(--color-paper-light)',
+      flexShrink: 0, boxShadow: '0 1px 3px rgba(41, 17, 0, 0.08)',
       padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px',
       background: 'var(--color-paper-bg)',
     }}>
@@ -24,7 +24,10 @@ const ResearchPage = () => (
           color: 'var(--color-paper-mid)', cursor: 'pointer',
         }}
       >
-        <Icon icon="mdi:help-circle-outline" style={{ width: 16, height: 16 }} />
+        {/* Plain "?" glyph (mdi:help), not mdi:help-circle-outline — that
+            icon already draws its own circle, which doubled up with this
+            button's own circular border into a nested ring-in-a-ring look. */}
+        <Icon icon="mdi:help" style={{ width: 14, height: 14 }} />
       </button>
     </div>
 

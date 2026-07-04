@@ -25,7 +25,7 @@ const UsageExhaustedBanner = ({ feature = 'lr' }) => {
       maxWidth: '680px', margin: '0 auto 10px',
       padding: '8px 14px', borderRadius: '4px',
       background: 'var(--color-brand-50)', border: '1px solid var(--color-brand-100)',
-      fontFamily: "'Noto Serif', serif", fontSize: '13px', color: 'var(--color-brand-600)',
+      fontFamily: "'Newsreader', serif", fontSize: '13px', color: 'var(--color-brand-600)',
     }}>
       <span>
         You've used up your {FEATURE_LABELS[feature]} quota for this period. It resets on {formatResetTime(account.tier_period_end)}.

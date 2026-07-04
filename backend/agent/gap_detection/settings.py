@@ -30,9 +30,26 @@ _DEFAULT_SPECTER_BACKOFF_BASE = 2.0  # exponential backoff base (seconds)
 _DEFAULT_FALSE_GAP_THRESHOLD = 0.15  # cosine distance < 0.15 → probable existing research
 _DEFAULT_TOP_K_GAPS = 7  # default number of top gaps returned after quality ranking
 _DEFAULT_INTENT_OFF_PENALTY = 0.7  # quality_score multiplier for gaps whose topic diverges from user_intent
+_DEFAULT_GAP_DEDUP_JACCARD = 0.6  # supporting-paper overlap threshold for gap dedup clusters
+_DEFAULT_DENSITY_MIN_PAPERS = 3  # row/column paper-count threshold for trusted density cells
+_DEFAULT_GAP_DIVERSITY_THRESHOLD = 0.85  # cosine similarity threshold for grouping near-duplicate gaps
+_DEFAULT_GAP_DIVERSITY_ENABLED = True  # enable semantic cluster diversity selection in synthesizer top-k
+_DEFAULT_GAP_DIVERSITY_POOL = 20  # max number of quality-ranked gaps sent to the LLM grouping step
+_DEFAULT_GAP_DIVERSITY_LLM_TEMPERATURE = 0.2  # low-temperature grouping for stable research-direction clusters
+_DEFAULT_SELF_CONSISTENCY_ENABLED = True  # enable post-selection re-judging of top-N gaps
+_DEFAULT_SELF_CONSISTENCY_PENALTY = 0.3  # quality_score/confidence multiplier for unstable (low-vote) top-N gaps
+_DEFAULT_SELF_CONSISTENCY_K = 3  # number of independent self-consistency samples for final top-N gaps
+_DEFAULT_SELF_CONSISTENCY_MIN_VOTES = 2  # minimum yes votes required to avoid low-confidence downgrade
+_DEFAULT_DETECTOR_SAMPLE_TEMPERATURE = 0.6  # moderate sampling temperature for detector/self-consistency re-judging
+_DEFAULT_COUNTER_CRITIQUE_ENABLED = True  # enable lightweight critic review of the final top-3 gaps
+_DEFAULT_COUNTER_CRITIQUE_MODERATE_PENALTY = 0.6  # downgrade factor for moderately-criticized top gaps
+_DEFAULT_COUNTER_CRITIQUE_BACKFILL = False  # refill dropped critique gaps from later candidates (disabled by default)
 _DEFAULT_FIELDS_OF_STUDY = "Computer Science"
-_DEFAULT_ARXIV_ENABLED = True
-_DEFAULT_ARXIV_SEARCH_LIMIT = 20  # arXiv papers per query (supplement to S2)
+_DEFAULT_UNPAYWALL_ENABLED = True
+_DEFAULT_UNPAYWALL_EMAIL = "duybao04042004@gmail.com"
+_DEFAULT_OPENALEX_ENABLED = True
+_DEFAULT_OPENALEX_SEARCH_LIMIT = 20  # OpenAlex papers per query (replaces arXiv supplement)
+_DEFAULT_OPENALEX_MAILTO = "duybao04042004@gmail.com"  # polite pool: 10 req/s
 
 
 def get_default_fields_of_study() -> list[str] | None:
@@ -202,6 +219,136 @@ def get_false_gap_threshold() -> float:
         return _DEFAULT_FALSE_GAP_THRESHOLD
 
 
+def get_gap_dedup_jaccard() -> float:
+    """Return supporting-paper Jaccard threshold for gap dedup. Configurable via GAP_DEDUP_JACCARD env var."""
+    val = os.environ.get("GAP_DEDUP_JACCARD")
+    if val is None:
+        return _DEFAULT_GAP_DEDUP_JACCARD
+    try:
+        return max(0.0, min(1.0, float(val)))
+    except ValueError:
+        return _DEFAULT_GAP_DEDUP_JACCARD
+
+
+def get_density_min_papers() -> int:
+    """Return the trusted-cell row/column threshold. Configurable via DENSITY_MIN_PAPERS env var."""
+    val = os.environ.get("DENSITY_MIN_PAPERS")
+    if val is None:
+        return _DEFAULT_DENSITY_MIN_PAPERS
+    try:
+        return max(1, int(val))
+    except ValueError:
+        return _DEFAULT_DENSITY_MIN_PAPERS
+
+
+def get_gap_diversity_threshold() -> float:
+    """Return cosine threshold for grouping semantically similar gaps. Configurable via GAP_DIVERSITY_THRESHOLD env var."""
+    val = os.environ.get("GAP_DIVERSITY_THRESHOLD")
+    if val is None:
+        return _DEFAULT_GAP_DIVERSITY_THRESHOLD
+    try:
+        return max(0.0, min(1.0, float(val)))
+    except ValueError:
+        return _DEFAULT_GAP_DIVERSITY_THRESHOLD
+
+
+def is_gap_diversity_enabled() -> bool:
+    """Return True when semantic diversity selection is active in synthesizer top-k."""
+    return os.getenv("GAP_DIVERSITY_ENABLED", "true").lower() not in ("false", "0", "no")
+
+
+def get_gap_diversity_pool() -> int:
+    """Return max candidate pool size for LLM diversity grouping. Configurable via GAP_DIVERSITY_POOL env var."""
+    val = os.environ.get("GAP_DIVERSITY_POOL")
+    if val is None:
+        return _DEFAULT_GAP_DIVERSITY_POOL
+    try:
+        return max(1, int(val))
+    except ValueError:
+        return _DEFAULT_GAP_DIVERSITY_POOL
+
+
+def get_gap_diversity_llm_temperature() -> float:
+    """Return temperature for LLM diversity grouping. Configurable via GAP_DIVERSITY_LLM_TEMPERATURE env var."""
+    val = os.environ.get("GAP_DIVERSITY_LLM_TEMPERATURE")
+    if val is None:
+        return _DEFAULT_GAP_DIVERSITY_LLM_TEMPERATURE
+    try:
+        return max(0.0, min(1.0, float(val)))
+    except ValueError:
+        return _DEFAULT_GAP_DIVERSITY_LLM_TEMPERATURE
+
+
+def is_self_consistency_enabled() -> bool:
+    """Return True when post-selection self-consistency confirmation is active."""
+    return os.getenv("SELF_CONSISTENCY_ENABLED", "true").lower() not in ("false", "0", "no")
+
+
+def get_self_consistency_penalty() -> float:
+    """Return quality_score/confidence multiplier applied to unstable (low-vote) top-N gaps. Configurable via SELF_CONSISTENCY_PENALTY env var."""
+    val = os.environ.get("SELF_CONSISTENCY_PENALTY")
+    if val is None:
+        return _DEFAULT_SELF_CONSISTENCY_PENALTY
+    try:
+        return max(0.0, min(1.0, float(val)))
+    except ValueError:
+        return _DEFAULT_SELF_CONSISTENCY_PENALTY
+
+
+def get_self_consistency_k() -> int:
+    """Return number of self-consistency samples. Configurable via SELF_CONSISTENCY_K env var."""
+    val = os.environ.get("SELF_CONSISTENCY_K")
+    if val is None:
+        return _DEFAULT_SELF_CONSISTENCY_K
+    try:
+        return max(1, int(val))
+    except ValueError:
+        return _DEFAULT_SELF_CONSISTENCY_K
+
+
+def get_self_consistency_min_votes() -> int:
+    """Return minimum yes votes needed to avoid downgrade. Configurable via SELF_CONSISTENCY_MIN_VOTES env var."""
+    val = os.environ.get("SELF_CONSISTENCY_MIN_VOTES")
+    if val is None:
+        return _DEFAULT_SELF_CONSISTENCY_MIN_VOTES
+    try:
+        return max(1, int(val))
+    except ValueError:
+        return _DEFAULT_SELF_CONSISTENCY_MIN_VOTES
+
+
+def get_detector_sample_temperature() -> float:
+    """Return sampling temperature for detector/self-consistency re-judging. Configurable via DETECTOR_SAMPLE_TEMPERATURE env var."""
+    val = os.environ.get("DETECTOR_SAMPLE_TEMPERATURE")
+    if val is None:
+        return _DEFAULT_DETECTOR_SAMPLE_TEMPERATURE
+    try:
+        return max(0.0, min(1.0, float(val)))
+    except ValueError:
+        return _DEFAULT_DETECTOR_SAMPLE_TEMPERATURE
+
+
+def is_counter_critique_enabled() -> bool:
+    """Return True when the top-3 counter-critique gate is active."""
+    return os.getenv("COUNTER_CRITIQUE_ENABLED", "true").lower() not in ("false", "0", "no")
+
+
+def get_counter_critique_moderate_penalty() -> float:
+    """Return downgrade factor for moderate critique verdicts. Configurable via COUNTER_CRITIQUE_MODERATE_PENALTY env var."""
+    val = os.environ.get("COUNTER_CRITIQUE_MODERATE_PENALTY")
+    if val is None:
+        return _DEFAULT_COUNTER_CRITIQUE_MODERATE_PENALTY
+    try:
+        return max(0.0, min(1.0, float(val)))
+    except ValueError:
+        return _DEFAULT_COUNTER_CRITIQUE_MODERATE_PENALTY
+
+
+def is_counter_critique_backfill_enabled() -> bool:
+    """Return True when dropped critique gaps should be backfilled from later candidates."""
+    return os.getenv("COUNTER_CRITIQUE_BACKFILL", "false").lower() not in ("false", "0", "no")
+
+
 def get_nim_retry_max() -> int:
     """Return max retry attempts for NIM API 429. Configurable via NIM_RETRY_MAX env var."""
     val = os.environ.get("NIM_RETRY_MAX")
@@ -229,20 +376,35 @@ def is_query_analyzer_enabled() -> bool:
     return os.getenv("QUERY_ANALYZER_ENABLED", "true").lower() not in ("false", "0", "no")
 
 
-def is_arxiv_enabled() -> bool:
-    """Return True when arXiv supplement retrieval is active. Configurable via ARXIV_ENABLED env var."""
-    return os.getenv("ARXIV_ENABLED", "true").lower() not in ("false", "0", "no")
+def is_unpaywall_enabled() -> bool:
+    """Return True when the extractor may query Unpaywall after the primary PDF path fails."""
+    return os.getenv("UNPAYWALL_ENABLED", str(_DEFAULT_UNPAYWALL_ENABLED).lower()).lower() not in ("false", "0", "no")
 
 
-def get_arxiv_search_limit() -> int:
-    """Return max arXiv papers fetched per query. Configurable via ARXIV_SEARCH_LIMIT env var."""
-    val = os.environ.get("ARXIV_SEARCH_LIMIT")
+def get_unpaywall_email() -> str:
+    """Return the email used for Unpaywall API requests. Configurable via UNPAYWALL_EMAIL env var."""
+    return os.getenv("UNPAYWALL_EMAIL", _DEFAULT_UNPAYWALL_EMAIL).strip()
+
+
+def is_openalex_enabled() -> bool:
+    """Return True when OpenAlex retrieval is active. Configurable via OPENALEX_ENABLED env var."""
+    return os.getenv("OPENALEX_ENABLED", "true").lower() not in ("false", "0", "no")
+
+
+def get_openalex_search_limit() -> int:
+    """Return max OpenAlex papers fetched per query. Configurable via OPENALEX_SEARCH_LIMIT env var."""
+    val = os.environ.get("OPENALEX_SEARCH_LIMIT")
     if val is None:
-        return _DEFAULT_ARXIV_SEARCH_LIMIT
+        return _DEFAULT_OPENALEX_SEARCH_LIMIT
     try:
         return max(1, int(val))
     except ValueError:
-        return _DEFAULT_ARXIV_SEARCH_LIMIT
+        return _DEFAULT_OPENALEX_SEARCH_LIMIT
+
+
+def get_openalex_mailto() -> str:
+    """Return the email for OpenAlex polite pool requests. Configurable via OPENALEX_MAILTO env var."""
+    return os.getenv("OPENALEX_MAILTO", _DEFAULT_OPENALEX_MAILTO).strip()
 
 
 def get_nim_upsert_concurrency() -> int:

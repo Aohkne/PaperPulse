@@ -45,13 +45,6 @@ export const billingApi = {
       body: JSON.stringify({ tier }),
     }),
 
-  checkoutTopup: (token, pack) =>
-    _req(E.CHECKOUT_TOPUP, {
-      method: 'POST',
-      headers: authHeaders(token),
-      body: JSON.stringify({ pack }),
-    }),
-
   downgrade: (token, tier) =>
     _req(E.DOWNGRADE, {
       method: 'POST',

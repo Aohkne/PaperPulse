@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import math
 
+from backend.agent.gap_detection.settings import get_density_min_papers
 from backend.shared.models.paper import Paper
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ _MAX_NEIGHBOURS = 5
 # ── Stage D-b/D-c: Coverage + Density ───────────────────────────────
 
 # ≥N papers in both method-row AND domain-column → cell trusted for co-occurrence.
-DENSITY_MIN_PAPERS = 3
+DENSITY_MIN_PAPERS = get_density_min_papers()
 
 # Corpus size at which coverage heuristic ≈ saturated (linear proxy).
 _SATURATION_TARGET = 20
@@ -291,7 +292,7 @@ def density_readiness(
 
     Args:
         corpus:     Paper corpus. Empty list → empty result, no crash.
-        min_papers: Row/column threshold (default DENSITY_MIN_PAPERS = 3).
+        min_papers: Row/column threshold (default DENSITY_MIN_PAPERS = get_density_min_papers()).
 
     Returns:
         {

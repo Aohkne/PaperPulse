@@ -11,7 +11,7 @@ const TypingPill = () => (
     padding: '8px 12px',
     background: 'var(--color-paper-surface)',
     border: '1px solid var(--color-paper-light)',
-    borderRadius: '4px',
+    borderRadius: '16px',
     minHeight: '38px',
   }}>
     <motion.div
@@ -22,7 +22,7 @@ const TypingPill = () => (
       <Icon icon="mdi:loading" style={{ fontSize: '13px', color: 'var(--color-brand-500)' }} />
     </motion.div>
     <span style={{
-      fontFamily: "'Noto Serif', serif",
+      fontFamily: "'Newsreader', serif",
       fontSize: '13px',
       fontStyle: 'italic',
       color: 'var(--color-paper-dark)',
@@ -48,7 +48,7 @@ const TypingIndicator = ({ inline = false }) => {
       <div style={{
         width: '28px', height: '28px',
         backgroundColor: 'var(--color-paper-mid)',
-        borderRadius: '4px',
+        borderRadius: '10px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
       }}>

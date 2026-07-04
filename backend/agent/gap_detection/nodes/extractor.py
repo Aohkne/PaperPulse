@@ -25,12 +25,18 @@ from backend.agent.gap_detection.schemas import (
     GapDetectionState,
     PaperRef,
 )
-from backend.agent.gap_detection.settings import get_extractor_concurrency
+from backend.agent.gap_detection.services.unpaywall import get_oa_pdf_url
+from backend.agent.gap_detection.settings import (
+    get_extractor_concurrency,
+    get_unpaywall_email,
+    is_unpaywall_enabled,
+)
 from backend.shared.services.llm_client import chat_completion
 from backend.shared.services.semantic_scholar import get_embeddings_batch
 
 logger = logging.getLogger(__name__)
 _ARXIV_SOURCE = "arxiv"
+_OPENALEX_SOURCE = "openalex"
 
 # ── Default concurrency (kept for backward compat; runtime value from settings) ──
 
@@ -152,13 +158,15 @@ async def _process_one_paper(
 ) -> ExtractedPaperData | None:
     """Fetch detail → try PDF full-text → fallback abstract → LLM extract."""
     async with semaphore:
-        is_arxiv_only = _is_arxiv_only(paper_ref)
+        use_local_abstract = _is_arxiv_only(paper_ref) or _is_openalex_only(paper_ref)
         detail: dict[str, Any] | None = None
         raw_abstract: str | None = paper_ref.abstract or None
         pdf_url: str | None = None
+        doi: str | None = paper_ref.doi or None
 
-        # 1. Fetch metadata from Semantic Scholar unless this is an arXiv-only paper.
-        if not is_arxiv_only:
+        # 1. Fetch metadata from Semantic Scholar unless this is a source-local paper
+        #    (arXiv-only or OpenAlex-only) that won't have an S2 record.
+        if not use_local_abstract:
             detail = await get_paper_detail(paper_ref.paper_id)
             if detail is None:
                 logger.warning("Fetch failed for paper %s — skipping", paper_ref.paper_id)
@@ -168,13 +176,16 @@ async def _process_one_paper(
             #     persisted independently of what the LLM extracts (TIP-G06-R).
             raw_abstract = detail.get("abstract") or raw_abstract
 
-            # 2. Resolve pdf_url
+            # 2. Resolve pdf_url and DOI
             open_access = detail.get("openAccessPdf")
             if isinstance(open_access, dict):
                 pdf_url = open_access.get("url")
+            external_ids = detail.get("externalIds")
+            if isinstance(external_ids, dict):
+                doi = doi or external_ids.get("DOI")
         elif not raw_abstract:
             logger.warning(
-                "ArXiv-only paper %s has no abstract — skipping safely",
+                "Source-only paper %s has no abstract — skipping safely",
                 paper_ref.paper_id,
             )
             return None
@@ -193,6 +204,20 @@ async def _process_one_paper(
                     paper_ref.paper_id,
                     len(text),
                 )
+
+        if not text and doi and is_unpaywall_enabled():
+            oa_url = await get_oa_pdf_url(doi, get_unpaywall_email())
+            if oa_url:
+                oa_pdf_text = await fetch_pdf_text(oa_url)
+                if oa_pdf_text:
+                    text = extract_relevant_sections(oa_pdf_text)
+                    source = "fulltext"
+                    pdf_url = oa_url
+                    logger.info(
+                        "Unpaywall OA full-text extracted for %s (%d chars)",
+                        paper_ref.paper_id,
+                        len(text),
+                    )
 
         # 4. Fallback to abstract + tldr
         if not text:
@@ -340,3 +365,10 @@ def _is_arxiv_only(paper_ref: PaperRef) -> bool:
     source = (paper_ref.source or "").lower()
     paper_id = (paper_ref.paper_id or "").lower()
     return source == _ARXIV_SOURCE or paper_id.startswith("arxiv:")
+
+
+def _is_openalex_only(paper_ref: PaperRef) -> bool:
+    """Detect OpenAlex-only papers so we can avoid the S2 detail fetch."""
+    source = (paper_ref.source or "").lower()
+    paper_id = (paper_ref.paper_id or "").lower()
+    return source == _OPENALEX_SOURCE or paper_id.startswith("openalex:")

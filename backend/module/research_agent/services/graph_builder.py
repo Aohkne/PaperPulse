@@ -60,7 +60,6 @@ def _claim_confidence(claim: Claim) -> float:
 def build_knowledge_graph(
     query: str,
     papers: list[Paper],
-    citation_edges: list[dict],
     theme_contents: list[dict],
     included_claims: list[Claim],
     review_claims: list[Claim],
@@ -110,17 +109,8 @@ def build_knowledge_graph(
             g.add_edge(paper_node_id, theme_id, type="belongs_to")
             paper_to_themes.setdefault(paper_node_id, []).append(theme_id)
 
-    # ── cites edge — only if BOTH ends are already in scope (in-review papers) ──
-    for edge in citation_edges:
-        src, tgt = f"paper:{edge.get('source')}", f"paper:{edge.get('target')}"
-        if g.has_node(src) and g.has_node(tgt):
-            g.add_edge(
-                src,
-                tgt,
-                type="cites",
-                is_influential=bool(edge.get("isInfluential")),
-                intent=edge.get("intent") or "background",
-            )
+    # No `cites` edges — snowball was removed, so there are no citation edges to
+    # build a paper→paper layer from.
 
     # ── Claim / discourse layer — 2 distinct edges per claim ─────────────────
     for claim in [*included_claims, *review_claims]:

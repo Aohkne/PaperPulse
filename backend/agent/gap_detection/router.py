@@ -31,7 +31,7 @@ from backend.agent.gap_detection.settings import (
 )
 from backend.agent.gap_detection.streaming import stream_gap_detection
 from backend.auth.dependencies import get_current_user
-from backend.module.payment.services import billing_db
+from backend.module.payment.services import billing_db, token_meter
 from backend.module.payment.services.billing_db import QuotaExceededError
 
 logger = logging.getLogger(__name__)
@@ -85,41 +85,58 @@ async def detect_gaps_cold_start(
     try:
         await billing_db.start_session(str(user.id), "gap", session_id)
     except QuotaExceededError as exc:
-        raise HTTPException(402, "Research Gap quota exhausted - please upgrade your plan or top up.") from exc
+        raise HTTPException(402, "Research Gap quota exhausted - please upgrade your plan.") from exc
 
+    token_meter.start()  # per-request token accounting (token-weighted billing)
     logger.info("detect_gaps_cold_start: topic=%r", topic[:80])
     try:
         report = await cold_start(topic)
     except QueryRejectedError as exc:
-        await billing_db.refund_session(str(user.id), "gap", session_id)
         raise HTTPException(status_code=400, detail=f"query_rejected:{exc.reason}") from exc
     except Exception:
         logger.warning("detect_gaps_cold_start: pipeline failed", exc_info=True)
-        await billing_db.refund_session(str(user.id), "gap", session_id)
         raise HTTPException(
             status_code=500,
             detail="Gap detection failed. Please try again later.",
         )
+
+    # Charge the actual token credits on success (a failure above never charges).
+    try:
+        credits = token_meter.credits_used()
+        if credits > 0:
+            await billing_db.settle_session(str(user.id), "gap", session_id, credits)
+    except Exception as exc:
+        logger.warning("settle gap credits failed for session=%s: %s", session_id, exc)
     return report
 
 
 # -- SSE streaming endpoint (TIP-P2-02) ------------------------------------
 
 
-async def _refund_gap_on_error(stream, user_id: str, session_id: str):
-    """Wrap an SSE generator and refund the Research Gap unit if it ever emits
-    an ``{"type": "error"}`` event \u2014 ``stream_gap_detection`` never raises (it
-    converts internal failures into that event itself), so this is the only
-    place that can see those failures and trigger the refund."""
-    async for chunk in stream:
-        if chunk.startswith("data: "):
+async def _meter_gap_stream(stream, user_id: str, session_id: str):
+    """Wrap the gap SSE generator: charge the ACTUAL token credits it consumed
+    when it finishes successfully, and skip the charge if it emitted an
+    ``{"type": "error"}`` event (``stream_gap_detection`` converts internal
+    failures into that event rather than raising) \u2014 token-weighted billing."""
+    errored = False
+    try:
+        async for chunk in stream:
+            if chunk.startswith("data: "):
+                try:
+                    payload = json.loads(chunk[6:].strip())
+                except json.JSONDecodeError:
+                    payload = {}
+                if payload.get("type") == "error":
+                    errored = True
+            yield chunk
+    finally:
+        if not errored:
             try:
-                payload = json.loads(chunk[6:].strip())
-            except json.JSONDecodeError:
-                payload = {}
-            if payload.get("type") == "error":
-                await billing_db.refund_session(user_id, "gap", session_id)
-        yield chunk
+                credits = token_meter.credits_used()
+                if credits > 0:
+                    await billing_db.settle_session(user_id, "gap", session_id, credits)
+            except Exception as exc:
+                logger.warning("settle gap stream credits failed for session=%s: %s", session_id, exc)
 
 
 @router.get("/gap/stream")
@@ -153,9 +170,10 @@ async def gap_stream(
         await billing_db.start_session(str(user.id), "gap", session_id)
     except QuotaExceededError as exc:
         raise HTTPException(
-            402, "H\u1ebft quota Research Gap \u2014 vui l\u00f2ng n\u00e2ng c\u1ea5p g\u00f3i ho\u1eb7c mua th\u00eam."
+            402, "H\u1ebft quota Research Gap \u2014 vui l\u00f2ng n\u00e2ng c\u1ea5p g\u00f3i."
         ) from exc
 
+    token_meter.start()  # per-request token accounting \u2014 shared with the stream generator below
     logger.info("gap_stream: topic=%r", topic[:80])
 
     # Stage A guardrail - validate before any expensive search/LLM work
@@ -224,7 +242,7 @@ async def gap_stream(
         session_papers = _papers_to_refs(top)
 
         return StreamingResponse(
-            _refund_gap_on_error(stream_gap_detection(session_papers, topic), str(user.id), session_id),
+            _meter_gap_stream(stream_gap_detection(session_papers, topic), str(user.id), session_id),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )

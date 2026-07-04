@@ -44,17 +44,17 @@ from backend.agent.gap_detection.gap_specter_store import (
 )
 from backend.agent.gap_detection.hyde import generate_hyde_vector_nim, upsert_paper_to_nim_store
 from backend.agent.gap_detection.schemas import CanonicalPaper, CorpusRole
+from backend.agent.gap_detection.services.openalex import openalex_search
 from backend.agent.gap_detection.services.snowball import run_snowball, select_seeds
 from backend.agent.gap_detection.settings import (
-    get_arxiv_search_limit,
     get_default_fields_of_study,
     get_nim_upsert_concurrency,
+    get_openalex_search_limit,
     get_specter2_weight,
-    is_arxiv_enabled,
+    is_openalex_enabled,
 )
 from backend.agent.gap_detection.source_resolution import RawRecord, resolve_papers
 from backend.shared.models.paper import Paper
-from backend.shared.services.arxiv_fetcher import arxiv_search
 from backend.shared.services.semantic_scholar import get_embeddings_batch, search_papers
 
 logger = logging.getLogger(__name__)
@@ -128,62 +128,64 @@ def _valid_papers(papers: list[Paper], stage: str = "") -> list[Paper]:
 
 
 async def search(query: str, limit: int = 100) -> list[Paper]:
-    """Stage A — Keyword search via Semantic Scholar + arXiv supplement (TIP-405).
+    """Stage A — Keyword search via Semantic Scholar + OpenAlex supplement.
 
-    Runs S2 and arXiv searches in parallel when ARXIV_ENABLED=true; merges
+    Runs S2 and OpenAlex searches in parallel when OPENALEX_ENABLED=true; merges
     and deduplicates results via resolve_papers() (DOI → title → S2 paperId).
-    arXiv timeout/error is non-fatal — pipeline continues with S2-only results.
+    OpenAlex timeout/error is non-fatal — pipeline continues with S2-only results.
 
     Args:
         query: Raw or pre-cleaned topic string.
-        limit: Maximum S2 papers; arXiv limit is set via ARXIV_SEARCH_LIMIT env.
+        limit: Maximum S2 papers; OpenAlex limit is set via OPENALEX_SEARCH_LIMIT env.
 
     Returns:
         ``list[Paper]`` ordered by S2 internal relevance score (S2 first, then
-        arXiv-only additions). Deduplication removes double-counted papers.
+        OpenAlex-only additions). Deduplication removes double-counted papers.
     """
     cleaned = clean_query(query)
     fields = get_default_fields_of_study()
 
-    if is_arxiv_enabled():
-        arxiv_limit = get_arxiv_search_limit()
-        s2_result, arxiv_result = await asyncio.gather(
-            search_papers(cleaned, limit=limit, fields_of_study=fields),
-            arxiv_search(cleaned, limit=arxiv_limit),
-            return_exceptions=True,
-        )
-        if isinstance(s2_result, BaseException):
-            logger.warning("retrieval.search: S2 search failed: %s", s2_result)
-            s2_result = []
-        if isinstance(arxiv_result, BaseException):
-            logger.warning("retrieval.search: arXiv search failed: %s", arxiv_result)
-            arxiv_result = []
-        s2_papers: list[Paper] = s2_result
-        arxiv_papers: list[Paper] = arxiv_result
-    else:
-        s2_papers = await search_papers(cleaned, limit=limit, fields_of_study=fields)
-        arxiv_papers = []
+    tasks: list = [search_papers(cleaned, limit=limit, fields_of_study=fields)]
+    tags: list[str] = ["s2"]
+    if is_openalex_enabled():
+        tasks.append(openalex_search(cleaned, limit=get_openalex_search_limit()))
+        tags.append("openalex")
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    s2_result = results[0]
+    if isinstance(s2_result, BaseException):
+        logger.warning("retrieval.search: S2 search failed: %s", s2_result)
+        s2_result = []
+    s2_papers: list[Paper] = s2_result
+
+    supp_papers: list[Paper] = []
+    for tag, result in zip(tags[1:], results[1:]):
+        if isinstance(result, BaseException):
+            logger.warning("retrieval.search: %s search failed: %s", tag, result)
+        else:
+            supp_papers.extend(result)
 
     # Merge + dedup via source resolution (DOI → title → paperId).
-    # Only run resolution when arXiv actually returned results (no overhead otherwise).
-    if arxiv_papers:
+    # Only run resolution when supplementary sources returned results.
+    if supp_papers:
         records: list[RawRecord] = [
             RawRecord(paper=p, corpus_role=CorpusRole.USER, source_name="s2") for p in s2_papers
-        ] + [RawRecord(paper=p, corpus_role=CorpusRole.USER, source_name="arxiv") for p in arxiv_papers]
+        ] + [RawRecord(paper=p, corpus_role=CorpusRole.USER, source_name="openalex") for p in supp_papers]
         canonical = resolve_papers(records)
         papers = [_canonical_to_paper(cp) for cp in canonical]
         logger.info(
-            "retrieval.search: raw='%s' cleaned='%s' → s2=%d arxiv=%d merged=%d",
+            "retrieval.search: raw='%s' cleaned='%s' → s2=%d openalex=%d merged=%d",
             query[:60],
             cleaned[:60],
             len(s2_papers),
-            len(arxiv_papers),
+            len(supp_papers),
             len(papers),
         )
     else:
         papers = s2_papers
         logger.info(
-            "retrieval.search: raw='%s' cleaned='%s' → s2=%d (arXiv disabled/empty)",
+            "retrieval.search: raw='%s' cleaned='%s' → s2=%d (OpenAlex disabled/empty)",
             query[:60],
             cleaned[:60],
             len(papers),
@@ -196,7 +198,7 @@ def _canonical_to_paper(cp: CanonicalPaper) -> Paper:
     """Convert a merged CanonicalPaper back to Paper for downstream compatibility.
 
     Uses S2 paperId when available (enables SPECTER2 embedding lookup).
-    Falls back to canonical key (doi:… / title:… / arxiv:…) for arXiv-only papers.
+    Falls back to canonical key (doi:… / title:… / openalex:…) for OpenAlex-only papers.
     """
     paper_id = cp.s2_paper_id or cp.id
     return Paper(

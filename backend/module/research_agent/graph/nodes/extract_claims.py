@@ -1,7 +1,8 @@
-"""Step ⑦ — Claim extraction from all theme sections.
+"""Step ⑤ — Claim extraction from all theme sections.
 
-Parses (Source: PAPER_ID) tags produced by the content writer and attaches
-Citation Intent (Supporting/Contrasting/Mentioning) from S2 snowball metadata.
+Parses [[PAPER_ID]] tags produced by the content writer and enriches each claim
+with the source paper's ArXiv ID (from external_ids) so the verifier's Case B
+(ar5iv full-text) can run.
 
 temperature=0 (deterministic extraction per SPEC 2.0).
 """
@@ -34,15 +35,8 @@ async def extract_claims_node(state: ResearchState) -> dict:
             for claim in claims:
                 paper = paper_map.get(claim.paper_id)
                 if paper:
-                    # Attach intent from S2 snowball metadata
-                    if paper.intents:
-                        intent_raw = paper.intents[0]
-                        if intent_raw in ("Supporting", "Contrasting", "Mentioning"):
-                            claim.intent = intent_raw  # type: ignore[assignment]
-                    # Attach ArXiv ID for Case B verification
-                    arxiv_id = paper.external_ids.get("ArXiv")
-                    if arxiv_id:
-                        claim.__dict__["arxiv_id"] = arxiv_id  # type: ignore[attr-defined]
+                    # Enrich ArXiv ID for the verifier's Case B (ar5iv full text).
+                    claim.arxiv_id = (paper.external_ids or {}).get("ArXiv")
             all_claims.extend(claims)
         except Exception as exc:
             log.warning("Claim extraction failed for theme '%s': %s", theme, exc)

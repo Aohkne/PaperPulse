@@ -53,7 +53,6 @@ export const API_ENDPOINTS = {
     USER_UNBAN: (id) => `${BASE_URL}/api/admin/users/${id}/unban`,
     BILLING_ACCOUNTS: `${BASE_URL}/api/admin/billing-accounts`,
     USAGE_RESET: (id) => `${BASE_URL}/api/admin/users/${id}/usage/reset`,
-    USAGE_TOPUP: (id) => `${BASE_URL}/api/admin/users/${id}/usage/topup`,
     CONTRIBUTIONS: `${BASE_URL}/api/admin/contributions`,
     CONTRIBUTION_APPROVE: (id) => `${BASE_URL}/api/admin/contributions/${id}/approve`,
     CONTRIBUTION_REJECT: (id) => `${BASE_URL}/api/admin/contributions/${id}/reject`,
@@ -81,7 +80,6 @@ export const API_ENDPOINTS = {
   BILLING: {
     ME: `${BASE_URL}/api/billing/me`,
     CHECKOUT_SUBSCRIPTION: `${BASE_URL}/api/billing/checkout/subscription`,
-    CHECKOUT_TOPUP: `${BASE_URL}/api/billing/checkout/topup`,
     DOWNGRADE: `${BASE_URL}/api/billing/downgrade`,
     TRANSACTION: (id) => `${BASE_URL}/api/billing/transactions/${id}`,
   },

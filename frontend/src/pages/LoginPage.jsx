@@ -4,7 +4,7 @@ import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { useGoogleIdentity } from '@/features/auth/hooks/useGoogleIdentity';
-import { showError } from '@/shared/utils/toast';
+import { showError, showInfo } from '@/shared/utils/toast';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -21,17 +21,46 @@ const LoginPage = () => {
     theme === 'dark' ||
     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+  // Planner reference uses uppercase, letter-spaced labels in its mono UI
+  // font. We dropped mono app-wide (Thư's call); first pass used --font-sans
+  // (Inter) for these small UI labels, but Thư wants this page serif-only —
+  // no sans-serif at all. Lora is already loaded elsewhere in the app (see
+  // BillingPanel's price display) and was already checked for full
+  // Vietnamese glyph support, so reusing it here avoids adding a 4th
+  // typeface just for these labels.
+  const labelStyle = {
+    display: 'block',
+    fontFamily: "'Lora', 'Newsreader', serif",
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--color-paper-mid)',
+    marginBottom: '6px',
+  };
+
   const inputStyle = {
-    border: '1px solid var(--color-paper-surface)',
-    borderRadius: '2px',
-    padding: '10px 12px',
+    border: '1px solid rgba(41, 17, 0, 0.12)',
+    borderRadius: '8px',
+    padding: '11px 14px',
     background: 'var(--color-paper-bg)',
-    fontFamily: "'Noto Serif', serif",
+    fontFamily: "'Newsreader', serif",
     fontSize: '16px',
     color: 'var(--color-paper-dark)',
     width: '100%',
     boxSizing: 'border-box',
     outline: 'none',
+    transition: 'border-color 0.15s ease',
+  };
+
+  // Planner uses its terracotta accent for links; ours is brand-500 (green)
+  // so the accent stays consistent with the rest of the rebrand.
+  const linkStyle = {
+    fontFamily: "'Lora', 'Newsreader', serif",
+    fontSize: '13px',
+    color: 'var(--color-brand-500)',
+    textDecoration: 'underline',
+    cursor: 'pointer',
   };
 
   const { prompt: promptGoogle } = useGoogleIdentity(async (idToken, nonce) => {
@@ -72,18 +101,19 @@ const LoginPage = () => {
   };
 
   return (
-    <div style={{ background: 'var(--color-paper-bg)', minHeight: '100vh', fontFamily: "'Noto Serif', serif" }}>
+    // No explicit background here on purpose — lets the body's dot-grain
+    // texture (index.css) show through around the card, like the Planner ref.
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', position: 'relative' }}>
       <button
         onClick={() => navigate('/')}
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          padding: '20px 28px',
+          top: 24,
+          left: 28,
           background: 'none',
           border: 'none',
-          fontFamily: "'Noto Serif', serif",
-          fontSize: '15px',
+          fontFamily: "'Lora', 'Newsreader', serif",
+          fontSize: '13px',
           color: 'var(--color-paper-mid)',
           cursor: 'pointer',
         }}
@@ -91,55 +121,63 @@ const LoginPage = () => {
         ← PaperPulse
       </button>
 
-      <div style={{ maxWidth: '400px', margin: '0 auto', paddingTop: '80px', paddingBottom: '60px', paddingLeft: '24px', paddingRight: '24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '0' }}>
-          <img
-            src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
-            alt="PaperPulse"
-            style={{ height: '48px', width: 'auto' }}
-          />
-        </div>
+      <div style={{
+        width: '100%',
+        maxWidth: '440px',
+        background: 'var(--color-paper-surface)',
+        border: '1px solid rgba(41, 17, 0, 0.08)',
+        borderRadius: '16px',
+        boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
+        padding: '40px',
+        boxSizing: 'border-box',
+      }}>
+        <img
+          src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
+          alt="PaperPulse"
+          style={{ height: '32px', width: 'auto', display: 'block', marginBottom: '20px' }}
+        />
 
         <h1 style={{
           fontFamily: 'var(--font-inknut)',
-          fontSize: '26px',
-          color: 'var(--color-paper-dark)',
-          textAlign: 'center',
-          margin: '20px 0 8px',
+          fontSize: '24px',
           fontWeight: 500,
+          color: 'var(--color-paper-dark)',
+          margin: '0 0 24px',
         }}>
-          Welcome back
+          Welcome back.
         </h1>
-        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', margin: '0 0 32px' }}>
-          Sign in to continue your research
-        </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-              Email
-            </label>
+            <label style={labelStyle}>Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onFocus={(e) => e.target.style.borderColor = 'var(--color-paper-mid)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--color-paper-surface)'}
+              placeholder="you@example.com"
+              onFocus={(e) => (e.target.style.borderColor = 'var(--color-brand-500)')}
+              onBlur={(e) => (e.target.style.borderColor = 'rgba(41, 17, 0, 0.12)')}
               style={inputStyle}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontFamily: "'Noto Serif', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginBottom: '4px' }}>
-              Password
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <label style={labelStyle}>Password</label>
+              <span
+                onClick={() => showInfo('Password reset isn\'t wired up yet — check back soon.')}
+                style={{ ...linkStyle, fontSize: '12px', marginBottom: '6px' }}
+              >
+                Forgot password?
+              </span>
+            </div>
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onFocus={(e) => e.target.style.borderColor = 'var(--color-paper-mid)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--color-paper-surface)'}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--color-brand-500)')}
+                onBlur={(e) => (e.target.style.borderColor = 'rgba(41, 17, 0, 0.12)')}
                 style={{ ...inputStyle, paddingRight: '40px' }}
               />
               <button
@@ -172,26 +210,27 @@ const LoginPage = () => {
             style={{
               width: '100%',
               background: 'var(--color-paper-dark)',
-              color: 'var(--color-paper-bg)',
+              color: 'var(--color-paper-surface)',
               border: 'none',
-              borderRadius: '2px',
-              padding: '11px',
-              fontFamily: "'Noto Serif', serif",
-              fontSize: '17px',
+              borderRadius: '10px',
+              padding: '13px',
+              fontFamily: "'Lora', 'Newsreader', serif",
+              fontSize: '15px',
+              fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: '4px',
+              marginTop: '8px',
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? 'Signing in…' : 'Sign in →'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
-            <span style={{ fontSize: '13px', color: 'var(--color-paper-mid)', fontFamily: "'Noto Serif', serif" }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(41, 17, 0, 0.08)' }} />
+            <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)', fontFamily: "'Lora', 'Newsreader', serif" }}>
               or continue with
             </span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--color-paper-surface)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'rgba(41, 17, 0, 0.08)' }} />
           </div>
 
           <button
@@ -204,14 +243,14 @@ const LoginPage = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              padding: '10px',
+              padding: '11px',
               background: 'var(--color-paper-bg)',
-              border: '1px solid var(--color-paper-surface)',
-              borderRadius: '2px',
+              border: '1px solid rgba(41, 17, 0, 0.12)',
+              borderRadius: '10px',
               cursor: googleLoading ? 'not-allowed' : 'pointer',
               opacity: googleLoading ? 0.7 : 1,
-              fontFamily: "'Noto Serif', serif",
-              fontSize: '15px',
+              fontFamily: "'Lora', 'Newsreader', serif",
+              fontSize: '14px',
               color: 'var(--color-paper-dark)',
             }}
           >
@@ -225,13 +264,10 @@ const LoginPage = () => {
           </button>
         </form>
 
-        <p style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '20px' }}>
-          Don't have an account?{' '}
-          <span
-            onClick={() => navigate('/signup')}
-            style={{ color: 'var(--color-paper-dark)', textDecoration: 'underline', cursor: 'pointer' }}
-          >
-            Get started
+        <p style={{ fontFamily: "'Lora', 'Newsreader', serif", fontSize: '13px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '24px' }}>
+          No account?{' '}
+          <span onClick={() => navigate('/signup')} style={linkStyle}>
+            Sign up
           </span>
         </p>
       </div>

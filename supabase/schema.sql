@@ -4,12 +4,15 @@
 -- ============================================================
 
 
--- 1. ENUM
-CREATE TYPE public.user_role AS ENUM ('admin', 'user');
+-- 1. ENUM (guarded — user_role is preserved across resets alongside profiles)
+DO $$ BEGIN
+    CREATE TYPE public.user_role AS ENUM ('admin', 'user');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 
--- 2. profiles
-CREATE TABLE public.profiles (
+-- 2. profiles (IF NOT EXISTS — preserved across resets to keep existing users)
+CREATE TABLE IF NOT EXISTS public.profiles (
     id          UUID             PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email       TEXT             NOT NULL,
     full_name   TEXT,
@@ -23,8 +26,8 @@ CREATE TABLE public.profiles (
 );
 
 
--- 3. login_logs
-CREATE TABLE public.login_logs (
+-- 3. login_logs (IF NOT EXISTS — preserved across resets)
+CREATE TABLE IF NOT EXISTS public.login_logs (
     id           BIGSERIAL   PRIMARY KEY,
     user_id      UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     email        TEXT        NOT NULL,
@@ -66,6 +69,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS profiles_set_updated_at ON public.profiles;
 CREATE TRIGGER profiles_set_updated_at
     BEFORE UPDATE ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -230,9 +234,12 @@ CREATE POLICY "notifications_insert_service" ON public.notifications
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Cần thấy full_name/avatar_url của người khác cho leaderboard/contribution list
+-- (DROP-then-CREATE: profiles is preserved across resets, so its policies persist)
+DROP POLICY IF EXISTS "profiles_select_all" ON public.profiles;
 CREATE POLICY "profiles_select_all" ON public.profiles
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 CREATE POLICY "profiles_update_own" ON public.profiles
     FOR UPDATE USING (auth.uid() = id);
 
@@ -254,6 +261,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS profiles_protect_privileged_fields ON public.profiles;
 CREATE TRIGGER profiles_protect_privileged_fields
     BEFORE UPDATE ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.protect_privileged_profile_fields();
@@ -363,38 +371,32 @@ ORDER BY total_votes DESC, contributions_count DESC;
 GRANT SELECT ON public.leaderboard TO authenticated, anon;
 
 
--- 13. Payment / Billing (payment_SPEC_2.0.md). Implements: per-tier subscription
--- quota (Free/Plus/Unlimited) across Literature Review / PDF Agent / Research
--- Gap, prepaid top-up balances, atomic deduct-at-session-start with idempotent
--- refunds, soft-cap tracking for Unlimited, and PayOS payment transactions.
+-- 13. Payment / Billing (token.html Draft v4 — token-weighted billing).
+-- All three features (Literature Review / PDF Agent / Research Gap) draw from a
+-- SINGLE per-tier monthly credit pool. 1 credit = $0.001 of model spend. There
+-- is no "quota per lượt" and no top-up: exhaust the pool → upgrade or wait for
+-- renewal. Flow per run: gate (balance > 0) before running, then charge the
+-- ACTUAL token cost after — so a run can push the balance slightly negative,
+-- which simply blocks the NEXT run until renewal (token.html §4).
 -- Period reset is done LAZILY inside billing_get_or_create_account() — there is
--- no cron/job-runner in this repo, so every other function calls it first
--- instead of relying on a scheduled reset.
+-- no cron/job-runner in this repo.
 
 CREATE TYPE public.billing_tier AS ENUM ('free', 'plus', 'unlimited');
 
--- 13a. billing_accounts
+-- 13a. billing_accounts — one shared credit pool.
 CREATE TABLE public.billing_accounts (
-    user_id                 UUID            PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    tier                    public.billing_tier NOT NULL DEFAULT 'free',
-    tier_started_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-    tier_period_end         TIMESTAMPTZ     NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
-    pending_downgrade_tier  public.billing_tier,
-    -- NULL = unlimited tier, no hard cap. Non-NULL = remaining quota this period.
-    subscription_lr_quota   INTEGER         DEFAULT 3,
-    subscription_pdf_quota  INTEGER         DEFAULT 5,
-    subscription_gap_quota  INTEGER         DEFAULT 3,
-    -- Prepaid, paid-for units — never reset by period rollover.
-    topup_lr_balance        INTEGER         NOT NULL DEFAULT 0,
-    topup_pdf_balance       INTEGER         NOT NULL DEFAULT 0,
-    topup_gap_balance       INTEGER         NOT NULL DEFAULT 0,
-    -- Counters since last period reset — drive "X/Y used" UI on capped tiers and
-    -- soft-cap comparison on Unlimited (80 LR / 150 PDF / 80 Gap, see billing_start_session).
-    lr_used_this_period     INTEGER         NOT NULL DEFAULT 0,
-    pdf_used_this_period    INTEGER         NOT NULL DEFAULT 0,
-    gap_used_this_period    INTEGER         NOT NULL DEFAULT 0,
-    created_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    user_id                     UUID            PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    tier                        public.billing_tier NOT NULL DEFAULT 'free',
+    tier_started_at             TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    tier_period_end             TIMESTAMPTZ     NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
+    pending_downgrade_tier      public.billing_tier,
+    -- NULL = unlimited tier (soft cap only). Otherwise remaining credits this period.
+    subscription_credit_balance NUMERIC(10,3)   DEFAULT 50,
+    -- Credits consumed since last reset — drives the "% of monthly budget" UI
+    -- and the Unlimited soft-cap comparison (SOFT_CAP_CREDIT = 1500).
+    credit_used_this_period     NUMERIC(10,3)   NOT NULL DEFAULT 0,
+    created_at                  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER billing_accounts_set_updated_at
@@ -402,8 +404,7 @@ CREATE TRIGGER billing_accounts_set_updated_at
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 GRANT SELECT ON public.billing_accounts TO authenticated;
--- INSERT/UPDATE only via SECURITY DEFINER functions / service role — no direct
--- client writes, same convention as notifications.
+-- INSERT/UPDATE only via SECURITY DEFINER functions / service role.
 
 ALTER TABLE public.billing_accounts ENABLE ROW LEVEL SECURITY;
 
@@ -411,23 +412,21 @@ CREATE POLICY "billing_accounts_select_own" ON public.billing_accounts
     FOR SELECT USING (auth.uid() = user_id);
 
 
--- 13b. payment_transactions — one row per PayOS checkout attempt
-CREATE TYPE public.payment_type AS ENUM ('subscription_upgrade', 'topup');
+-- 13b. payment_transactions — one row per PayOS checkout attempt.
+-- Only subscription upgrades now (top-up removed).
+CREATE TYPE public.payment_type AS ENUM ('subscription_upgrade');
 CREATE TYPE public.payment_status AS ENUM ('pending', 'paid', 'cancelled', 'expired', 'failed');
 
--- Seeded from wall-clock time (not a fixed literal) so that re-running this
--- script after reset.sql never reissues order codes PayOS has already seen
--- from a prior dev/test cycle — PayOS's own uniqueness check is permanent
--- and survives our local DB being wiped.
+-- Seeded from wall-clock time so re-running this after reset.sql never reissues
+-- an orderCode PayOS has already seen (its uniqueness check survives a DB wipe).
 CREATE SEQUENCE public.payos_order_code_seq START 100000;
 SELECT setval('public.payos_order_code_seq', GREATEST(100000, floor(extract(epoch FROM now()))::bigint));
 
 CREATE TABLE public.payment_transactions (
     id                   UUID                PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id              UUID                NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    type                 public.payment_type NOT NULL,
-    tier                 public.billing_tier,           -- set when type = subscription_upgrade
-    topup_pack           TEXT,                          -- set when type = topup ('pdf_5'|'lr_5'|'gap_5'|'combo')
+    type                 public.payment_type NOT NULL DEFAULT 'subscription_upgrade',
+    tier                 public.billing_tier,           -- the tier being upgraded to
     amount_vnd           INTEGER             NOT NULL,
     payos_order_code     BIGINT              NOT NULL UNIQUE,
     payos_payment_link_id TEXT,
@@ -448,21 +447,19 @@ CREATE POLICY "payment_transactions_select_own" ON public.payment_transactions
     FOR SELECT USING (auth.uid() = user_id);
 
 
--- 13c. quota_ledger — audit trail of every deduction/refund, also the
--- idempotency source-of-truth for refunds (one session_start row per session_id)
+-- 13c. quota_ledger — audit trail of every credit charge/reset. `feature` is
+-- still recorded so the UI can show a per-feature breakdown, but it no longer
+-- separates budgets (single shared pool). delta is in credits (can be fractional).
 CREATE TABLE public.quota_ledger (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    feature     TEXT        NOT NULL CHECK (feature IN ('lr', 'pdf', 'gap')),
-    delta       INTEGER     NOT NULL,
-    source      TEXT        NOT NULL CHECK (source IN ('subscription', 'topup')),
-    session_id  TEXT        NOT NULL,
-    reason      TEXT        NOT NULL CHECK (reason IN (
-                    'session_start', 'system_error_refund', 'topup_purchase',
-                    'subscription_reset', 'upgrade_carryover'
+    id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID          NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    feature     TEXT          NOT NULL CHECK (feature IN ('lr', 'pdf', 'gap')),
+    delta       NUMERIC(10,3) NOT NULL,
+    session_id  TEXT          NOT NULL,
+    reason      TEXT          NOT NULL CHECK (reason IN (
+                    'session_charge', 'subscription_reset', 'upgrade_reset'
                 )),
-    refunded    BOOLEAN     NOT NULL DEFAULT false,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_quota_ledger_session ON public.quota_ledger (session_id, feature, reason);
@@ -477,8 +474,6 @@ CREATE POLICY "quota_ledger_select_own" ON public.quota_ledger
 
 
 -- 13d. billing_get_or_create_account — lazy init + lazy period reset.
--- Every other billing_* function calls this first, so a separate cron job is
--- not needed to roll quotas over at renewal.
 CREATE OR REPLACE FUNCTION public.billing_get_or_create_account(p_user_id UUID)
 RETURNS public.billing_accounts LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -499,17 +494,14 @@ BEGIN
             tier_started_at = NOW(),
             tier_period_end = NOW() + INTERVAL '30 days',
             pending_downgrade_tier = NULL,
-            subscription_lr_quota = CASE effective_tier
-                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
-            subscription_pdf_quota = CASE effective_tier
-                WHEN 'free' THEN 5 WHEN 'plus' THEN 10 WHEN 'unlimited' THEN NULL END,
-            subscription_gap_quota = CASE effective_tier
-                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
-            lr_used_this_period = 0,
-            pdf_used_this_period = 0,
-            gap_used_this_period = 0
+            subscription_credit_balance = CASE effective_tier
+                WHEN 'free' THEN 50 WHEN 'plus' THEN 100 WHEN 'unlimited' THEN NULL END,
+            credit_used_this_period = 0
         WHERE user_id = p_user_id
         RETURNING * INTO acct;
+
+        INSERT INTO public.quota_ledger (user_id, feature, delta, session_id, reason)
+        VALUES (p_user_id, 'lr', 0, 'reset:' || p_user_id::text, 'subscription_reset');
     END IF;
 
     RETURN acct;
@@ -517,17 +509,14 @@ END;
 $$;
 
 
--- 13e. billing_start_session — atomic deduct-at-session-start (subscription
--- quota first, then topup balance), raises QUOTA_EXCEEDED if both are
--- exhausted. Unlimited tier (quota column NULL) is never blocked, only logged
--- via soft_cap_hit for the caller to log+alert on (MVP per spec — no auto-throttle).
-CREATE OR REPLACE FUNCTION public.billing_start_session(
+-- 13e. billing_gate_session — pre-run gate. Raises QUOTA_EXCEEDED when the pool
+-- is empty (balance <= 0). Does NOT deduct — the actual cost is charged after
+-- the run via billing_charge_session. Unlimited tier is never blocked.
+CREATE OR REPLACE FUNCTION public.billing_gate_session(
     p_user_id UUID, p_feature TEXT, p_session_id TEXT
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
     acct public.billing_accounts;
-    v_source TEXT;
-    v_soft_cap_hit BOOLEAN := false;
 BEGIN
     IF p_feature NOT IN ('lr', 'pdf', 'gap') THEN
         RAISE EXCEPTION 'INVALID_FEATURE';
@@ -536,143 +525,68 @@ BEGIN
     PERFORM public.billing_get_or_create_account(p_user_id);
     SELECT * INTO acct FROM public.billing_accounts WHERE user_id = p_user_id FOR UPDATE;
 
-    IF p_feature = 'lr' THEN
-        IF acct.subscription_lr_quota IS NULL THEN
-            v_source := 'subscription';
-            UPDATE public.billing_accounts SET lr_used_this_period = lr_used_this_period + 1
-                WHERE user_id = p_user_id RETURNING lr_used_this_period INTO acct.lr_used_this_period;
-            v_soft_cap_hit := acct.lr_used_this_period > 80;
-        ELSIF acct.subscription_lr_quota > 0 THEN
-            v_source := 'subscription';
-            UPDATE public.billing_accounts SET
-                subscription_lr_quota = subscription_lr_quota - 1,
-                lr_used_this_period = lr_used_this_period + 1
-                WHERE user_id = p_user_id;
-        ELSIF acct.topup_lr_balance > 0 THEN
-            v_source := 'topup';
-            UPDATE public.billing_accounts SET
-                topup_lr_balance = topup_lr_balance - 1,
-                lr_used_this_period = lr_used_this_period + 1
-                WHERE user_id = p_user_id;
-        ELSE
-            RAISE EXCEPTION 'QUOTA_EXCEEDED';
-        END IF;
-    ELSIF p_feature = 'pdf' THEN
-        IF acct.subscription_pdf_quota IS NULL THEN
-            v_source := 'subscription';
-            UPDATE public.billing_accounts SET pdf_used_this_period = pdf_used_this_period + 1
-                WHERE user_id = p_user_id RETURNING pdf_used_this_period INTO acct.pdf_used_this_period;
-            v_soft_cap_hit := acct.pdf_used_this_period > 150;
-        ELSIF acct.subscription_pdf_quota > 0 THEN
-            v_source := 'subscription';
-            UPDATE public.billing_accounts SET
-                subscription_pdf_quota = subscription_pdf_quota - 1,
-                pdf_used_this_period = pdf_used_this_period + 1
-                WHERE user_id = p_user_id;
-        ELSIF acct.topup_pdf_balance > 0 THEN
-            v_source := 'topup';
-            UPDATE public.billing_accounts SET
-                topup_pdf_balance = topup_pdf_balance - 1,
-                pdf_used_this_period = pdf_used_this_period + 1
-                WHERE user_id = p_user_id;
-        ELSE
-            RAISE EXCEPTION 'QUOTA_EXCEEDED';
-        END IF;
-    ELSE -- gap
-        IF acct.subscription_gap_quota IS NULL THEN
-            v_source := 'subscription';
-            UPDATE public.billing_accounts SET gap_used_this_period = gap_used_this_period + 1
-                WHERE user_id = p_user_id RETURNING gap_used_this_period INTO acct.gap_used_this_period;
-            v_soft_cap_hit := acct.gap_used_this_period > 80;
-        ELSIF acct.subscription_gap_quota > 0 THEN
-            v_source := 'subscription';
-            UPDATE public.billing_accounts SET
-                subscription_gap_quota = subscription_gap_quota - 1,
-                gap_used_this_period = gap_used_this_period + 1
-                WHERE user_id = p_user_id;
-        ELSIF acct.topup_gap_balance > 0 THEN
-            v_source := 'topup';
-            UPDATE public.billing_accounts SET
-                topup_gap_balance = topup_gap_balance - 1,
-                gap_used_this_period = gap_used_this_period + 1
-                WHERE user_id = p_user_id;
-        ELSE
-            RAISE EXCEPTION 'QUOTA_EXCEEDED';
-        END IF;
+    IF acct.subscription_credit_balance IS NULL THEN
+        -- unlimited tier — allow, flag soft cap for the caller to log+alert on
+        RETURN jsonb_build_object('allowed', true, 'soft_cap_hit', acct.credit_used_this_period > 1500);
     END IF;
 
-    INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
-    VALUES (p_user_id, p_feature, -1, v_source, p_session_id, 'session_start');
+    IF acct.subscription_credit_balance <= 0 THEN
+        RAISE EXCEPTION 'QUOTA_EXCEEDED';
+    END IF;
 
-    RETURN jsonb_build_object('source', v_source, 'soft_cap_hit', v_soft_cap_hit);
+    RETURN jsonb_build_object('allowed', true, 'soft_cap_hit', false);
 END;
 $$;
 
 
--- 13f. billing_refund_session — idempotent refund for system-error pipeline
--- failures. No-op if the session was never deducted or already refunded
--- (distinguishes "pipeline lỗi hệ thống" from "user bỏ giữa đường", per spec —
--- the latter simply never calls this function at all).
-CREATE OR REPLACE FUNCTION public.billing_refund_session(
-    p_user_id UUID, p_feature TEXT, p_session_id TEXT
+-- 13f. billing_charge_session — deduct the ACTUAL credits a run consumed
+-- (p_credits, computed from real token usage). Can drive the balance negative;
+-- the next gate call then blocks until renewal. On a system-error run the
+-- caller simply doesn't call this (nothing to refund — nothing was charged).
+CREATE OR REPLACE FUNCTION public.billing_charge_session(
+    p_user_id UUID, p_feature TEXT, p_session_id TEXT, p_credits NUMERIC
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-    ledger_row public.quota_ledger;
+    acct public.billing_accounts;
+    v_credits NUMERIC := GREATEST(0, COALESCE(p_credits, 0));
 BEGIN
-    SELECT * INTO ledger_row FROM public.quota_ledger
-        WHERE session_id = p_session_id AND feature = p_feature
-          AND reason = 'session_start' AND refunded = false
-        FOR UPDATE;
-
-    IF ledger_row.id IS NULL THEN
-        RETURN jsonb_build_object('refunded', false, 'reason', 'not_found_or_already_refunded');
+    IF p_feature NOT IN ('lr', 'pdf', 'gap') THEN
+        RAISE EXCEPTION 'INVALID_FEATURE';
     END IF;
 
     PERFORM public.billing_get_or_create_account(p_user_id);
+    SELECT * INTO acct FROM public.billing_accounts WHERE user_id = p_user_id FOR UPDATE;
 
-    IF p_feature = 'lr' THEN
-        IF ledger_row.source = 'subscription' THEN
-            UPDATE public.billing_accounts SET subscription_lr_quota = subscription_lr_quota + 1
-                WHERE user_id = p_user_id AND subscription_lr_quota IS NOT NULL;
-        ELSE
-            UPDATE public.billing_accounts SET topup_lr_balance = topup_lr_balance + 1
-                WHERE user_id = p_user_id;
-        END IF;
-    ELSIF p_feature = 'pdf' THEN
-        IF ledger_row.source = 'subscription' THEN
-            UPDATE public.billing_accounts SET subscription_pdf_quota = subscription_pdf_quota + 1
-                WHERE user_id = p_user_id AND subscription_pdf_quota IS NOT NULL;
-        ELSE
-            UPDATE public.billing_accounts SET topup_pdf_balance = topup_pdf_balance + 1
-                WHERE user_id = p_user_id;
-        END IF;
-    ELSE -- gap
-        IF ledger_row.source = 'subscription' THEN
-            UPDATE public.billing_accounts SET subscription_gap_quota = subscription_gap_quota + 1
-                WHERE user_id = p_user_id AND subscription_gap_quota IS NOT NULL;
-        ELSE
-            UPDATE public.billing_accounts SET topup_gap_balance = topup_gap_balance + 1
-                WHERE user_id = p_user_id;
-        END IF;
+    IF acct.subscription_credit_balance IS NULL THEN
+        UPDATE public.billing_accounts SET
+            credit_used_this_period = credit_used_this_period + v_credits
+            WHERE user_id = p_user_id RETURNING * INTO acct;
+    ELSE
+        UPDATE public.billing_accounts SET
+            subscription_credit_balance = subscription_credit_balance - v_credits,
+            credit_used_this_period = credit_used_this_period + v_credits
+            WHERE user_id = p_user_id RETURNING * INTO acct;
     END IF;
 
-    UPDATE public.quota_ledger SET refunded = true WHERE id = ledger_row.id;
+    INSERT INTO public.quota_ledger (user_id, feature, delta, session_id, reason)
+    VALUES (p_user_id, p_feature, -v_credits, p_session_id, 'session_charge');
 
-    INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
-    VALUES (p_user_id, p_feature, 1, ledger_row.source, p_session_id, 'system_error_refund');
-
-    RETURN jsonb_build_object('refunded', true, 'source', ledger_row.source);
+    RETURN jsonb_build_object(
+        'charged', v_credits,
+        'balance', acct.subscription_credit_balance,
+        'soft_cap_hit', acct.subscription_credit_balance IS NULL AND acct.credit_used_this_period > 1500
+    );
 END;
 $$;
 
 
--- 13g. billing_apply_payment — apply a PAID transaction's effect. Idempotent
--- via applied_at — a re-delivered webhook is a safe no-op.
+-- 13g. billing_apply_payment — apply a PAID subscription upgrade. Idempotent
+-- via applied_at. Resets the credit pool to the new tier's budget (no carryover
+-- of the old pool — there's no top-up bucket to hold a remainder anymore).
 CREATE OR REPLACE FUNCTION public.billing_apply_payment(p_transaction_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
     txn public.payment_transactions;
-    acct public.billing_accounts;
 BEGIN
     SELECT * INTO txn FROM public.payment_transactions WHERE id = p_transaction_id FOR UPDATE;
 
@@ -690,52 +604,18 @@ BEGIN
 
     PERFORM public.billing_get_or_create_account(txn.user_id);
 
-    IF txn.type = 'topup' THEN
-        IF txn.topup_pack = 'pdf_5' THEN
-            UPDATE public.billing_accounts SET topup_pdf_balance = topup_pdf_balance + 5 WHERE user_id = txn.user_id;
-        ELSIF txn.topup_pack = 'lr_5' THEN
-            UPDATE public.billing_accounts SET topup_lr_balance = topup_lr_balance + 5 WHERE user_id = txn.user_id;
-        ELSIF txn.topup_pack = 'combo' THEN
-            UPDATE public.billing_accounts SET
-                topup_pdf_balance = topup_pdf_balance + 5,
-                topup_lr_balance = topup_lr_balance + 5
-                WHERE user_id = txn.user_id;
-        ELSIF txn.topup_pack = 'gap_5' THEN
-            UPDATE public.billing_accounts SET topup_gap_balance = topup_gap_balance + 5 WHERE user_id = txn.user_id;
-        ELSE
-            RAISE EXCEPTION 'UNKNOWN_TOPUP_PACK';
-        END IF;
+    UPDATE public.billing_accounts SET
+        tier = txn.tier,
+        tier_started_at = NOW(),
+        tier_period_end = NOW() + INTERVAL '30 days',
+        pending_downgrade_tier = NULL,
+        subscription_credit_balance = CASE txn.tier
+            WHEN 'free' THEN 50 WHEN 'plus' THEN 100 WHEN 'unlimited' THEN NULL END,
+        credit_used_this_period = 0
+        WHERE user_id = txn.user_id;
 
-        INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
-        VALUES (txn.user_id, 'lr', 0, 'topup', txn.id::text, 'topup_purchase');
-
-    ELSIF txn.type = 'subscription_upgrade' THEN
-        SELECT * INTO acct FROM public.billing_accounts WHERE user_id = txn.user_id FOR UPDATE;
-
-        -- Carry over unused subscription quota 1:1 into topup balance before
-        -- resetting to the new tier's allowance (spec's upgrade-carryover rule).
-        UPDATE public.billing_accounts SET
-            topup_lr_balance = topup_lr_balance + COALESCE(acct.subscription_lr_quota, 0),
-            topup_pdf_balance = topup_pdf_balance + COALESCE(acct.subscription_pdf_quota, 0),
-            topup_gap_balance = topup_gap_balance + COALESCE(acct.subscription_gap_quota, 0),
-            tier = txn.tier,
-            tier_started_at = NOW(),
-            tier_period_end = NOW() + INTERVAL '30 days',
-            pending_downgrade_tier = NULL,
-            subscription_lr_quota = CASE txn.tier
-                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
-            subscription_pdf_quota = CASE txn.tier
-                WHEN 'free' THEN 5 WHEN 'plus' THEN 10 WHEN 'unlimited' THEN NULL END,
-            subscription_gap_quota = CASE txn.tier
-                WHEN 'free' THEN 3 WHEN 'plus' THEN 5 WHEN 'unlimited' THEN NULL END,
-            lr_used_this_period = 0,
-            pdf_used_this_period = 0,
-            gap_used_this_period = 0
-            WHERE user_id = txn.user_id;
-
-        INSERT INTO public.quota_ledger (user_id, feature, delta, source, session_id, reason)
-        VALUES (txn.user_id, 'lr', 0, 'subscription', txn.id::text, 'upgrade_carryover');
-    END IF;
+    INSERT INTO public.quota_ledger (user_id, feature, delta, session_id, reason)
+    VALUES (txn.user_id, 'lr', 0, txn.id::text, 'upgrade_reset');
 
     UPDATE public.payment_transactions SET applied_at = NOW() WHERE id = p_transaction_id;
 
@@ -744,8 +624,7 @@ END;
 $$;
 
 
--- 13h. billing_request_downgrade — no payment involved; defers to next
--- renewal per spec (PayOS has no stored card to prorate/refund against).
+-- 13h. billing_request_downgrade — no payment; defers to next renewal.
 CREATE OR REPLACE FUNCTION public.billing_request_downgrade(p_user_id UUID, p_new_tier public.billing_tier)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -755,25 +634,17 @@ BEGIN
 END;
 $$;
 
--- 13i. next_payos_order_code — small wrapper so the backend can pull a fresh
--- unique orderCode via PostgREST RPC without raw nextval() access.
+-- 13i. next_payos_order_code — fresh unique orderCode via RPC.
 CREATE OR REPLACE FUNCTION public.next_payos_order_code()
 RETURNS BIGINT LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
     SELECT nextval('public.payos_order_code_seq');
 $$;
 
--- Postgres grants EXECUTE on new functions to PUBLIC by default (unlike
--- tables) — explicitly revoke it. Every billing_* function takes p_user_id as
--- a plain parameter (not derived from auth.uid()), so leaving the default
--- PUBLIC grant in place would let any authenticated client call these via
--- PostgREST RPC with an arbitrary p_user_id and manipulate ANY other user's
--- billing_accounts row. These are called exclusively server-side via the
--- service-role key (backend/module/payment/services/billing_db.py) — service_role
--- keeps access through Supabase's own default-privilege grants, independent
--- of this REVOKE.
+-- Revoke the default PUBLIC EXECUTE — these take p_user_id as a plain arg and
+-- run server-side only (service-role key), same reasoning as before.
 REVOKE EXECUTE ON FUNCTION public.billing_get_or_create_account(UUID) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.billing_start_session(UUID, TEXT, TEXT) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.billing_refund_session(UUID, TEXT, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.billing_gate_session(UUID, TEXT, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.billing_charge_session(UUID, TEXT, TEXT, NUMERIC) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.billing_apply_payment(UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.billing_request_downgrade(UUID, public.billing_tier) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.next_payos_order_code() FROM PUBLIC;
@@ -846,22 +717,10 @@ REVOKE EXECUTE ON FUNCTION public.upsert_paper_embedding(TEXT, FLOAT8[], TEXT, I
 REVOKE EXECUTE ON FUNCTION public.match_papers(FLOAT8[], INT) FROM PUBLIC;
 
 -- ============================================================================
--- 15. SEARCH/LLM RESPONSE CACHE — optimize_Plan.html §2.1. Not session/user
--- scoped on purpose (cache hits should be shared across users querying the
--- same source). Lazy-expire on read (no cron needed for MVP scale).
+-- 15. (removed) SEARCH/LLM RESPONSE CACHE — the `search_cache` table is gone.
+-- The LangGraph checkpointer already persists ResearchState per thread_id, and
+-- cross-session hit-rate was low (LLM generates different sub_queries each run).
 -- ============================================================================
-
-CREATE TABLE IF NOT EXISTS public.search_cache (
-    query_hash TEXT PRIMARY KEY,
-    source TEXT NOT NULL,        -- 'semantic_scholar' | 'arxiv' | 'openalex' | 'llm'
-    payload JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_search_cache_created ON public.search_cache(created_at);
-
-ALTER TABLE public.search_cache ENABLE ROW LEVEL SECURITY;
--- No policy for anon/authenticated — only service_role reads/writes this table.
 
 -- ============================================================================
 -- 16. LANGGRAPH CHECKPOINTER SCHEMAS — replaces the two SQLite files

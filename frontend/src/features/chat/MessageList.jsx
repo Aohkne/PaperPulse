@@ -13,7 +13,7 @@ const MessageList = ({ messages, isLoading }) => {
     return (
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--color-paper-light)', fontFamily: "'Noto Serif', serif", fontSize: '16px',
+        color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", fontSize: '16px',
       }}>
         Start a new research session
       </div>
@@ -21,8 +21,8 @@ const MessageList = ({ messages, isLoading }) => {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-      <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+    <div className="themed-scroll" style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+      <div style={{ maxWidth: '780px', margin: '0 auto' }}>
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => (
             <ChatMessage

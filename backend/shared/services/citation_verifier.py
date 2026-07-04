@@ -84,6 +84,9 @@ async def _verify_one(claim: Claim, paper_abstracts: dict[str, str]) -> Claim:
     """Run 3-tier verification for a single claim (rate-limited via semaphore)."""
     async with _VERIFY_SEM:
         # -- Case A: Semantic Scholar /snippet/search --------------------------
+        # search_snippet() → _get() → s2_acquire(): every S2 call already passes
+        # through the shared 1 req/s token bucket, so concurrent claims can't
+        # exceed the rate limit even with the Semaphore(4) above.
         # Strip markdown formatting before sending to S2 API to avoid 400 errors
         clean_query = re.sub(r"\*+|_+|#+|`+", "", claim.text).strip()[:200]
         try:
@@ -102,10 +105,10 @@ async def _verify_one(claim: Claim, paper_abstracts: dict[str, str]) -> Claim:
             return claim
 
         # -- Case B: arXiv full text via ar5iv ---------------------------------
-        arxiv_id = None
-        if hasattr(claim, "arxiv_id") and claim.arxiv_id:  # type: ignore[attr-defined]
-            arxiv_id = claim.arxiv_id  # type: ignore[attr-defined]
-
+        # claim.arxiv_id is enriched at extract time (Step ⑤) from the paper's
+        # external_ids — S2-sourced papers keep their ArXiv ID even though arXiv
+        # is no longer a search source.
+        arxiv_id = claim.arxiv_id
         if arxiv_id:
             full_text = await fetch_arxiv_text(arxiv_id)
             if full_text:

@@ -139,15 +139,9 @@ class BillingAccountRow(BaseModel):
     full_name: str | None
     tier: str
     tier_period_end: str
-    subscription_lr_quota: int | None
-    subscription_pdf_quota: int | None
-    subscription_gap_quota: int | None
-    topup_lr_balance: int
-    topup_pdf_balance: int
-    topup_gap_balance: int
-    lr_used_this_period: int
-    pdf_used_this_period: int
-    gap_used_this_period: int
+    # Token-weighted billing: one shared credit pool. None = unlimited tier.
+    subscription_credit_balance: float | None
+    credit_used_this_period: float
 
 
 class BillingAccountListResponse(BaseModel):
@@ -158,19 +152,13 @@ class BillingAccountListResponse(BaseModel):
     has_more: bool
 
 
-class UsageTopupRequest(BaseModel):
-    lr: int = 0
-    pdf: int = 0
-    gap: int = 0
-
-
-# Mirrors the tier defaults in billing_get_or_create_account() (schema.sql §13d)
-# — kept in sync manually since this is an admin override path, not the lazy
-# period-rollover path the SQL function handles for normal users.
-_TIER_DEFAULTS: dict[str, dict[str, int | None]] = {
-    "free": {"lr": 3, "pdf": 5, "gap": 3},
-    "plus": {"lr": 5, "pdf": 10, "gap": 5},
-    "unlimited": {"lr": None, "pdf": None, "gap": None},
+# Mirrors the per-tier credit budgets in billing_get_or_create_account()
+# (schema.sql §13d) — kept in sync manually since this admin reset path is
+# independent of the SQL function's lazy period rollover. None = unlimited.
+_TIER_CREDIT_BUDGET: dict[str, int | None] = {
+    "free": 50,
+    "plus": 100,
+    "unlimited": None,
 }
 
 
@@ -202,7 +190,6 @@ class RecentTransaction(BaseModel):
     email: str | None
     type: str
     tier: str | None
-    topup_pack: str | None
     amount_vnd: int
     paid_at: str | None
 
@@ -397,29 +384,15 @@ def _billing_row(user_id: str, profile: dict, acct: dict) -> BillingAccountRow:
         full_name=profile.get("full_name"),
         tier=acct.get("tier", "free"),
         tier_period_end=acct.get("tier_period_end") or datetime.now(UTC).isoformat(),
-        subscription_lr_quota=acct.get("subscription_lr_quota"),
-        subscription_pdf_quota=acct.get("subscription_pdf_quota"),
-        subscription_gap_quota=acct.get("subscription_gap_quota"),
-        topup_lr_balance=acct.get("topup_lr_balance", 0),
-        topup_pdf_balance=acct.get("topup_pdf_balance", 0),
-        topup_gap_balance=acct.get("topup_gap_balance", 0),
-        lr_used_this_period=acct.get("lr_used_this_period", 0),
-        pdf_used_this_period=acct.get("pdf_used_this_period", 0),
-        gap_used_this_period=acct.get("gap_used_this_period", 0),
+        subscription_credit_balance=acct.get("subscription_credit_balance"),
+        credit_used_this_period=acct.get("credit_used_this_period", 0) or 0,
     )
 
 
 _BILLING_ACCOUNT_DEFAULTS: dict = {
     "tier": "free",
-    "subscription_lr_quota": 3,
-    "subscription_pdf_quota": 5,
-    "subscription_gap_quota": 3,
-    "topup_lr_balance": 0,
-    "topup_pdf_balance": 0,
-    "topup_gap_balance": 0,
-    "lr_used_this_period": 0,
-    "pdf_used_this_period": 0,
-    "gap_used_this_period": 0,
+    "subscription_credit_balance": 50,
+    "credit_used_this_period": 0,
 }
 
 
@@ -457,9 +430,7 @@ async def list_billing_accounts(
             "billing_accounts",
             {
                 "select": (
-                    "user_id,tier,tier_period_end,subscription_lr_quota,subscription_pdf_quota,"
-                    "subscription_gap_quota,topup_lr_balance,topup_pdf_balance,topup_gap_balance,"
-                    "lr_used_this_period,pdf_used_this_period,gap_used_this_period"
+                    "user_id,tier,tier_period_end,subscription_credit_balance,credit_used_this_period"
                 ),
                 "user_id": f"in.({id_filter})",
             },
@@ -482,21 +453,17 @@ async def reset_usage(
     user_id: str,
     admin: Any = Depends(require_admin),
 ):
-    """Reset a user's subscription quota + usage counters back to their
-    tier's default allowance for a fresh 30-day period — an admin override
-    independent of the normal lazy rollover in billing_get_or_create_account.
+    """Reset a user's credit pool back to their tier's monthly budget for a
+    fresh 30-day period — an admin override independent of the normal lazy
+    rollover in billing_get_or_create_account (token-weighted billing).
     """
     existing, _ = await _pg("billing_accounts", {"select": "tier", "user_id": f"eq.{user_id}"})
     tier = existing[0]["tier"] if existing else "free"
-    defaults = _TIER_DEFAULTS.get(tier, _TIER_DEFAULTS["free"])
+    budget = _TIER_CREDIT_BUDGET.get(tier, _TIER_CREDIT_BUDGET["free"])
 
     patch = {
-        "subscription_lr_quota": defaults["lr"],
-        "subscription_pdf_quota": defaults["pdf"],
-        "subscription_gap_quota": defaults["gap"],
-        "lr_used_this_period": 0,
-        "pdf_used_this_period": 0,
-        "gap_used_this_period": 0,
+        "subscription_credit_balance": budget,  # None → unlimited
+        "credit_used_this_period": 0,
         "tier_period_end": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
     }
 
@@ -516,75 +483,10 @@ async def reset_usage(
             "user_id": user_id,
             "feature": "lr",
             "delta": 0,
-            "source": "subscription",
             "session_id": f"admin-reset:{admin.id}:{datetime.now(UTC).isoformat()}",
             "reason": "subscription_reset",
         },
     )
-
-    profile, _ = await _pg("profiles", {"select": "email,full_name", "id": f"eq.{user_id}"})
-    return _billing_row(user_id, profile[0] if profile else {}, rows[0])
-
-
-@router.post("/users/{user_id}/usage/topup", response_model=BillingAccountRow)
-async def topup_usage(
-    user_id: str,
-    body: UsageTopupRequest,
-    admin: Any = Depends(require_admin),
-):
-    """Add prepaid top-up balance to a user's account, customized per feature
-    — lands in the same topup_*_balance columns a real purchase would credit.
-    """
-    if body.lr == 0 and body.pdf == 0 and body.gap == 0:
-        raise HTTPException(status_code=400, detail="Provide at least one non-zero amount")
-
-    existing, _ = await _pg(
-        "billing_accounts",
-        {
-            "select": "topup_lr_balance,topup_pdf_balance,topup_gap_balance",
-            "user_id": f"eq.{user_id}",
-        },
-    )
-
-    if existing:
-        current = existing[0]
-        patch = {
-            "topup_lr_balance": current["topup_lr_balance"] + body.lr,
-            "topup_pdf_balance": current["topup_pdf_balance"] + body.pdf,
-            "topup_gap_balance": current["topup_gap_balance"] + body.gap,
-        }
-        rows = await _pg_write("billing_accounts", "PATCH", {"user_id": f"eq.{user_id}"}, patch)
-    else:
-        rows = await _pg_write(
-            "billing_accounts",
-            "POST",
-            {},
-            {
-                "user_id": user_id,
-                "topup_lr_balance": max(body.lr, 0),
-                "topup_pdf_balance": max(body.pdf, 0),
-                "topup_gap_balance": max(body.gap, 0),
-            },
-        )
-
-    if not rows:
-        raise HTTPException(status_code=404, detail="Billing account not found")
-
-    for feature, delta in (("lr", body.lr), ("pdf", body.pdf), ("gap", body.gap)):
-        if delta:
-            await _pg_write(
-                "quota_ledger",
-                "POST",
-                {},
-                {
-                    "user_id": user_id,
-                    "feature": feature,
-                    "delta": delta,
-                    "source": "topup",
-                    "session_id": f"admin-topup:{admin.id}:{datetime.now(UTC).isoformat()}",
-                    "reason": "topup_purchase",
-                },
-            )
 
     profile, _ = await _pg("profiles", {"select": "email,full_name", "id": f"eq.{user_id}"})
     return _billing_row(user_id, profile[0] if profile else {}, rows[0])
@@ -640,7 +542,7 @@ async def get_revenue(
 
     paid, total_paid = await _pg(
         "payment_transactions",
-        {"select": "id,user_id,type,tier,topup_pack,amount_vnd,paid_at", "status": "eq.paid"},
+        {"select": "id,user_id,type,tier,amount_vnd,paid_at", "status": "eq.paid"},
         count=True,
     )
 
@@ -682,7 +584,6 @@ async def get_revenue(
                 email=emails.get(p["user_id"]),
                 type=p["type"],
                 tier=p.get("tier"),
-                topup_pack=p.get("topup_pack"),
                 amount_vnd=p["amount_vnd"],
                 paid_at=p["paid_at"],
             )

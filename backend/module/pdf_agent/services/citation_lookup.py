@@ -24,7 +24,9 @@ from backend.shared.services import semantic_scholar
 
 logger = logging.getLogger(__name__)
 
-_DOI_RE = re.compile(r"10\.\d{4,9}/[^\s,;)\]]+", re.IGNORECASE)
+# Exclude } and > so a DOI wrapped in \url{...} or <...> is captured cleanly
+# (e.g. "\url{https://doi.org/10.1/abc}" → "10.1/abc", not "10.1/abc}").
+_DOI_RE = re.compile(r"10\.\d{4,9}/[^\s,;)\]}>]+", re.IGNORECASE)
 _ARXIV_RE = re.compile(r"(?:arxiv[:\s]*)?(\d{4}\.\d{4,5})(?:v\d+)?", re.IGNORECASE)
 
 _JUDGE_PROMPT = """You are a conservative citation-match judge. Given a claimed citation and a \
@@ -139,6 +141,12 @@ async def verify_citation(citation: RawCitation) -> dict:
     if not query:
         return {"verdict": "Not Found", "confidence": 0.0, "evidence": None}
 
+    # Keep arXiv in the fan-out: an externally-uploaded PDF (not from our own LR)
+    # may cite an arXiv preprint that isn't on S2/OpenAlex yet, so arXiv is a real
+    # source here. The earlier timeout storm was caused by UNBOUNDED concurrency
+    # (verify_citations_batch fired every citation at once) — now bounded by a
+    # semaphore there. arXiv being slow is non-fatal: _safe_call returns None on
+    # timeout and the citation still resolves via S2/OpenAlex.
     results = await asyncio.gather(
         _safe_call(semantic_scholar.search_papers, query, 5),
         _safe_call(openalex.search_openalex, query, 5),
@@ -176,10 +184,23 @@ async def _safe_call(fn, *args):
 
 
 async def verify_citations_batch(citations: list[RawCitation]) -> list[dict]:
-    """asyncio.gather all citations, capped by PDF_AGENT_MAX_CITATIONS_VERIFY guardrail."""
+    """Verify citations concurrently, capped by PDF_AGENT_MAX_CITATIONS_VERIFY.
+
+    Concurrency is bounded (pdf_agent_citation_verify_concurrency) because every
+    lookup shares the global 1 req/s Semantic Scholar limiter — firing all
+    citations at once makes each queue far past its timeout and ALL fail. With a
+    small bound, only a few S2 calls contend at a time, so each completes within
+    the per-call timeout.
+    """
     settings = get_settings()
     capped = citations[: settings.pdf_agent_max_citations_verify]
-    results = await asyncio.gather(*(verify_citation(c) for c in capped), return_exceptions=True)
+    sem = asyncio.Semaphore(max(1, settings.pdf_agent_citation_verify_concurrency))
+
+    async def _verify_bounded(c: RawCitation) -> dict:
+        async with sem:
+            return await verify_citation(c)
+
+    results = await asyncio.gather(*(_verify_bounded(c) for c in capped), return_exceptions=True)
     out: list[dict] = []
     for c, r in zip(capped, results):
         if isinstance(r, Exception):

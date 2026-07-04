@@ -47,7 +47,6 @@ const msgVariants = {
 };
 
 const ChatMessage = ({ message, animate = true }) => {
-  const [hovered, setHovered] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
 
   // Get session title (original query) for the default review name
@@ -63,10 +62,13 @@ const ChatMessage = ({ message, animate = true }) => {
     return (
       <motion.div variants={msgVariants} initial="initial" animate="animate"
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginBottom: '16px' }}>
-        <div style={{ backgroundColor: 'var(--color-paper-surface)', border: '1px solid var(--color-paper-light)', borderRadius: '4px', padding: '10px 14px', maxWidth: '480px', color: 'var(--color-paper-dark)', fontFamily: "'Noto Serif', serif", fontSize: '15px', lineHeight: '1.6' }}>
+        {/* Borderless, like Gemini's user bubble — fill only, no outline.
+            Radius bumped from the old sharp 4px to 16px to match the
+            rounded-card convention used on LoginPage and elsewhere. */}
+        <div style={{ backgroundColor: 'var(--color-paper-surface)', borderRadius: '16px', padding: '10px 14px', maxWidth: '480px', color: 'var(--color-paper-dark)', fontFamily: "'Newsreader', serif", fontSize: '16px', lineHeight: '1.6' }}>
           {message.content}
         </div>
-        <span style={{ fontSize: '12px', color: 'var(--color-paper-light)', marginTop: '4px' }}>
+        <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)', marginTop: '4px' }}>
           {formatTime(message.timestamp)}
         </span>
       </motion.div>
@@ -80,11 +82,9 @@ const ChatMessage = ({ message, animate = true }) => {
     <>
       <motion.div
         variants={msgVariants} initial="initial" animate="animate"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '20px' }}
+        style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '20px' }}
       >
-        <div style={{ width: '28px', height: '28px', backgroundColor: 'var(--color-paper-mid)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+        <div style={{ width: '28px', height: '28px', backgroundColor: 'var(--color-paper-mid)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
           <span style={{ fontFamily: 'var(--font-inknut)', color: 'var(--color-paper-bg)', fontSize: '14px', fontWeight: 600, lineHeight: 1 }}>P</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -108,36 +108,39 @@ const ChatMessage = ({ message, animate = true }) => {
               : <LatexPreview content={message.content} />
             : !message.steps?.length && !shouldRenderPendingPlan && <TypingIndicator inline />
           }
-          <span style={{ fontSize: '12px', color: 'var(--color-paper-light)', display: 'block', marginTop: '4px' }}>
-            {formatTime(message.timestamp)}
-          </span>
+          {/* Timestamp + Save sit in the same row, anchored to the END of the
+              message content instead of floating absolute over its top edge.
+              The old version pinned "Save" to the top-right corner of the
+              whole message, which worked while a plain paragraph sat there —
+              but collides with whatever now renders at the top (ReActTrace's
+              own card header, ResearchPlanCard, etc.) since that top-right
+              corner is contested space. Anchoring to the timestamp row is a
+              landmark that's always the last thing in the message, so it
+              can't collide with content above it no matter what that is. */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)' }}>
+              {formatTime(message.timestamp)}
+            </span>
+            {canSave && (
+              <button
+                onClick={() => setSaveOpen(true)}
+                title="Save to My Reviews"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  background: 'none', border: 'none', padding: '2px 0',
+                  cursor: 'pointer', color: 'var(--color-paper-mid)',
+                  fontFamily: "'Newsreader', serif", fontSize: '12px',
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-paper-dark)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-paper-mid)'; }}
+              >
+                <Icon icon="mdi:bookmark-plus-outline" style={{ width: 13, height: 13 }} />
+                Save
+              </button>
+            )}
+          </div>
         </div>
-
-        {/* "..." save button — visible on hover when message has content */}
-        {canSave && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: hovered ? 1 : 0 }}
-            transition={{ duration: 0.12 }}
-            onClick={() => setSaveOpen(true)}
-            title="Save to My Reviews"
-            style={{
-              position: 'absolute', top: '2px', right: 0,
-              background: 'var(--color-paper-surface)',
-              border: '1px solid var(--color-paper-light)',
-              borderRadius: '4px',
-              padding: '4px 6px',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '4px',
-              color: 'var(--color-paper-mid)',
-              fontFamily: "'Noto Serif', serif", fontSize: '12px',
-              pointerEvents: hovered ? 'auto' : 'none',
-            }}
-          >
-            <Icon icon="mdi:bookmark-plus-outline" style={{ width: 14, height: 14 }} />
-            Save
-          </motion.button>
-        )}
       </motion.div>
 
       <SaveReviewModal

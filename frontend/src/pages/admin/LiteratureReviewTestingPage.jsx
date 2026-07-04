@@ -3,9 +3,11 @@ import { Icon } from '@iconify/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAdminTestStore from '@/shared/store/useAdminTestStore';
 
+// Matches backend _NODE_STEP_NUM (api/research.py): 0 intent/plan · 1 search+dedup
+// +relevance · 2 embed · 3 cluster · 4 write · 5 extract+verify · 6 route+KG · 7 export.
 const STEP_LABELS = {
-  0: 'Intent', 1: 'Search', 2: 'Dedup', 3: 'Snowball', 4: 'Embed',
-  5: 'Outline', 6: 'Write', 7: 'Claims', 8: 'Verify', 9: 'Route', 10: 'Export',
+  0: 'Intent / Plan', 1: 'Search + Filter', 2: 'Embed', 3: 'Cluster',
+  4: 'Write', 5: 'Verify', 6: 'Route + KG', 7: 'Export',
 };
 
 // â”€â”€ Step progress strip â€” derived from "step" events seen so far â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

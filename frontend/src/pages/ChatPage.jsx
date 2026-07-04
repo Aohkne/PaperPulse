@@ -8,6 +8,7 @@ import { useUIStore } from '@/shared/store/useUIStore';
 import { ROUTES } from '@/shared/constant/routes';
 import MessageList from '@/features/chat/MessageList';
 import ChatInput from '@/features/chat/ChatInput';
+import DotOrbitBackground from '@/shared/components/DotOrbitBackground';
 import UsageExhaustedBanner from '@/features/billing/UsageExhaustedBanner';
 import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
 import { friendlyError } from '@/shared/utils/errorMessage';
@@ -17,6 +18,14 @@ const PILLARS = [
   { key: 'research-gaps', icon: 'mdi:lightbulb-on-outline', title: 'Research Gaps', description: 'Surface contradictions and understudied angles.' },
   { key: 'knowledge-graph', icon: 'mdi:graph-outline', title: 'Knowledge Graph', description: 'Visualise connections between papers and topics.' },
   { key: 'pdf-agent', icon: 'mdi:file-search-outline', title: 'PDF Agent', description: 'Upload a PDF to critique and verify its citations.' },
+];
+
+// "Literature Review" is where the user already is (this is the chat UI) —
+// clicking it can't sensibly navigate anywhere, so instead it collapses the
+// pillar grid down into 1-2 example prompts they can start from directly.
+const LITERATURE_REVIEW_EXAMPLES = [
+  'Summarize recent approaches to few-shot learning in computer vision (2022–2025).',
+  'Compare evaluation methodologies across graph neural network papers on molecular property prediction.',
 ];
 
 function getGreeting() {
@@ -34,8 +43,8 @@ const SessionLoadingPanel = () => {
   const placeholderWidths = ['72%', '56%', '68%'];
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-      <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div className="themed-scroll" style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+      <div style={{ maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {placeholderWidths.map((width, index) => {
           const alignSelf = index === 1 ? 'flex-end' : 'flex-start';
           const bubbleTint = index === 1 ? 'var(--color-brand-100)' : 'var(--color-paper-surface)';
@@ -67,6 +76,7 @@ const SessionLoadingPanel = () => {
 const WelcomeInput = () => {
   const location = useLocation();
   const [text, setText] = useState(location.state?.prefillText ?? '');
+  const [showLRExamples, setShowLRExamples] = useState(false);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const setGraphOpen = useUIStore((s) => s.setGraphOpen);
   const navigate = useNavigate();
@@ -99,8 +109,18 @@ const WelcomeInput = () => {
   const handlePillarClick = (key) => {
     if (key === 'pdf-agent') { navigate(ROUTES.PDF_AGENT); return; }
     if (key === 'knowledge-graph') { setGraphOpen(true); return; }
-    const pillar = PILLARS.find((p) => p.key === key);
-    setText(`${pillar.title}: `);
+    // Research Gaps is a real, separate page — take the user there directly
+    // instead of dropping placeholder text into this chat's input.
+    if (key === 'research-gaps') { navigate(ROUTES.RESEARCH); return; }
+    // Literature Review *is* this chat UI, so "navigating" here would be a
+    // no-op from the user's point of view. Collapse to example prompts
+    // instead of prefilling a meaningless "Literature Review: " tag.
+    if (key === 'literature-review') { setShowLRExamples(true); return; }
+  };
+
+  const handleExampleClick = (example) => {
+    setText(example);
+    setShowLRExamples(false);
     textareaRef.current?.focus();
   };
 
@@ -108,14 +128,19 @@ const WelcomeInput = () => {
     <div>
       <UsageExhaustedBanner />
 
+      {/* Same "raised surface on the page" treatment as the login card:
+          paper-surface fill + soft 2-layer shadow, sitting on the page's
+          slightly-deeper paper-bg tone. Rounder + bigger than the old 4px
+          box — matches the reference Claude.ai input (big pill, soft shadow). */}
       <div style={{
-        border: '1px solid var(--color-paper-light)',
-        borderRadius: '4px',
-        background: 'var(--color-paper-bg)',
-        padding: '12px 14px',
+        border: '1px solid rgba(41, 17, 0, 0.08)',
+        borderRadius: '20px',
+        background: 'var(--color-paper-surface)',
+        boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
+        padding: '18px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        gap: '14px',
       }}>
         <textarea
           ref={textareaRef}
@@ -130,8 +155,8 @@ const WelcomeInput = () => {
             border: 'none',
             outline: 'none',
             background: 'transparent',
-            fontFamily: "'Noto Serif', serif",
-            fontSize: '14px',
+            fontFamily: "'Newsreader', serif",
+            fontSize: '17px',
             color: 'var(--color-paper-dark)',
             resize: 'none',
             lineHeight: '1.6',
@@ -143,51 +168,124 @@ const WelcomeInput = () => {
           <button
             onClick={handleSend}
             disabled={!text.trim() || quotaExhausted}
+            title="Send"
             style={{
-              background: 'var(--color-paper-dark)',
+              // Same green (paper-mid, which is brand-500) + same circular
+              // shape as ChatInput's send button — one consistent "send"
+              // control across the whole app instead of two different colors.
+              background: text.trim() && !quotaExhausted ? 'var(--color-paper-mid)' : 'var(--color-paper-bg)',
               border: 'none',
-              borderRadius: '4px',
-              padding: '8px 16px',
-              minHeight: 36,
-              color: 'var(--color-paper-bg)',
-              fontFamily: "'Noto Serif', serif",
-              fontSize: '13px',
+              borderRadius: '50%',
+              width: 38,
+              height: 38,
+              color: 'var(--color-paper-surface)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               cursor: text.trim() && !quotaExhausted ? 'pointer' : 'not-allowed',
             }}
           >
-            {'->'}
+            <Icon icon="mdi:arrow-up" style={{ fontSize: '19px' }} />
           </button>
         </div>
       </div>
 
       {!text.trim() && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginTop: '14px' }}>
-          {PILLARS.map(({ key, icon, title, description }) => (
+        showLRExamples ? (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}
+          >
             <button
-              key={key}
-              onClick={() => handlePillarClick(key)}
+              onClick={() => setShowLRExamples(false)}
               style={{
-                textAlign: 'left',
-                border: '1px solid var(--color-paper-light)',
-                borderRadius: '6px',
-                background: 'var(--color-paper-bg)',
-                padding: '12px',
-                cursor: 'pointer',
+                alignSelf: 'flex-start',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
+                alignItems: 'center',
+                gap: '4px',
+                border: 'none',
+                background: 'transparent',
+                padding: '4px 2px',
+                cursor: 'pointer',
+                fontSize: '12.5px',
+                color: 'var(--color-paper-mid)',
               }}
             >
-              <Icon icon={icon} style={{ fontSize: 18, color: 'var(--color-paper-mid)' }} />
-              <span style={{ fontFamily: "'Noto Serif', serif", fontSize: '13px', fontWeight: 600, color: 'var(--color-paper-dark)' }}>
-                {title}
-              </span>
-              <span style={{ fontSize: '11px', lineHeight: 1.4, color: 'var(--color-paper-light)' }}>
-                {description}
-              </span>
+              <Icon icon="mdi:chevron-left" style={{ fontSize: 16 }} />
+              Back
             </button>
-          ))}
-        </div>
+            {LITERATURE_REVIEW_EXAMPLES.map((example) => (
+              <button
+                key={example}
+                onClick={() => handleExampleClick(example)}
+                style={{
+                  textAlign: 'left',
+                  border: '1px solid rgba(41, 17, 0, 0.08)',
+                  borderRadius: '14px',
+                  background: 'var(--color-paper-surface)',
+                  padding: '14px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  transition: 'box-shadow 0.15s ease, transform 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(41, 17, 0, 0.10)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <Icon icon="mdi:text-search" style={{ fontSize: 18, color: 'var(--color-brand-500)', flexShrink: 0 }} />
+                <span style={{ fontFamily: "'Newsreader', serif", fontSize: '14px', lineHeight: 1.5, color: 'var(--color-paper-dark)' }}>
+                  {example}
+                </span>
+              </button>
+            ))}
+          </motion.div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginTop: '16px' }}>
+            {PILLARS.map(({ key, icon, title, description }) => (
+              <button
+                key={key}
+                onClick={() => handlePillarClick(key)}
+                style={{
+                  textAlign: 'left',
+                  border: '1px solid rgba(41, 17, 0, 0.08)',
+                  borderRadius: '14px',
+                  background: 'var(--color-paper-surface)',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  transition: 'box-shadow 0.15s ease, transform 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(41, 17, 0, 0.10)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <Icon icon={icon} style={{ fontSize: 20, color: 'var(--color-brand-500)' }} />
+                <span style={{ fontFamily: "'Newsreader', serif", fontSize: '14px', fontWeight: 600, color: 'var(--color-paper-dark)' }}>
+                  {title}
+                </span>
+                <span style={{ fontSize: '12.5px', lineHeight: 1.5, color: 'var(--color-paper-mid)' }}>
+                  {description}
+                </span>
+              </button>
+            ))}
+          </div>
+        )
       )}
     </div>
   );
@@ -220,46 +318,75 @@ const ChatPage = () => {
     const displayName = user?.name || user?.email?.split('@')[0] || '';
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', gap: '20px' }}
-      >
-        {chatsError && (
-          <div style={{ width: '100%', maxWidth: '640px', padding: '10px 12px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '13px', lineHeight: 1.4 }}>
-            {friendlyError(chatsError, "Couldn't load your chats.")}
-          </div>
-        )}
-
-        <div style={{ textAlign: 'center' }}>
-          <motion.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            style={{ fontFamily: 'var(--font-inknut)', fontSize: '28px', fontWeight: '600', color: 'var(--color-paper-dark)', margin: '0 0 8px' }}
-          >
-            {getGreeting()}{displayName ? `, ${displayName}` : ''}.
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            style={{ fontFamily: "'Noto Serif', serif", fontSize: '15px', color: 'var(--color-paper-mid)', margin: 0 }}
-          >
-            What would you like to research today?
-          </motion.p>
+      <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+        {/* Same brand-colored animated dot layer as the landing hero — only
+            on the empty/welcome state, not once real messages are on screen
+            (would be too noisy behind dense chat content). */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+          <DotOrbitBackground
+            mode="orbit"
+            tracking="global"
+            interaction="repel"
+            density={0.8}
+            speed={0.4}
+            dotSize={1.6}
+            linkDistance={120}
+            opacity={0.5}
+            alpha={1}
+            interactionRadius={140}
+            interactionStrength={12}
+            cursorEase={35}
+            background="rgba(0, 0, 0, 0)"
+            dotColor="--color-brand-500"
+            lineColor="--color-brand-100"
+          />
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          style={{ width: '100%', maxWidth: '640px' }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            position: 'relative', zIndex: 1,
+            flex: 1, height: '100%', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', padding: '0 24px', gap: '24px',
+          }}
         >
-          <WelcomeInput />
+          {chatsError && (
+            <div style={{ width: '100%', maxWidth: '780px', padding: '10px 12px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '13px', lineHeight: 1.4 }}>
+              {friendlyError(chatsError, "Couldn't load your chats.")}
+            </div>
+          )}
+
+          <div style={{ textAlign: 'center' }}>
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+              style={{ fontFamily: 'var(--font-inknut)', fontSize: '34px', fontWeight: '600', color: 'var(--color-paper-dark)', margin: '0 0 10px' }}
+            >
+              {getGreeting()}{displayName ? `, ${displayName}` : ''}.
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+              style={{ fontFamily: "'Newsreader', serif", fontSize: '17px', color: 'var(--color-paper-mid)', margin: 0 }}
+            >
+              What would you like to research today?
+            </motion.p>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            style={{ width: '100%', maxWidth: '780px' }}
+          >
+            <WelcomeInput />
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </div>
     );
   }
 
