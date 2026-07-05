@@ -152,27 +152,36 @@ async def get_embeddings_batch(paper_ids: list[str]) -> dict[str, list[float]]:
     async with httpx.AsyncClient() as client:
         for i in range(0, len(paper_ids), 500):
             batch = paper_ids[i : i + 500]
-            try:
-                await s2_acquire()
-                resp = await client.post(
-                    f"{BASE_URL}/paper/batch",
-                    params={"fields": "embedding.specter_v2"},
-                    json={"ids": batch},
-                    headers=_headers(),
-                    timeout=60,
-                )
-                resp.raise_for_status()
-                for item in resp.json():
-                    if not isinstance(item, dict):
+            for attempt in range(3):
+                try:
+                    await s2_acquire()
+                    resp = await client.post(
+                        f"{BASE_URL}/paper/batch",
+                        params={"fields": "embedding.specter_v2"},
+                        json={"ids": batch},
+                        headers=_headers(),
+                        timeout=60,
+                    )
+                    resp.raise_for_status()
+                    for item in resp.json():
+                        if not isinstance(item, dict):
+                            continue
+                        pid = item.get("paperId") or ""
+                        emb_obj = item.get("embedding")
+                        if pid and emb_obj and isinstance(emb_obj, dict):
+                            vec = emb_obj.get("vector")
+                            if vec:
+                                result[pid] = vec
+                    break
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 429 and attempt < 2:
+                        await asyncio.sleep(2**attempt)
                         continue
-                    pid = item.get("paperId") or ""
-                    emb_obj = item.get("embedding")
-                    if pid and emb_obj and isinstance(emb_obj, dict):
-                        vec = emb_obj.get("vector")
-                        if vec:
-                            result[pid] = vec
-            except Exception as exc:
-                logging.warning("SPECTER v2 batch failed (chunk %d): %s", i, exc)
+                    logging.warning("SPECTER v2 batch failed (chunk %d): %s", i, exc)
+                    break
+                except Exception as exc:
+                    logging.warning("SPECTER v2 batch failed (chunk %d): %s", i, exc)
+                    break
     return result
 
 

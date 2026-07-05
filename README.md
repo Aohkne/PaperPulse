@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/paperpulse-logo_light.png" alt="PaperPulse logo" />
+  <img src="paperpulse-thumbnail.png" alt="PaperPulse logo" />
 </p>
 
 # PaperPulse

@@ -222,6 +222,21 @@ async def run_mineru(pdf_path: str, output_dir: str) -&gt; dict:
 \end{figure}
 {% endfor %}</code></pre>
 
+  <p class="note"><strong>Lưu ý divergence (v2.0.1):</strong> SPEC gốc chỉ render <code>main.tex</code> từ <code>sections</code>/<code>figures</code>/<code>raw_citations</code> as-is, không đề cập liên kết citation trong thân bài với bibliography — với nhánh <code>.pdf</code>, câu trích dẫn gốc (APA <code>(Smith, 2020)</code> hoặc số <code>[12]</code>) vẫn nằm nguyên trong <code>raw_latex</code> trong khi <code>\bibitem</code> lại dùng key sinh tự động <code>ref0/ref1/...</code> — 2 phần không liên kết. Bản triển khai hiện tại bổ sung <code>link_numeric_citations()</code>: lợi dụng việc <code>_extract_reference_lines()</code> (Step P1) giữ đúng thứ tự đánh số gốc khi tách reference list, nên marker <code>[N]</code> trong thân bài luôn trỏ đúng <code>raw_citations[N-1]</code> — <strong>không cần fuzzy-match tác giả/năm</strong>. Marker được thay trực tiếp bằng <code>\cite{ref_i}</code> thật, khớp key trong <code>\bibitem</code> đã sinh ở P2. Chỉ áp dụng cho paper dùng citation kiểu số (IEEE/ACM); paper APA (không có ngoặc số) không được xử lý bởi cơ chế này — vẫn là giới hạn chưa giải quyết.</p>
+  <pre><code>_NUMERIC_CITE_RE = re.compile(r"\[(\d+(?:\s*[,\-–]\s*\d+)*)\]")  # [3] | [3,4] | [3-5]
+
+def link_numeric_citations(sections, bibliography) -&gt; list[Section]:
+    n = len(bibliography)
+    matches = find_all(_NUMERIC_CITE_RE, joined_raw_latex(sections))
+    in_range = [m for m in matches if all(1 &lt;= x &lt;= n for x in expand(m))]
+    # Gate: cần đủ tín hiệu đây thực sự là numeric-citation style, không phải
+    # 1-2 ngoặc số tình cờ (VD "Bảng [2]") hay paper APA không có ngoặc số nào.
+    if len(in_range) &lt; 3 or len(in_range) &lt; 0.5 * len(matches):
+        return sections  # giữ nguyên — không rewrite khi không chắc
+    # N -&gt; bibliography[N-1]["key"], vì thứ tự đã được giữ nguyên từ Step P1
+    return replace_each(sections, lambda n: f"\\cite{{{bibliography[n-1]['key']}}}")</code></pre>
+  <p class="warn-box"><strong>Rủi ro còn tồn đọng:</strong> nếu một số trong ngoặc vuông trùng phạm vi hợp lệ của bibliography nhưng thực ra là tham chiếu Bảng/Hình/Phương trình (VD <code>Table [7]</code> khi bibliography có ≥7 entry), vẫn có thể bị rewrite nhầm thành <code>\cite{}</code> — gate hiện tại chỉ xét tỉ lệ tổng thể toàn văn bản, không loại trừ từng match theo ngữ cảnh xung quanh. Nhánh <code>.tex</code>/<code>.tex_bundle</code> không bị ảnh hưởng (citation key đã có sẵn từ nguồn, không phải <code>None</code>, nên hàm bỏ qua tự nhiên). Không đổi <code>state["sections"]</code> đã persist — chỉ áp dụng cục bộ lên bản copy dùng để render <code>main.tex</code>, cùng pattern với <code>splice_figures_into_sections()</code> nên không phá anchor của Step P4.</p>
+
   <h3>Step P3 — Batch Analysis (3 nhánh song song)</h3>
   <table>
     <tr><th>P3a Critic Agent</th><td>

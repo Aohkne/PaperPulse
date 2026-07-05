@@ -59,3 +59,69 @@ async def embed_text(text: str, input_type: str = "query") -> list[float] | None
             return None
 
     return None  # fail-safe: max_retries exhausted via 429 loop
+
+
+async def embed_texts_batch(
+    texts: list[str], input_type: str = "passage", batch_size: int = 32
+) -> list[list[float] | None]:
+    """Embed many texts via batched NIM calls (few round-trips instead of one per text).
+
+    Used by Step ①bis relevance filter, where the semantic side previously issued
+    one HTTP call per paper (up to ~1500) even under a concurrency cap — each
+    round-trip was a separate chance to hit NIM 429/502. Batching `batch_size`
+    texts per call cuts that to len(texts)/batch_size calls.
+
+    Returns a list aligned 1:1 with `texts`; entries are None where that text's
+    batch failed after retries. Never raises.
+    """
+    settings = get_settings()
+    result: list[list[float] | None] = [None] * len(texts)
+    if not settings.embedding_base_url or not texts:
+        return result
+
+    max_retries = get_nim_retry_max()
+    backoff_base = get_nim_backoff_base()
+    is_nv_embed = bool(settings.embedding_model and "nv-embed" in settings.embedding_model)
+    sem = asyncio.Semaphore(4)  # cap concurrent batch calls to NIM
+
+    async def _one_chunk(client: httpx.AsyncClient, start: int, chunk: list[str]) -> None:
+        body: dict = {"model": settings.embedding_model, "input": chunk}
+        if is_nv_embed:
+            body["input_type"] = input_type
+            body["truncate"] = "END"
+
+        async with sem:
+            for attempt in range(max_retries):
+                try:
+                    r = await client.post(
+                        f"{settings.embedding_base_url}/embeddings",
+                        json=body,
+                        headers={"Authorization": f"Bearer {settings.llm_api_key}"},
+                        timeout=60,
+                    )
+                    r.raise_for_status()
+                    for item in r.json()["data"]:
+                        idx = item.get("index")
+                        vec = item.get("embedding")
+                        if idx is not None and vec is not None and 0 <= idx < len(chunk):
+                            result[start + idx] = vec
+                    return
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 429 and attempt < max_retries - 1:
+                        delay = backoff_base ** (attempt + 1)
+                        logging.warning(
+                            "NIM batch 429 (chunk %d), retry %d/%d sau %.0fs", start, attempt + 1, max_retries - 1, delay
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    logging.warning("embed_texts_batch failed (chunk %d): %s", start, exc)
+                    return
+                except Exception as exc:
+                    logging.warning("embed_texts_batch failed (chunk %d): %s", start, exc)
+                    return
+
+    async with httpx.AsyncClient() as client:
+        chunks = [(i, texts[i : i + batch_size]) for i in range(0, len(texts), batch_size)]
+        await asyncio.gather(*[_one_chunk(client, start, chunk) for start, chunk in chunks])
+
+    return result

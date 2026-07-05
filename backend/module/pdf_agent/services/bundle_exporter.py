@@ -105,6 +105,64 @@ def splice_figures_into_sections(sections: list[Section], figures: list[Figure])
     return spliced, leftover
 
 
+_NUMERIC_CITE_RE = re.compile(r"\[(\d+(?:\s*[,\-–]\s*\d+)*)\]")
+
+
+def _expand_numeric_group(group: str) -> list[int]:
+    """Expand a bracket group's inner text into ints: "3" -> [3], "3,4" -> [3,4], "3-5" -> [3,4,5]."""
+    nums: list[int] = []
+    for part in re.split(r"\s*,\s*", group):
+        part = part.strip()
+        m = re.match(r"^(\d+)\s*[-–]\s*(\d+)$", part)
+        if m:
+            lo, hi = int(m.group(1)), int(m.group(2))
+            if lo <= hi:
+                nums.extend(range(lo, hi + 1))
+        elif part.isdigit():
+            nums.append(int(part))
+    return nums
+
+
+def link_numeric_citations(sections: list[Section], bibliography: list[dict]) -> list[Section]:
+    """Rewrite literal `[N]` / `[N,M]` / `[N-M]` numeric citation markers in PDF-origin
+    body text into real `\\cite{ref_i}` macros.
+
+    Step P1's reference-list parse (`pdf_parser._extract_reference_lines`) preserves the
+    paper's own numbering order 1:1 into `raw_citations` — so marker N always means
+    `bibliography[N-1]`, no author/year fuzzy-matching needed. `.tex`/`.tex_bundle` sources
+    already carry real `\\cite{}` keys (non-synthetic) and have no literal "[N]" markers in
+    their body, so they're naturally unaffected by this.
+
+    Gated on a minimum number of in-range hits so a paper that merely mentions "[Table 2]"
+    or uses APA author-year citations (no numeric markers at all) is left untouched rather
+    than partially/incorrectly rewritten.
+    """
+    n = len(bibliography)
+    if n == 0:
+        return sections
+
+    combined = "\n".join(s["raw_latex"] for s in sections)
+    matches = list(_NUMERIC_CITE_RE.finditer(combined))
+    if not matches:
+        return sections
+
+    in_range = [m for m in matches if all(1 <= x <= n for x in _expand_numeric_group(m.group(1)))]
+    if len(in_range) < 3 or len(in_range) < 0.5 * len(matches):
+        return sections
+
+    def _replace(m: re.Match) -> str:
+        nums = _expand_numeric_group(m.group(1))
+        if not nums or not all(1 <= x <= n for x in nums):
+            return m.group(0)
+        keys = ",".join(bibliography[x - 1]["key"] for x in nums)
+        return rf"\cite{{{keys}}}"
+
+    linked = [dict(s) for s in sections]
+    for s in linked:
+        s["raw_latex"] = _NUMERIC_CITE_RE.sub(_replace, s["raw_latex"])
+    return linked
+
+
 def clean_sections(sections: list[Section], figures: list[Figure]) -> list[Section]:
     """Drop reference-list sections (the bibliography is regenerated separately from
     raw_citations) and strip missing-figure blocks (Phase 3 requirement: a missing
@@ -135,7 +193,9 @@ def render_editable_bundle(
     figures_out = bundle_dir / "figures"
     figures_out.mkdir(parents=True, exist_ok=True)
 
-    spliced_sections, leftover_figures = splice_figures_into_sections(sections, figures)
+    bibliography = [{"key": c.get("key") or f"ref{i}", "raw_text": c["raw_text"]} for i, c in enumerate(raw_citations)]
+    linked_sections = link_numeric_citations(sections, bibliography)
+    spliced_sections, leftover_figures = splice_figures_into_sections(linked_sections, figures)
 
     for fig in figures:
         if fig.get("missing"):
@@ -145,8 +205,6 @@ def render_editable_bundle(
             dest = figures_out / src.name
             if src.resolve() != dest.resolve():
                 shutil.copy(src, dest)
-
-    bibliography = [{"key": c.get("key") or f"ref{i}", "raw_text": c["raw_text"]} for i, c in enumerate(raw_citations)]
 
     template = _env.get_template("pdf_agent_document.tex.j2")
     main_tex = template.render(

@@ -16,14 +16,13 @@ SPECTER paper↔paper embeddings used for clustering in Step ②.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 
 from backend.config import get_settings
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
 from backend.module.research_agent.graph.state import ResearchState
-from backend.module.research_agent.services.embedding import embed_text
+from backend.module.research_agent.services.embedding import embed_text, embed_texts_batch
 from backend.shared.models.paper import Paper
 
 log = logging.getLogger(__name__)
@@ -58,13 +57,7 @@ async def _semantic_order(query: str, docs: list[str]) -> list[int] | None:
 
     import numpy as np
 
-    sem = asyncio.Semaphore(8)
-
-    async def _emb(d: str):
-        async with sem:
-            return await embed_text(d[:2000], input_type="passage")
-
-    vecs = await asyncio.gather(*[_emb(d) for d in docs])
+    vecs = await embed_texts_batch([d[:2000] for d in docs], input_type="passage")
     q = np.asarray(qv, dtype=float)
     qn = np.linalg.norm(q) + 1e-9
     sims = []
