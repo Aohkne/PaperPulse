@@ -429,9 +429,7 @@ async def list_billing_accounts(
         accounts, _ = await _pg(
             "billing_accounts",
             {
-                "select": (
-                    "user_id,tier,tier_period_end,subscription_credit_balance,credit_used_this_period"
-                ),
+                "select": ("user_id,tier,tier_period_end,subscription_credit_balance,credit_used_this_period"),
                 "user_id": f"in.({id_filter})",
             },
         )

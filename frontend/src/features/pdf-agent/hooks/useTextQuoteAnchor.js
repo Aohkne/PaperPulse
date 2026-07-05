@@ -22,9 +22,13 @@ export function refindAnchor(currentText, anchor) {
   const prefix = anchor.prefix ?? '';
   const suffix = anchor.suffix ?? '';
   for (const pos of candidates) {
-    const prefixOk = prefix ? currentText.slice(Math.max(0, pos - prefix.length), pos).endsWith(prefix.slice(-32)) : true;
+    const prefixOk = prefix
+      ? currentText.slice(Math.max(0, pos - prefix.length), pos).endsWith(prefix.slice(-32))
+      : true;
     const end = pos + exact.length;
-    const suffixOk = suffix ? currentText.slice(end, end + suffix.length).startsWith(suffix.slice(0, 32)) : true;
+    const suffixOk = suffix
+      ? currentText.slice(end, end + suffix.length).startsWith(suffix.slice(0, 32))
+      : true;
     if (prefixOk && suffixOk) return pos;
   }
   return null;

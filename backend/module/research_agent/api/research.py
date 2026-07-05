@@ -22,7 +22,7 @@ from backend.module.payment.services import billing_db, token_meter
 from backend.module.payment.services.billing_db import QuotaExceededError
 from backend.module.research_agent.graph.graph import get_research_graph
 from backend.shared.models.graph import GraphResponse
-from backend.shared.services import chat_persistence, topic_monitoring
+from backend.shared.services import chat_persistence, custom_instructions, topic_monitoring
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -467,6 +467,11 @@ async def research_stream(
     graph = await get_research_graph()
     config = {"configurable": {"thread_id": thread_id}}
     initial_state: dict[str, Any] = {"query": body.query, "thread_id": thread_id}
+    # Personalization: render the user's custom instructions into a persona
+    # block so greeting/clarify replies can address them by name and honor
+    # their preferences. Best-effort — build_persona_block never raises and
+    # returns "" when the user hasn't set anything.
+    initial_state["persona"] = await custom_instructions.build_persona_block(str(user.id))
     if body.messages:
         initial_state["messages"] = [
             HumanMessage(content=message.content) if message.role == "user" else AIMessage(content=message.content)

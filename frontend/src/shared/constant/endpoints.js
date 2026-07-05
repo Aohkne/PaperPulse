@@ -17,6 +17,9 @@ export const API_ENDPOINTS = {
     BASE: `${BASE_URL}/api/chats`,
     ITEM: (id) => `${BASE_URL}/api/chats/${id}`,
   },
+  MEMORY: {
+    INSTRUCTIONS: `${BASE_URL}/api/memory/instructions`,
+  },
   NOTIFICATIONS: {
     BASE: `${BASE_URL}/api/notifications`,
     ITEM: (id) => `${BASE_URL}/api/notifications/${id}`,

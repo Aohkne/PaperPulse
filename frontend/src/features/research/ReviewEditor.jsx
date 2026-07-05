@@ -7,15 +7,17 @@ const ReviewEditor = ({ latex, bibContent, query, onExportLatex, onExportBib }) 
 
   if (!latex) {
     return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        color: 'var(--color-paper-light)',
-        gap: '10px',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          color: 'var(--color-paper-light)',
+          gap: '10px',
+        }}
+      >
         <Icon icon="mdi:book-open-page-variant-outline" style={{ fontSize: '40px' }} />
         <p style={{ fontSize: '14px', margin: 0 }}>
           Review will appear here after the pipeline completes (Step ⑩)
@@ -52,33 +54,39 @@ const ReviewEditor = ({ latex, bibContent, query, onExportLatex, onExportBib }) 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '12px',
-        flexShrink: 0,
-        gap: '12px',
-        flexWrap: 'wrap',
-      }}>
-        <h2 style={{
-          fontSize: '15px',
-          fontWeight: 700,
-          color: 'var(--color-paper-dark)',
-          margin: 0,
-          fontFamily: 'var(--font-inknut)',
-        }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '12px',
+          flexShrink: 0,
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <h2
+          style={{
+            fontSize: '15px',
+            fontWeight: 700,
+            color: 'var(--color-paper-dark)',
+            margin: 0,
+            fontFamily: 'var(--font-inknut)',
+          }}
+        >
           {query ? `Review: ${query}` : 'Literature Review'}
         </h2>
 
         {/* Tab switcher */}
-        <div style={{
-          display: 'flex',
-          gap: '1px',
-          background: 'var(--color-paper-surface)',
-          borderRadius: '6px',
-          padding: '2px',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '1px',
+            background: 'var(--color-paper-surface)',
+            borderRadius: '6px',
+            padding: '2px',
+          }}
+        >
           {tabBtn('preview', 'mdi:eye-outline', 'Preview')}
           {tabBtn('source', 'mdi:code-braces', '.tex')}
           {bibContent && tabBtn('bib', 'mdi:book-multiple-outline', '.bib')}
@@ -130,15 +138,17 @@ const ReviewEditor = ({ latex, bibContent, query, onExportLatex, onExportBib }) 
       </div>
 
       {/* Content area */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: tab === 'preview' ? '20px' : '0',
-        background: tab === 'preview' ? '#fff' : 'transparent',
-        border: '1px solid var(--color-paper-surface)',
-        borderRadius: '8px',
-        fontFamily: tab === 'preview' ? "'Newsreader', serif" : 'monospace',
-      }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: tab === 'preview' ? '20px' : '0',
+          background: tab === 'preview' ? '#fff' : 'transparent',
+          border: '1px solid var(--color-paper-surface)',
+          borderRadius: '8px',
+          fontFamily: tab === 'preview' ? "'Newsreader', serif" : 'monospace',
+        }}
+      >
         {tab === 'preview' && <LatexPreview content={latex} />}
 
         {tab === 'source' && (

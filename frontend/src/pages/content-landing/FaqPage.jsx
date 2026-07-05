@@ -77,16 +77,27 @@ const FaqItem = ({ q, a }) => {
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
-          width: '100%', textAlign: 'left',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',
+          width: '100%',
+          textAlign: 'left',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '18px 0',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
           gap: 16,
         }}
       >
-        <span style={{
-          fontFamily: "'Newsreader', serif", fontSize: 16,
-          color: 'var(--color-paper-dark)', fontWeight: 500, lineHeight: 1.5,
-        }}>
+        <span
+          style={{
+            fontFamily: "'Newsreader', serif",
+            fontSize: 16,
+            color: 'var(--color-paper-dark)',
+            fontWeight: 500,
+            lineHeight: 1.5,
+          }}
+        >
           {q}
         </span>
         <Icon
@@ -104,10 +115,16 @@ const FaqItem = ({ q, a }) => {
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             style={{ overflow: 'hidden' }}
           >
-            <p style={{
-              fontFamily: "'Newsreader', serif", fontSize: 17, lineHeight: 1.8,
-              color: 'var(--color-paper-mid)', margin: '0 0 20px', paddingRight: 32,
-            }}>
+            <p
+              style={{
+                fontFamily: "'Newsreader', serif",
+                fontSize: 17,
+                lineHeight: 1.8,
+                color: 'var(--color-paper-mid)',
+                margin: '0 0 20px',
+                paddingRight: 32,
+              }}
+            >
               {a}
             </p>
           </motion.div>
@@ -121,27 +138,52 @@ const FaqPage = () => (
   // --color-landing-tone-1 + re-added dot-grain — matches
   // SiteHeader/SiteFooter/ContentFooter in both themes now, so the page
   // doesn't read as a separate strip between them.
-  <div style={{ ...dotGridBg('--color-landing-tone-1'), fontFamily: "'Newsreader', serif", minHeight: '100vh' }}>
+  <div
+    style={{
+      ...dotGridBg('--color-landing-tone-1'),
+      fontFamily: "'Newsreader', serif",
+      minHeight: '100vh',
+    }}
+  >
     <SiteHeader />
 
     <div style={{ paddingTop: 57 }}>
       {/* Header */}
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '80px 24px 32px' }}>
-        <motion.p {...fadeUp(0.1)} style={{
-          fontSize: 13, color: 'var(--color-paper-mid)',
-          letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 16px',
-        }}>
+        <motion.p
+          {...fadeUp(0.1)}
+          style={{
+            fontSize: 13,
+            color: 'var(--color-paper-mid)',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            margin: '0 0 16px',
+          }}
+        >
           FAQ
         </motion.p>
-        <motion.h1 {...fadeUp(0.2)} style={{
-          fontFamily: 'var(--font-inknut)', fontSize: 42, fontWeight: 500,
-          color: 'var(--color-paper-dark)', margin: '0 0 12px', lineHeight: 1.2,
-        }}>
+        <motion.h1
+          {...fadeUp(0.2)}
+          style={{
+            fontFamily: 'var(--font-inknut)',
+            fontSize: 42,
+            fontWeight: 500,
+            color: 'var(--color-paper-dark)',
+            margin: '0 0 12px',
+            lineHeight: 1.2,
+          }}
+        >
           Frequently asked questions
         </motion.h1>
-        <motion.p {...fadeUp(0.3)} style={{
-          fontSize: 17, color: 'var(--color-paper-mid)', margin: 0, lineHeight: 1.7,
-        }}>
+        <motion.p
+          {...fadeUp(0.3)}
+          style={{
+            fontSize: 17,
+            color: 'var(--color-paper-mid)',
+            margin: 0,
+            lineHeight: 1.7,
+          }}
+        >
           Common questions about how PaperPulse works.
         </motion.p>
       </section>
@@ -155,14 +197,19 @@ const FaqPage = () => (
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.05 }}
             style={{
-              fontFamily: 'var(--font-inknut)', fontSize: 20, fontWeight: 500,
-              color: 'var(--color-paper-dark)', margin: '0 0 8px',
+              fontFamily: 'var(--font-inknut)',
+              fontSize: 20,
+              fontWeight: 500,
+              color: 'var(--color-paper-dark)',
+              margin: '0 0 8px',
             }}
           >
             {title}
           </motion.h2>
           <div style={{ borderTop: '2px solid var(--color-paper-dark)', marginBottom: 4 }} />
-          {items.map(({ q, a }) => <FaqItem key={q} q={q} a={a} />)}
+          {items.map(({ q, a }) => (
+            <FaqItem key={q} q={q} a={a} />
+          ))}
         </section>
       ))}
 

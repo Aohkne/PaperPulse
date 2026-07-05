@@ -57,7 +57,9 @@ createRoot(document.getElementById('root')).render(
                 path={ROUTES.APP}
                 element={
                   <ProtectedRoute>
-                    <ChatLayout><ChatPage /></ChatLayout>
+                    <ChatLayout>
+                      <ChatPage />
+                    </ChatLayout>
                   </ProtectedRoute>
                 }
               />
@@ -65,7 +67,9 @@ createRoot(document.getElementById('root')).render(
                 path={ROUTES.RESEARCH}
                 element={
                   <ProtectedRoute>
-                    <ChatLayout><ResearchPage /></ChatLayout>
+                    <ChatLayout>
+                      <ResearchPage />
+                    </ChatLayout>
                   </ProtectedRoute>
                 }
               />
@@ -73,7 +77,9 @@ createRoot(document.getElementById('root')).render(
                 path={ROUTES.MY_REVIEWS}
                 element={
                   <ProtectedRoute>
-                    <ChatLayout><MyReviewsPage /></ChatLayout>
+                    <ChatLayout>
+                      <MyReviewsPage />
+                    </ChatLayout>
                   </ProtectedRoute>
                 }
               />
@@ -81,7 +87,9 @@ createRoot(document.getElementById('root')).render(
                 path="/app/reviews/:id"
                 element={
                   <ProtectedRoute>
-                    <ChatLayout><ReviewDetailPage /></ChatLayout>
+                    <ChatLayout>
+                      <ReviewDetailPage />
+                    </ChatLayout>
                   </ProtectedRoute>
                 }
               />
@@ -89,7 +97,9 @@ createRoot(document.getElementById('root')).render(
                 path={ROUTES.PDF_AGENT}
                 element={
                   <ProtectedRoute>
-                    <ChatLayout><PDFAgentPage /></ChatLayout>
+                    <ChatLayout>
+                      <PDFAgentPage />
+                    </ChatLayout>
                   </ProtectedRoute>
                 }
               />

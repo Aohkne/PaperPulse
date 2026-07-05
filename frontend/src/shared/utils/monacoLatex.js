@@ -28,7 +28,11 @@ export const registerLatexLanguage = (monaco) => {
 
   monaco.languages.setLanguageConfiguration('latex', {
     comments: { lineComment: '%' },
-    brackets: [['{', '}'], ['[', ']'], ['(', ')']],
+    brackets: [
+      ['{', '}'],
+      ['[', ']'],
+      ['(', ')'],
+    ],
     autoClosingPairs: [
       { open: '{', close: '}' },
       { open: '[', close: ']' },

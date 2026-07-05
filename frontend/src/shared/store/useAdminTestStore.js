@@ -19,7 +19,11 @@ async function* parseSse(response) {
     for (const block of blocks) {
       for (const line of block.split('\n')) {
         if (line.startsWith('data: ')) {
-          try { yield JSON.parse(line.slice(6)); } catch { /* skip */ }
+          try {
+            yield JSON.parse(line.slice(6));
+          } catch {
+            /* skip */
+          }
         }
       }
     }
@@ -45,15 +49,20 @@ const useAdminTestStore = create((set, get) => ({
 
   running: false,
   threadId: null,
-  timeline: [],            // [{id, kind, stepNum?, text?, data?, ts}]
+  timeline: [], // [{id, kind, stepNum?, text?, data?, ts}]
   error: null,
-  pendingInterrupt: null,  // {data} — set on "interrupt" event, cleared on resume
+  pendingInterrupt: null, // {data} — set on "interrupt" event, cleared on resume
   conversationHistory: [], // [{role, content}] — supports clarify multi-turn testing
 
   reset: () =>
     set({
-      query: '', running: false, threadId: null, timeline: [],
-      error: null, pendingInterrupt: null, conversationHistory: [],
+      query: '',
+      running: false,
+      threadId: null,
+      timeline: [],
+      error: null,
+      pendingInterrupt: null,
+      conversationHistory: [],
     }),
 
   _appendDiscrete: (kind, data) =>
@@ -98,7 +107,10 @@ const useAdminTestStore = create((set, get) => ({
         _appendDiscrete('greeting', event);
         set((s) => ({
           running: false,
-          conversationHistory: [...s.conversationHistory, { role: 'assistant', content: event.content }],
+          conversationHistory: [
+            ...s.conversationHistory,
+            { role: 'assistant', content: event.content },
+          ],
         }));
         break;
 
@@ -189,7 +201,10 @@ const useAdminTestStore = create((set, get) => ({
     set((s) => ({
       running: true,
       pendingInterrupt: null,
-      timeline: [...s.timeline, { id: makeId(), kind: 'resume_action', data: { resumeValue }, ts: Date.now() }],
+      timeline: [
+        ...s.timeline,
+        { id: makeId(), kind: 'resume_action', data: { resumeValue }, ts: Date.now() },
+      ],
     }));
 
     try {

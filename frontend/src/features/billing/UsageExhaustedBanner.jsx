@@ -20,20 +20,38 @@ const UsageExhaustedBanner = ({ feature = 'lr' }) => {
   if (!account || !exhausted || dismissed) return null;
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-      maxWidth: '680px', margin: '0 auto 10px',
-      padding: '8px 14px', borderRadius: '4px',
-      background: 'var(--color-brand-50)', border: '1px solid var(--color-brand-100)',
-      fontFamily: "'Newsreader', serif", fontSize: '13px', color: 'var(--color-brand-600)',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        maxWidth: '680px',
+        margin: '0 auto 10px',
+        padding: '8px 14px',
+        borderRadius: '4px',
+        background: 'var(--color-brand-50)',
+        border: '1px solid var(--color-brand-100)',
+        fontFamily: "'Newsreader', serif",
+        fontSize: '13px',
+        color: 'var(--color-brand-600)',
+      }}
+    >
       <span>
-        You've used up your {FEATURE_LABELS[feature]} quota for this period. It resets on {formatResetTime(account.tier_period_end)}.
+        You've used up your {FEATURE_LABELS[feature]} quota for this period. It resets on{' '}
+        {formatResetTime(account.tier_period_end)}.
       </span>
       <button
         onClick={() => setDismissed(true)}
         title="Dismiss"
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-brand-600)', display: 'flex', flexShrink: 0 }}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'var(--color-brand-600)',
+          display: 'flex',
+          flexShrink: 0,
+        }}
       >
         <Icon icon="mdi:close" style={{ fontSize: 16 }} />
       </button>

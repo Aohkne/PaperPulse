@@ -79,7 +79,9 @@ const LoginPage = () => {
     setGoogleLoading(true);
     promptGoogle(() => {
       setGoogleLoading(false);
-      showError('Google sign-in popup was blocked. Please allow third-party cookies/popups and try again.');
+      showError(
+        'Google sign-in popup was blocked. Please allow third-party cookies/popups and try again.'
+      );
     });
   };
 
@@ -103,7 +105,16 @@ const LoginPage = () => {
   return (
     // No explicit background here on purpose — lets the body's dot-grain
     // texture (index.css) show through around the card, like the Planner ref.
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', position: 'relative' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        position: 'relative',
+      }}
+    >
       <button
         onClick={() => navigate('/')}
         style={{
@@ -121,33 +132,40 @@ const LoginPage = () => {
         ← PaperPulse
       </button>
 
-      <div style={{
-        width: '100%',
-        maxWidth: '440px',
-        background: 'var(--color-paper-surface)',
-        border: '1px solid rgba(41, 17, 0, 0.08)',
-        borderRadius: '16px',
-        boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
-        padding: '40px',
-        boxSizing: 'border-box',
-      }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          background: 'var(--color-paper-surface)',
+          border: '1px solid rgba(41, 17, 0, 0.08)',
+          borderRadius: '16px',
+          boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
+          padding: '40px',
+          boxSizing: 'border-box',
+        }}
+      >
         <img
           src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
           alt="PaperPulse"
           style={{ height: '32px', width: 'auto', display: 'block', marginBottom: '20px' }}
         />
 
-        <h1 style={{
-          fontFamily: 'var(--font-inknut)',
-          fontSize: '24px',
-          fontWeight: 500,
-          color: 'var(--color-paper-dark)',
-          margin: '0 0 24px',
-        }}>
+        <h1
+          style={{
+            fontFamily: 'var(--font-inknut)',
+            fontSize: '24px',
+            fontWeight: 500,
+            color: 'var(--color-paper-dark)',
+            margin: '0 0 24px',
+          }}
+        >
           Welcome back.
         </h1>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+        >
           <div>
             <label style={labelStyle}>Email</label>
             <input
@@ -162,10 +180,12 @@ const LoginPage = () => {
           </div>
 
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}
+            >
               <label style={labelStyle}>Password</label>
               <span
-                onClick={() => showInfo('Password reset isn\'t wired up yet — check back soon.')}
+                onClick={() => showInfo("Password reset isn't wired up yet — check back soon.")}
                 style={{ ...linkStyle, fontSize: '12px', marginBottom: '6px' }}
               >
                 Forgot password?
@@ -199,7 +219,10 @@ const LoginPage = () => {
                   lineHeight: 0,
                 }}
               >
-                <Icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} style={{ fontSize: '18px' }} />
+                <Icon
+                  icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'}
+                  style={{ fontSize: '18px' }}
+                />
               </button>
             </div>
           </div>
@@ -227,7 +250,13 @@ const LoginPage = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
             <div style={{ flex: 1, height: '1px', background: 'rgba(41, 17, 0, 0.08)' }} />
-            <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)', fontFamily: "'Lora', 'Newsreader', serif" }}>
+            <span
+              style={{
+                fontSize: '12px',
+                color: 'var(--color-paper-mid)',
+                fontFamily: "'Lora', 'Newsreader', serif",
+              }}
+            >
               or continue with
             </span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(41, 17, 0, 0.08)' }} />
@@ -255,16 +284,36 @@ const LoginPage = () => {
             }}
           >
             <svg width="18" height="18" viewBox="0 0 18 18">
-              <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-              <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-              <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
-              <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
+              <path
+                fill="#4285F4"
+                d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"
+              />
+              <path
+                fill="#34A853"
+                d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"
+              />
+              <path
+                fill="#EA4335"
+                d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"
+              />
             </svg>
             {googleLoading ? 'Signing in…' : 'Sign in with Google'}
           </button>
         </form>
 
-        <p style={{ fontFamily: "'Lora', 'Newsreader', serif", fontSize: '13px', color: 'var(--color-paper-mid)', textAlign: 'center', marginTop: '24px' }}>
+        <p
+          style={{
+            fontFamily: "'Lora', 'Newsreader', serif",
+            fontSize: '13px',
+            color: 'var(--color-paper-mid)',
+            textAlign: 'center',
+            marginTop: '24px',
+          }}
+        >
           No account?{' '}
           <span onClick={() => navigate('/signup')} style={linkStyle}>
             Sign up

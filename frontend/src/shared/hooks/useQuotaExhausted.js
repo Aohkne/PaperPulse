@@ -11,7 +11,9 @@ export function useQuotaExhausted(/* feature */) {
   const account = useBillingStore((s) => s.account);
   const fetchAccount = useBillingStore((s) => s.fetchAccount);
 
-  useEffect(() => { fetchAccount(); }, [fetchAccount]);
+  useEffect(() => {
+    fetchAccount();
+  }, [fetchAccount]);
 
   if (!account) return false;
   const balance = account.subscription_credit_balance;

@@ -7,9 +7,12 @@ import { ROUTES } from '@/shared/constant/routes';
 import { useChatStore } from '@/shared/store/useChatStore';
 
 const overlayStyle = {
-  position: 'fixed', inset: 0,
+  position: 'fixed',
+  inset: 0,
   background: 'rgba(0,0,0,0.35)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   zIndex: 10000,
 };
 
@@ -31,9 +34,28 @@ const cardStyle = {
 // the textarea pre-seeded, for tools that live inside the chat flow rather
 // than on their own page (see Literature Review pillar in ChatPage.jsx).
 const APPS = [
-  { key: 'literature-review', label: 'Literature Review', description: 'Search, screen, and summarise papers on any topic', icon: 'mdi:text-search', route: ROUTES.APP, prefill: 'Literature Review: ' },
-  { key: 'research-gap', label: 'Research Gap', description: 'Find contradictions and understudied angles across papers', icon: 'mdi:lightbulb-on-outline', route: ROUTES.RESEARCH },
-  { key: 'pdf-agent', label: 'PDF Agent', description: 'Upload PDF/LaTeX, critique + verify citations', icon: 'mdi:file-search-outline', route: ROUTES.PDF_AGENT },
+  {
+    key: 'literature-review',
+    label: 'Literature Review',
+    description: 'Search, screen, and summarise papers on any topic',
+    icon: 'mdi:text-search',
+    route: ROUTES.APP,
+    prefill: 'Literature Review: ',
+  },
+  {
+    key: 'research-gap',
+    label: 'Research Gap',
+    description: 'Find contradictions and understudied angles across papers',
+    icon: 'mdi:lightbulb-on-outline',
+    route: ROUTES.RESEARCH,
+  },
+  {
+    key: 'pdf-agent',
+    label: 'PDF Agent',
+    description: 'Upload PDF/LaTeX, critique + verify citations',
+    icon: 'mdi:file-search-outline',
+    route: ROUTES.PDF_AGENT,
+  },
 ];
 
 const AppLauncherModal = ({ isOpen, onClose }) => {
@@ -87,8 +109,12 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
           style={overlayStyle}
-          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-          onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') onClose();
+          }}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -97,8 +123,21 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             style={cardStyle}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', border: '1px solid rgba(41, 17, 0, 0.12)', borderRadius: '10px', padding: '12px 14px', background: 'var(--color-paper-bg)' }}>
-              <Icon icon="mdi:magnify" style={{ width: 19, height: 19, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                border: '1px solid rgba(41, 17, 0, 0.12)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                background: 'var(--color-paper-bg)',
+              }}
+            >
+              <Icon
+                icon="mdi:magnify"
+                style={{ width: 19, height: 19, color: 'var(--color-paper-mid)', flexShrink: 0 }}
+              />
               <input
                 ref={inputRef}
                 type="text"
@@ -106,9 +145,13 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search applications..."
                 style={{
-                  fontFamily: "'Newsreader', serif", fontSize: '16px',
-                  color: 'var(--color-paper-dark)', border: 'none', outline: 'none',
-                  background: 'none', width: '100%',
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: '16px',
+                  color: 'var(--color-paper-dark)',
+                  border: 'none',
+                  outline: 'none',
+                  background: 'none',
+                  width: '100%',
                 }}
               />
             </div>
@@ -119,27 +162,64 @@ const AppLauncherModal = ({ isOpen, onClose }) => {
                   key={app.key}
                   onClick={() => handleSelect(app)}
                   style={{
-                    width: '100%', textAlign: 'left', padding: '14px 14px',
-                    background: 'none', border: 'none', borderRadius: '10px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '14px',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '14px 14px',
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '14px',
                     transition: 'background 0.12s',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-bg)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                 >
-                  <Icon icon={app.icon} style={{ width: 26, height: 26, color: 'var(--color-brand-500)', flexShrink: 0 }} />
+                  <Icon
+                    icon={app.icon}
+                    style={{
+                      width: 26,
+                      height: 26,
+                      color: 'var(--color-brand-500)',
+                      flexShrink: 0,
+                    }}
+                  />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: "'Newsreader', serif", color: 'var(--color-paper-dark)' }}>
+                    <div
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 600,
+                        fontFamily: "'Newsreader', serif",
+                        color: 'var(--color-paper-dark)',
+                      }}
+                    >
                       {app.label}
                     </div>
-                    <div style={{ fontSize: '14px', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", marginTop: '2px' }}>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        color: 'var(--color-paper-mid)',
+                        fontFamily: "'Newsreader', serif",
+                        marginTop: '2px',
+                      }}
+                    >
                       {app.description}
                     </div>
                   </div>
                 </button>
               ))}
               {results.length === 0 && (
-                <p style={{ textAlign: 'center', fontSize: '14px', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", padding: '14px 0' }}>
+                <p
+                  style={{
+                    textAlign: 'center',
+                    fontSize: '14px',
+                    color: 'var(--color-paper-mid)',
+                    fontFamily: "'Newsreader', serif",
+                    padding: '14px 0',
+                  }}
+                >
                   No applications found.
                 </p>
               )}

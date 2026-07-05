@@ -14,5 +14,7 @@ export const UserManagementPage = lazy(() => import('@/pages/admin/UserManagemen
 export const UsageManagementPage = lazy(() => import('@/pages/admin/UsageManagementPage'));
 export const CommunityModerationPage = lazy(() => import('@/pages/admin/CommunityModerationPage'));
 export const RevenuePage = lazy(() => import('@/pages/admin/RevenuePage'));
-export const LiteratureReviewTestingPage = lazy(() => import('@/pages/admin/LiteratureReviewTestingPage'));
+export const LiteratureReviewTestingPage = lazy(
+  () => import('@/pages/admin/LiteratureReviewTestingPage')
+);
 export const ResearchGapTestingPage = lazy(() => import('@/pages/admin/ResearchGapTestingPage'));

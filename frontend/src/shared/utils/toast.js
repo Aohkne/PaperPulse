@@ -25,6 +25,10 @@ export function showError(err, fallback) {
 
 export function showInfo(message) {
   toast(message, {
-    style: { ...BASE_STYLE, background: 'var(--color-paper-surface)', color: 'var(--color-paper-dark)' },
+    style: {
+      ...BASE_STYLE,
+      background: 'var(--color-paper-surface)',
+      color: 'var(--color-paper-dark)',
+    },
   });
 }

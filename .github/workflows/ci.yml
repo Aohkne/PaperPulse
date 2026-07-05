@@ -17,7 +17,7 @@ jobs:
   # ============================================
   lint-backend:
     name: Lint Backend (Ruff)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
   # ============================================
   lint-frontend:
     name: Lint Frontend (ESLint/Bun)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: lint-backend
     steps:
       - name: Checkout code
@@ -63,7 +63,7 @@ jobs:
   # ============================================
   test:
     name: Chạy Tests (pytest)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: lint-frontend
     steps:
       - name: Checkout code

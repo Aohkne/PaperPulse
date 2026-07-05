@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  SigmaContainer, useLoadGraph, useSigma, useRegisterEvents,
-  ControlsContainer, ZoomControl, FullScreenControl,
+  SigmaContainer,
+  useLoadGraph,
+  useSigma,
+  useRegisterEvents,
+  ControlsContainer,
+  ZoomControl,
+  FullScreenControl,
 } from '@react-sigma/core';
 import { Icon } from '@iconify/react';
 import '@react-sigma/core/lib/style.css';
@@ -47,10 +52,12 @@ const GraphFilters = ({ visibleLayers, contradictsOnly, selectedNodeId }) => {
 
     sigma.setSetting('edgeReducer', (edge, data) => {
       const graph2 = sigma.getGraph();
-      const src = graph2.source(edge), tgt = graph2.target(edge);
+      const src = graph2.source(edge),
+        tgt = graph2.target(edge);
       const srcKind = graph2.getNodeAttribute(src, 'kind');
       const tgtKind = graph2.getNodeAttribute(tgt, 'kind');
-      if (!visibleLayers.has(srcKind) || !visibleLayers.has(tgtKind)) return { ...data, hidden: true };
+      if (!visibleLayers.has(srcKind) || !visibleLayers.has(tgtKind))
+        return { ...data, hidden: true };
       if (contradictsOnly && data.kind !== 'contradicts') return { ...data, hidden: true };
       if (highlighted && !(highlighted.has(src) && highlighted.has(tgt))) {
         return { ...data, color: '#ece8da' };
@@ -163,15 +170,27 @@ const LayerToggle = ({ label, color, active, onToggle, count }) => (
   <button
     onClick={onToggle}
     style={{
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '4px 10px',
+      borderRadius: 20,
+      fontSize: 12,
+      fontWeight: 600,
       border: `1px solid ${active ? color : 'var(--color-paper-light)'}`,
       background: active ? `${color}1a` : 'transparent',
       color: active ? color : 'var(--color-paper-light)',
       cursor: 'pointer',
     }}
   >
-    <span style={{ width: 8, height: 8, borderRadius: '50%', background: active ? color : 'var(--color-paper-light)' }} />
+    <span
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        background: active ? color : 'var(--color-paper-light)',
+      }}
+    />
     {label} {typeof count === 'number' ? `(${count})` : ''}
   </button>
 );
@@ -196,7 +215,8 @@ const KnowledgeGraphViewer = ({ threadId }) => {
   const toggleLayer = (type) =>
     setVisibleLayers((prev) => {
       const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
       return next;
     });
 
@@ -207,7 +227,16 @@ const KnowledgeGraphViewer = ({ threadId }) => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 20, fontSize: 13, color: 'var(--color-paper-mid)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: 20,
+          fontSize: 13,
+          color: 'var(--color-paper-mid)',
+        }}
+      >
         <Icon icon="mdi:loading" className="animate-spin" />
         Loading knowledge graph…
       </div>
@@ -227,16 +256,45 @@ const KnowledgeGraphViewer = ({ threadId }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* Controls */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <LayerToggle label="Topic" color="#d97706" active={visibleLayers.has('topic')} onToggle={() => toggleLayer('topic')} count={raw?.nodes.filter((n) => n.type === 'topic').length} />
-        <LayerToggle label="Theme" color="#94a3b8" active={visibleLayers.has('theme')} onToggle={() => toggleLayer('theme')} count={raw?.stats?.themes} />
-        <LayerToggle label="Paper" color="#4f86c6" active={visibleLayers.has('paper')} onToggle={() => toggleLayer('paper')} count={raw?.stats?.papers} />
-        <LayerToggle label="Claim" color="#8040e8" active={visibleLayers.has('claim')} onToggle={() => toggleLayer('claim')} count={raw?.stats?.claims} />
+        <LayerToggle
+          label="Topic"
+          color="#d97706"
+          active={visibleLayers.has('topic')}
+          onToggle={() => toggleLayer('topic')}
+          count={raw?.nodes.filter((n) => n.type === 'topic').length}
+        />
+        <LayerToggle
+          label="Theme"
+          color="#94a3b8"
+          active={visibleLayers.has('theme')}
+          onToggle={() => toggleLayer('theme')}
+          count={raw?.stats?.themes}
+        />
+        <LayerToggle
+          label="Paper"
+          color="#4f86c6"
+          active={visibleLayers.has('paper')}
+          onToggle={() => toggleLayer('paper')}
+          count={raw?.stats?.papers}
+        />
+        <LayerToggle
+          label="Claim"
+          color="#8040e8"
+          active={visibleLayers.has('claim')}
+          onToggle={() => toggleLayer('claim')}
+          count={raw?.stats?.claims}
+        />
         <div style={{ width: 1, height: 18, background: 'var(--color-paper-surface)' }} />
         <button
           onClick={() => setContradictsOnly((v) => !v)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '4px 10px',
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 600,
             border: `1px solid ${contradictsOnly ? '#dc2626' : 'var(--color-paper-light)'}`,
             background: contradictsOnly ? 'rgba(220,38,38,0.1)' : 'transparent',
             color: contradictsOnly ? '#dc2626' : 'var(--color-paper-light)',
@@ -248,10 +306,19 @@ const KnowledgeGraphViewer = ({ threadId }) => {
         </button>
         <button
           onClick={() => setMotionEnabled((v) => !v)}
-          title={motionEnabled ? 'Pause rotation' : 'Enable slow rotation (off by default for accessibility)'}
+          title={
+            motionEnabled
+              ? 'Pause rotation'
+              : 'Enable slow rotation (off by default for accessibility)'
+          }
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '4px 10px',
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 600,
             border: `1px solid ${motionEnabled ? 'var(--color-brand-500)' : 'var(--color-paper-light)'}`,
             background: motionEnabled ? 'var(--color-brand-50)' : 'transparent',
             color: motionEnabled ? 'var(--color-brand-600)' : 'var(--color-paper-light)',
@@ -264,13 +331,25 @@ const KnowledgeGraphViewer = ({ threadId }) => {
       </div>
 
       {/* Graph canvas */}
-      <div style={{ position: 'relative', height: 480, border: '1px solid var(--color-paper-surface)', borderRadius: 8, overflow: 'hidden' }}>
+      <div
+        style={{
+          position: 'relative',
+          height: 480,
+          border: '1px solid var(--color-paper-surface)',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}
+      >
         <SigmaContainer
           settings={{ renderLabels: false }}
           style={{ height: '100%', width: '100%', background: 'var(--color-paper-bg)' }}
         >
           <GraphLoader graph={graph} />
-          <GraphFilters visibleLayers={visibleLayers} contradictsOnly={contradictsOnly} selectedNodeId={selectedNodeId} />
+          <GraphFilters
+            visibleLayers={visibleLayers}
+            contradictsOnly={contradictsOnly}
+            selectedNodeId={selectedNodeId}
+          />
           <GraphClickEvents
             onNodeClick={(id) => setSelectedNodeId((prev) => (prev === id ? null : id))}
             onStageClick={() => setSelectedNodeId(null)}

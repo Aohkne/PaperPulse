@@ -4,7 +4,8 @@ import { cn } from '@/shared/utils/cn';
 import Button from '@/shared/components/ui/Button';
 
 const buildBibTeX = (paper) => {
-  const firstAuthor = paper.authors[0]?.split(',')[0]?.toLowerCase().replace(/\s/g, '') ?? 'unknown';
+  const firstAuthor =
+    paper.authors[0]?.split(',')[0]?.toLowerCase().replace(/\s/g, '') ?? 'unknown';
   const key = `${firstAuthor}${paper.year}`;
   const authorStr = paper.authors.join(' and ');
   const doiLine = paper.doi ? `,\n  doi = {${paper.doi}}` : '';
@@ -36,7 +37,12 @@ const PaperCard = ({ paper, index }) => {
             </h3>
             <p className="text-sm text-gray-500 mt-1">
               {paper.authors.join(', ')} · {paper.year}
-              {paper.venue && <span> · <em>{paper.venue}</em></span>}
+              {paper.venue && (
+                <span>
+                  {' '}
+                  · <em>{paper.venue}</em>
+                </span>
+              )}
             </p>
           </div>
 
@@ -71,12 +77,7 @@ const PaperCard = ({ paper, index }) => {
           {copied ? 'Copied!' : 'Copy BibTeX'}
         </Button>
         {(paper.doi || paper.url) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="mdi:open-in-new"
-            onClick={handleOpenSource}
-          >
+          <Button variant="ghost" size="sm" icon="mdi:open-in-new" onClick={handleOpenSource}>
             View paper
           </Button>
         )}

@@ -1,0 +1,255 @@
+<title>Token-Weighted Billing — Design Doc</title>
+<meta name="description" content="Chuyển billing từ đếm lượt sang 1 pool credit chung tính theo token thực tế, hiển thị % ngân sách kiểu Claude Code" />
+<style>
+  :root {
+    --bg: #F4F5F2;
+    --surface: #FFFFFF;
+    --ink: #1C231F;
+    --ink-soft: #55605A;
+    --ink-faint: #8A938C;
+    --accent: #2F6F5E;
+    --accent-ink: #1C4A3D;
+    --accent-soft: #E1ECE7;
+    --warn: #A8672A;
+    --warn-soft: #F3E7D9;
+    --critical: #A93E3E;
+    --critical-soft: #F5E2E2;
+    --line: #DADEDA;
+    --line-soft: #E9EBE8;
+    --code-bg: #1C231F;
+    --code-ink: #E7EBE7;
+    --code-accent: #7FC4AC;
+    --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent-soft); color: var(--accent-ink); }
+  a { color: var(--accent-ink); text-decoration-color: var(--accent); text-underline-offset: 2px; }
+  a:hover { color: var(--accent); }
+
+  .page { max-width: 760px; margin: 0 auto; padding: 0 24px 100px; }
+
+  header.doc-head { padding: 52px 0 24px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-ink); display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+  h1.doc-title {
+    font-family: var(--serif); font-weight: 500; font-size: 2.3rem; line-height: 1.15;
+    margin: 0 0 12px; text-wrap: balance; color: var(--ink);
+  }
+  .doc-sub { font-size: 1.02rem; color: var(--ink-soft); max-width: 62ch; margin: 0 0 20px; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 20px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-faint); }
+  .meta-row span b { color: var(--ink-soft); font-weight: 600; }
+
+  nav.toc { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 18px 0 0; font-family: var(--mono); font-size: 12.5px; }
+  nav.toc a { color: var(--ink-soft); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent-ink); text-decoration: underline; }
+
+  section { padding: 40px 0; border-bottom: 1px solid var(--line-soft); }
+  section:last-of-type { border-bottom: none; }
+  .sec-num { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.55rem; margin: 0 0 16px; text-wrap: balance; color: var(--ink); }
+  h3 { font-family: var(--sans); font-weight: 700; font-size: 1rem; margin: 28px 0 10px; color: var(--ink); }
+  h3:first-child { margin-top: 0; }
+  p { margin: 0 0 16px; max-width: 66ch; color: var(--ink); }
+  p.lede { font-size: 1.02rem; color: var(--ink-soft); max-width: 64ch; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; max-width: 64ch; }
+  li { margin-bottom: 8px; }
+  li::marker { color: var(--ink-faint); }
+  strong { color: var(--ink); font-weight: 700; }
+  code:not(pre code) {
+    font-family: var(--mono); background: var(--accent-soft); color: var(--accent-ink);
+    padding: 1px 6px; border-radius: 4px; font-size: 0.88em;
+  }
+
+  .callout { border-radius: 10px; padding: 15px 18px; margin: 18px 0; font-size: 14.5px; border: 1px solid var(--line); max-width: 64ch; }
+  .callout .cal-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; margin-bottom: 6px; display: block; }
+  .callout.confirmed { background: var(--accent-soft); border-color: #C7DBD3; }
+  .callout.confirmed .cal-label { color: var(--accent-ink); }
+  .callout.risk { background: var(--warn-soft); border-color: #E5CFAE; }
+  .callout.risk .cal-label { color: var(--warn); }
+  .callout.open { background: var(--critical-soft); border-color: #E7C2C2; }
+  .callout.open .cal-label { color: var(--critical); }
+
+  .table-wrap { overflow-x: auto; margin: 16px 0 22px; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 460px; }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-faint); background: var(--line-soft); padding: 10px 14px; border-bottom: 1px solid var(--line);
+  }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { color: var(--ink); font-weight: 600; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+  .meter-demo { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  .meter-demo .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 13.5px; }
+  .meter-demo .row .label { color: var(--ink-soft); }
+  .meter-demo .row .pct { font-family: var(--mono); font-weight: 700; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+  .meter-demo .track { height: 10px; border-radius: 999px; background: var(--line-soft); overflow: hidden; margin-bottom: 4px; }
+  .meter-demo .fill { height: 100%; background: var(--accent); border-radius: 999px; }
+  .meter-demo .sub { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+
+  .checklist { list-style: none; padding: 0; margin: 0 0 16px; max-width: 64ch; }
+  .checklist li { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist .box { flex: 0 0 auto; width: 14px; height: 14px; border: 1.5px solid var(--ink-faint); border-radius: 4px; margin-top: 3px; }
+
+  footer { padding: 36px 0 0; font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    section { animation: rise 0.4s ease-out both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <div class="eyebrow"><span class="dot"></span> Design Doc · Draft v4</div>
+    <h1 class="doc-title">Token-Weighted Billing</h1>
+    <p class="doc-sub">Chuyển research-agent, pdf-agent, gap-detection từ đếm lượt sang <strong>1 pool credit chung</strong> tính theo token thực tế, hiển thị <strong>% ngân sách tháng</strong> kiểu Claude Code.</p>
+    <div class="meta-row">
+      <span><b>Dự án</b> C2-App-069 (PaperPulse)</span>
+      <span><b>Model</b> openai/gpt-oss-120b qua NVIDIA NIM</span>
+    </div>
+    <nav class="toc">
+      <a href="#mota">1 · Mô tả</a>
+      <a href="#chiphi">2 · Chi phí input/output</a>
+      <a href="#goi">3 · LR/PDF/GAP theo gói (% token)</a>
+      <a href="#trienkhai">4 · Triển khai</a>
+    </nav>
+  </header>
+
+  <section id="mota">
+    <div class="sec-num">§1</div>
+    <h2>Mô tả</h2>
+    <p class="lede">Billing hiện tại (<code>supabase/schema.sql</code> §13) trừ đúng <strong>1 lượt</strong> mỗi lần chạy research-agent (lr), pdf-agent (pdf), hoặc gap-detection (gap) — bất kể bên trong tốn bao nhiêu token, tách riêng 3 pool quota theo feature.</p>
+    <p>Thiết kế mới: bỏ hẳn khái niệm "lượt", trừ theo <strong>token thực tế tiêu thụ</strong> (quy đổi ra "credit"), gộp cả 3 feature vào <strong>1 pool chung</strong>, bỏ top-up — hết % chỉ còn nâng gói hoặc đợi kỳ mới. 2 hàm gọi LLM hiện có (<code>get_llm()</code> cho lr/pdf, <code>chat_completion()</code> cho gap) đang vứt bỏ <code>response.usage</code> — đây là điểm cần sửa để bắt được token.</p>
+  </section>
+
+  <section id="chiphi">
+    <div class="sec-num">§2</div>
+    <h2>Chi phí input/output — dựa vào đâu ra số tiền</h2>
+
+    <h3>Giá — fetch trực tiếp, không copy từ spec nội bộ</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nguồn</th><th>Kết quả</th></tr></thead>
+        <tbody>
+          <tr><td>OpenRouter — openai/gpt-oss-120b (fetch trực tiếp)</td><td><strong>$0.03/1M input · $0.15/1M output</strong></td></tr>
+          <tr><td>NVIDIA NIM docs (docs.api.nvidia.com)</td><td>Không có trang pricing công khai</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout risk">
+      <span class="cal-label">Lệch so với spec nội bộ</span>
+      <code>reseach-agent.html</code>/<code>pdf-agent.html</code> ghi $0.039/$0.180 — cao hơn giá OpenRouter fetch trực tiếp 23-30%. Số trong doc này dùng giá đã verify ($0.03/$0.15).
+    </div>
+
+    <h3>$/lượt trung bình</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th class="num">Input</th><th class="num">Output</th><th class="num">$/lượt</th><th class="num">Credit</th><th>Nguồn</th></tr></thead>
+        <tbody>
+          <tr><td>lr</td><td class="num">180.5K</td><td class="num">38.5K</td><td class="num">$0.011</td><td class="num">11</td><td><code>reseach-agent.html</code> §6.1 — kiến trúc mới, <strong>chưa lên code thật</strong></td></tr>
+          <tr><td>pdf</td><td class="num">—</td><td class="num">—</td><td class="num">~$0.002</td><td class="num">~2</td><td>Ước theo tỷ lệ, chưa có breakdown token gốc</td></tr>
+          <tr><td>gap</td><td class="num">54K</td><td class="num">15K</td><td class="num">$0.0039</td><td class="num">~4</td><td>Tự trace <code>extractor.py</code> — chưa đo thực nghiệm</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout open">
+      <span class="cal-label">Câu hỏi chưa tự trả lời được</span>
+      NVIDIA NIM tính tiền per-token thật hay đang chạy free-tier credit? Chỉ xem được trong dashboard billing NVIDIA của bạn.
+    </div>
+  </section>
+
+  <section id="goi">
+    <div class="sec-num">§3</div>
+    <h2>LR/PDF/GAP theo gói — tính theo % token</h2>
+    <p class="lede">1 credit = $0.001. Cả 3 feature trừ chung vào 1 số ngân sách/tháng — không tách riêng theo feature nữa.</p>
+
+    <div class="meter-demo">
+      <div class="row"><span class="label">Gói Free — đầu tháng</span><span class="pct">100% (55 credit)</span></div>
+      <div class="track"><div class="fill" style="width:100%"></div></div>
+    </div>
+    <div class="meter-demo">
+      <div class="row"><span class="label">Sau 1 lượt lr (11 credit)</span><span class="pct">80% (44 credit)</span></div>
+      <div class="track"><div class="fill" style="width:80%"></div></div>
+      <div class="sub">11 ÷ 55 = 20% ngân sách tháng</div>
+    </div>
+
+    <h3>% mỗi lượt tốn — theo gói</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th class="num">Credit/lượt</th><th class="num">% gói Free (55cr)</th><th class="num">% gói Plus (95cr)</th></tr></thead>
+        <tbody>
+          <tr><td>lr</td><td class="num">11</td><td class="num">20%</td><td class="num">11.6%</td></tr>
+          <tr><td>pdf</td><td class="num">~2</td><td class="num">3.6%</td><td class="num">2.1%</td></tr>
+          <tr><td>gap</td><td class="num">~4</td><td class="num">7.3%</td><td class="num">4.2%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Ngân sách 3 gói</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Gói</th><th>Cách tính</th><th class="num">Ngân sách/tháng</th></tr></thead>
+        <tbody>
+          <tr><td>Free</td><td>3×11 (lr) + 5×2 (pdf) + 3×4 (gap)</td><td class="num">55 credit</td></tr>
+          <tr><td>Plus</td><td>5×11 + 10×2 + 5×4</td><td class="num">95 credit</td></tr>
+          <tr><td>Unlimited</td><td>soft-cap 80×11 + 150×2 + 80×4 (chỉ log+alert)</td><td class="num">1500 credit</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Số 55/95/1500 giữ đúng giá trị tương đương trải nghiệm hiện tại — làm tròn 50/100/1500 hay giữ nguyên là quyết định giá, để bạn chốt.</p>
+  </section>
+
+  <section id="trienkhai">
+    <div class="sec-num">§4</div>
+    <h2>Triển khai</h2>
+
+    <h3>Bắt token — không sửa từng node</h3>
+    <p><code>backend/module/payment/services/token_meter.py</code> (mới) — đọc <code>response.usage</code> (chính xác 100%, không đoán), gom qua <code>contextvars.ContextVar</code> theo request nên không cần đổi signature hàng chục node. Cần xác minh <code>get_llm()</code> (streaming=True) có trả <code>usage</code> không — nếu không, bật <code>ChatOpenAI(stream_usage=True)</code>.</p>
+
+    <h3>Schema</h3>
+    <p>Gộp 3 cột quota + 3 cột topup thành 1 cột <code>subscription_credit_balance NUMERIC(10,3)</code> (NULL = Unlimited). Xóa hẳn top-up: <code>POST /billing/checkout/topup</code>, <code>TOPUP_PACKS</code>, nhánh topup trong <code>billing_apply_payment()</code>. <code>quota_ledger.feature</code> vẫn ghi để thống kê breakdown, không dùng để tách ngân sách.</p>
+
+    <h3>Luồng gate/settle</h3>
+    <p>Reserve tối đa trước khi chạy (dựa guardrail sẵn có) → chạy graph, cộng dồn usage → settle về đúng số thực. Nếu thực tế &gt; reserve: không hủy kết quả đã chạy, cho phép âm tạm, chặn <em>lượt tiếp theo</em> tới khi hết âm.</p>
+
+    <h3>Nâng gói giữa kỳ</h3>
+    <p>Reset thẳng về ngân sách gói mới, không cộng dồn phần dư gói cũ (không còn top-up để chứa phần dư).</p>
+
+    <h3>UI</h3>
+    <p><code>UsagePanel.jsx</code>: 1 thanh % duy nhất (không tách 3 thanh theo feature) + breakdown phụ. Ngưỡng màu &lt;70% xanh / 70-90% vàng / &gt;90% đỏ. <code>UsageExhaustedBanner.jsx</code>: "Đã dùng hết X% — nâng gói để tiếp tục", bỏ nút mua thêm.</p>
+
+    <ul class="checklist">
+      <li><span class="box"></span> Xác minh NIM trả <code>usage</code> khi streaming</li>
+      <li><span class="box"></span> Viết <code>token_meter.py</code> + gắn vào <code>chat_completion()</code>/<code>get_llm()</code></li>
+      <li><span class="box"></span> Migration SQL: 1 cột credit chung, xóa cột topup, <code>NUMERIC</code></li>
+      <li><span class="box"></span> Xóa toàn bộ route/schema/UI liên quan top-up</li>
+      <li><span class="box"></span> Sửa <code>billing_start_session()</code> + RPC <code>billing_settle_session()</code> mới</li>
+      <li><span class="box"></span> Cập nhật <code>pricing.py</code>: <code>TIER_CREDIT_BUDGET</code>, <code>SOFT_CAP_CREDIT</code></li>
+    </ul>
+  </section>
+
+  <footer>
+    token.html · Draft v4 · C2-App-069
+  </footer>
+
+</div>

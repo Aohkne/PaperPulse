@@ -132,14 +132,21 @@ const PLANS = [
 
 // Small shared bits
 const Eyebrow = ({ icon, children }) => (
-  <div style={{
-    display: 'inline-flex', alignItems: 'center', gap: 7,
-    padding: '6px 14px', borderRadius: 999,
-    background: 'var(--color-paper-surface)',
-    fontFamily: "'Newsreader', serif", fontSize: 13,
-    color: 'var(--color-paper-mid)', letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-  }}>
+  <div
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      padding: '6px 14px',
+      borderRadius: 999,
+      background: 'var(--color-paper-surface)',
+      fontFamily: "'Newsreader', serif",
+      fontSize: 13,
+      color: 'var(--color-paper-mid)',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+    }}
+  >
     {icon && <Icon icon={icon} style={{ fontSize: 14, color: 'var(--color-brand-500)' }} />}
     {children}
   </div>
@@ -148,14 +155,24 @@ const Eyebrow = ({ icon, children }) => (
 const PillButton = ({ children, onClick, variant = 'primary', arrow = false, style }) => {
   const [hover, setHover] = useState(false);
   const base = {
-    display: 'inline-flex', alignItems: 'center', gap: 8,
-    padding: '12px 26px', borderRadius: 999,
-    fontFamily: "'Newsreader', serif", fontSize: 16,
-    cursor: 'pointer', border: 'none', transition: 'opacity 0.15s, background 0.15s',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '12px 26px',
+    borderRadius: 999,
+    fontFamily: "'Newsreader', serif",
+    fontSize: 16,
+    cursor: 'pointer',
+    border: 'none',
+    transition: 'opacity 0.15s, background 0.15s',
   };
   const variants = {
     primary: { background: 'var(--color-paper-dark)', color: 'var(--color-paper-bg)' },
-    secondary: { background: 'transparent', color: 'var(--color-paper-mid)', border: '1px solid var(--color-paper-mid)' },
+    secondary: {
+      background: 'transparent',
+      color: 'var(--color-paper-mid)',
+      border: '1px solid var(--color-paper-mid)',
+    },
   };
   return (
     <motion.button
@@ -181,12 +198,18 @@ const PillButton = ({ children, onClick, variant = 'primary', arrow = false, sty
 };
 
 const IconTile = ({ icon, size = 44 }) => (
-  <div style={{
-    width: size, height: size, borderRadius: 12,
-    background: 'var(--color-paper-surface)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16,
-  }}>
+  <div
+    style={{
+      width: size,
+      height: size,
+      borderRadius: 12,
+      background: 'var(--color-paper-surface)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    }}
+  >
     <Icon icon={icon} style={{ fontSize: size * 0.5, color: 'var(--color-paper-mid)' }} />
   </div>
 );
@@ -205,18 +228,24 @@ const LandingPage = () => {
       <SiteHeader />
 
       <div style={{ paddingTop: 57 }}>
-
         {/* Hero — uses --color-landing-tone-1, which resolves to paper-surface
             (lighter) in light mode and paper-bg (darker) in dark mode, so the
             sequence starts light→dark→light in light mode but dark→light→dark
             in dark mode (see index.css for the per-theme token flip). */}
-        <section style={{
-          ...dotGridBg('--color-landing-tone-1'),
-          position: 'relative', overflow: 'hidden',
-          minHeight: '84vh', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          textAlign: 'center', padding: '80px 24px 60px',
-        }}>
+        <section
+          style={{
+            ...dotGridBg('--color-landing-tone-1'),
+            position: 'relative',
+            overflow: 'hidden',
+            minHeight: '84vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            padding: '80px 24px 60px',
+          }}
+        >
           {/* Animated dot-orbit constellation, color-matched to the brand green
               tokens (dotColor/lineColor resolve --color-brand-500/-100 at
               runtime — see DotOrbitBackground.jsx). Replaces the old static
@@ -244,43 +273,80 @@ const LandingPage = () => {
             />
           </div>
 
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
             <motion.div {...fadeUp(0.1)} style={{ marginBottom: 24 }}>
               <Eyebrow icon="mdi:sparkles-outline">AI Research Assistant</Eyebrow>
             </motion.div>
 
             <h1 style={{ margin: 0, lineHeight: 1.15 }}>
-              <motion.span {...fadeUp(0.25)} style={{
-                display: 'block', fontFamily: 'var(--font-inknut)',
-                fontSize: 'clamp(32px, 8vw, 56px)', color: 'var(--color-paper-dark)', fontWeight: 500, letterSpacing: '-0.01em',
-              }}>
+              <motion.span
+                {...fadeUp(0.25)}
+                style={{
+                  display: 'block',
+                  fontFamily: 'var(--font-inknut)',
+                  fontSize: 'clamp(32px, 8vw, 56px)',
+                  color: 'var(--color-paper-dark)',
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 Your Literature Review,
               </motion.span>
-              <motion.span {...fadeUp(0.38)} style={{
-                display: 'block', fontFamily: 'var(--font-inknut)',
-                fontSize: 'clamp(32px, 8vw, 56px)', color: 'var(--color-paper-mid)', fontWeight: 500, letterSpacing: '-0.01em',
-              }}>
+              <motion.span
+                {...fadeUp(0.38)}
+                style={{
+                  display: 'block',
+                  fontFamily: 'var(--font-inknut)',
+                  fontSize: 'clamp(32px, 8vw, 56px)',
+                  color: 'var(--color-paper-mid)',
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 Done in Hours.
               </motion.span>
             </h1>
 
-            <motion.p {...fadeUp(0.52)} style={{
-              fontFamily: "'Newsreader', serif", fontSize: 18,
-              color: 'var(--color-paper-mid)', maxWidth: 560,
-              margin: '24px auto', lineHeight: 1.7,
-            }}>
-              Analyse hundreds of papers, detect research gaps, and generate
-              citation-verified summaries — without fabricating a single source.
+            <motion.p
+              {...fadeUp(0.52)}
+              style={{
+                fontFamily: "'Newsreader', serif",
+                fontSize: 18,
+                color: 'var(--color-paper-mid)',
+                maxWidth: 560,
+                margin: '24px auto',
+                lineHeight: 1.7,
+              }}
+            >
+              Analyse hundreds of papers, detect research gaps, and generate citation-verified
+              summaries — without fabricating a single source.
             </motion.p>
 
-            <motion.div {...fadeUp(0.65)} style={{
-              display: 'flex', gap: 12, justifyContent: 'center',
-              marginTop: 32, flexWrap: 'wrap',
-            }}>
+            <motion.div
+              {...fadeUp(0.65)}
+              style={{
+                display: 'flex',
+                gap: 12,
+                justifyContent: 'center',
+                marginTop: 32,
+                flexWrap: 'wrap',
+              }}
+            >
               <PillButton variant="primary" arrow onClick={() => navigate(ROUTES.APP)}>
                 Start Researching
               </PillButton>
-              <PillButton variant="secondary" onClick={() => howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' })}>
+              <PillButton
+                variant="secondary"
+                onClick={() => howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              >
                 See how it works
               </PillButton>
             </motion.div>
@@ -288,28 +354,36 @@ const LandingPage = () => {
         </section>
 
         {/* Demo Video */}
-        <section
-          id="demo"
-          style={{ ...dotGridBg('--color-landing-tone-2'), padding: '88px 24px' }}
-        >
+        <section id="demo" style={{ ...dotGridBg('--color-landing-tone-2'), padding: '88px 24px' }}>
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
               <Eyebrow icon="mdi:play-circle-outline">Demo</Eyebrow>
             </motion.div>
-            <motion.h2 {...inView(0.08)} style={{
-              fontFamily: 'var(--font-inknut)', fontSize: 30, fontWeight: 500,
-              color: 'var(--color-paper-dark)', margin: 0,
-            }}>
+            <motion.h2
+              {...inView(0.08)}
+              style={{
+                fontFamily: 'var(--font-inknut)',
+                fontSize: 30,
+                fontWeight: 500,
+                color: 'var(--color-paper-dark)',
+                margin: 0,
+              }}
+            >
               See PaperPulse in action
             </motion.h2>
           </div>
 
           <motion.div {...inView(0.1)} style={{ maxWidth: 760, margin: '0 auto' }}>
-            <div style={{
-              position: 'relative', width: '100%', paddingTop: '56.25%',
-              borderRadius: 16, overflow: 'hidden',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
-            }}>
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                paddingTop: '56.25%',
+                borderRadius: 16,
+                overflow: 'hidden',
+                boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+              }}
+            >
               <iframe
                 src="https://www.youtube.com/embed/g7bTfmkbx7g"
                 title="PaperPulse demo"
@@ -332,46 +406,71 @@ const LandingPage = () => {
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
               <Eyebrow>Process</Eyebrow>
             </motion.div>
-            <motion.h2 {...inView(0.08)} style={{
-              fontFamily: 'var(--font-inknut)', fontSize: 30, fontWeight: 500,
-              color: 'var(--color-paper-dark)', margin: 0,
-            }}>
+            <motion.h2
+              {...inView(0.08)}
+              style={{
+                fontFamily: 'var(--font-inknut)',
+                fontSize: 30,
+                fontWeight: 500,
+                color: 'var(--color-paper-dark)',
+                margin: 0,
+              }}
+            >
               From question to insight — in minutes
             </motion.h2>
           </div>
 
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '32px 0', maxWidth: 900, margin: '0 auto',
-          }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '32px 0',
+              maxWidth: 900,
+              margin: '0 auto',
+            }}
+          >
             {STEPS.map(({ num, icon, title, body }, i) => (
               <motion.div
                 key={num}
                 {...inView(i * 0.12)}
                 style={{
                   padding: '0 36px',
-                  borderRight: i < STEPS.length - 1
-                    ? '1px solid var(--color-paper-light)'
-                    : 'none',
+                  borderRight: i < STEPS.length - 1 ? '1px solid var(--color-paper-light)' : 'none',
                 }}
               >
-                <div style={{
-                  fontFamily: 'var(--font-inknut)', fontSize: 44, fontWeight: 500,
-                  color: 'var(--color-paper-light)', lineHeight: 1, marginBottom: 16,
-                }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-inknut)',
+                    fontSize: 44,
+                    fontWeight: 500,
+                    color: 'var(--color-paper-light)',
+                    lineHeight: 1,
+                    marginBottom: 16,
+                  }}
+                >
                   {num}
                 </div>
                 <IconTile icon={icon} size={48} />
-                <p style={{
-                  fontFamily: 'var(--font-inknut)', fontSize: 17, fontWeight: 500,
-                  color: 'var(--color-paper-dark)', margin: '0 0 10px',
-                }}>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-inknut)',
+                    fontSize: 17,
+                    fontWeight: 500,
+                    color: 'var(--color-paper-dark)',
+                    margin: '0 0 10px',
+                  }}
+                >
                   {title}
                 </p>
-                <p style={{
-                  fontFamily: "'Newsreader', serif", fontSize: 17, lineHeight: 1.7,
-                  color: 'var(--color-paper-mid)', margin: 0,
-                }}>
+                <p
+                  style={{
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: 17,
+                    lineHeight: 1.7,
+                    color: 'var(--color-paper-mid)',
+                    margin: 0,
+                  }}
+                >
                   {body}
                 </p>
               </motion.div>
@@ -388,18 +487,29 @@ const LandingPage = () => {
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
               <Eyebrow>Capabilities</Eyebrow>
             </motion.div>
-            <motion.h2 {...inView(0.08)} style={{
-              fontFamily: 'var(--font-inknut)', fontSize: 30, fontWeight: 500,
-              color: 'var(--color-paper-dark)', margin: 0,
-            }}>
+            <motion.h2
+              {...inView(0.08)}
+              style={{
+                fontFamily: 'var(--font-inknut)',
+                fontSize: 30,
+                fontWeight: 500,
+                color: 'var(--color-paper-dark)',
+                margin: 0,
+              }}
+            >
               Everything you need for rigorous research
             </motion.h2>
           </div>
 
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: 20, maxWidth: 940, margin: '0 auto',
-          }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: 20,
+              maxWidth: 940,
+              margin: '0 auto',
+            }}
+          >
             {FEATURES.map(({ icon, title, body }, i) => (
               <motion.div
                 key={title}
@@ -412,20 +522,32 @@ const LandingPage = () => {
                   // though dark mode flips which physical color is "first".
                   background: 'var(--color-landing-tone-1)',
                   border: '1px solid var(--color-landing-tone-2)',
-                  borderRadius: 14, padding: 28, cursor: 'default',
+                  borderRadius: 14,
+                  padding: 28,
+                  cursor: 'default',
                 }}
               >
                 <IconTile icon={icon} />
-                <p style={{
-                  fontFamily: 'var(--font-inknut)', fontSize: 17, fontWeight: 500,
-                  color: 'var(--color-paper-dark)', margin: '0 0 8px',
-                }}>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-inknut)',
+                    fontSize: 17,
+                    fontWeight: 500,
+                    color: 'var(--color-paper-dark)',
+                    margin: '0 0 8px',
+                  }}
+                >
                   {title}
                 </p>
-                <p style={{
-                  fontFamily: "'Newsreader', serif", fontSize: 17, lineHeight: 1.7,
-                  color: 'var(--color-paper-mid)', margin: 0,
-                }}>
+                <p
+                  style={{
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: 17,
+                    lineHeight: 1.7,
+                    color: 'var(--color-paper-mid)',
+                    margin: 0,
+                  }}
+                >
                   {body}
                 </p>
               </motion.div>
@@ -442,24 +564,41 @@ const LandingPage = () => {
             <motion.div {...inView()} style={{ marginBottom: 18 }}>
               <Eyebrow>Pricing</Eyebrow>
             </motion.div>
-            <motion.h2 {...inView(0.08)} style={{
-              fontFamily: 'var(--font-inknut)', fontSize: 30, fontWeight: 500,
-              color: 'var(--color-paper-dark)', margin: '0 0 10px',
-            }}>
+            <motion.h2
+              {...inView(0.08)}
+              style={{
+                fontFamily: 'var(--font-inknut)',
+                fontSize: 30,
+                fontWeight: 500,
+                color: 'var(--color-paper-dark)',
+                margin: '0 0 10px',
+              }}
+            >
               Simple, transparent pricing
             </motion.h2>
-            <motion.p {...inView(0.16)} style={{
-              fontFamily: "'Newsreader', serif", fontSize: 16,
-              color: 'var(--color-paper-mid)', margin: 0,
-            }}>
+            <motion.p
+              {...inView(0.16)}
+              style={{
+                fontFamily: "'Newsreader', serif",
+                fontSize: 16,
+                color: 'var(--color-paper-mid)',
+                margin: 0,
+              }}
+            >
               Start free. Pay only when you need more.
             </motion.p>
           </div>
 
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: 24, maxWidth: 900, margin: '0 auto', alignItems: 'start',
-          }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: 24,
+              maxWidth: 900,
+              margin: '0 auto',
+              alignItems: 'start',
+            }}
+          >
             {PLANS.map((plan, i) => (
               <motion.div
                 key={plan.id}
@@ -467,46 +606,72 @@ const LandingPage = () => {
                 style={{
                   // Same tone-1/tone-2 token pair as the feature cards above.
                   background: 'var(--color-landing-tone-1)',
-                  border: plan.highlight ? `2px solid ${PAYG_BORDER}` : '1px solid var(--color-landing-tone-2)',
-                  borderRadius: 16, padding: 28, position: 'relative',
+                  border: plan.highlight
+                    ? `2px solid ${PAYG_BORDER}`
+                    : '1px solid var(--color-landing-tone-2)',
+                  borderRadius: 16,
+                  padding: 28,
+                  position: 'relative',
                   boxShadow: plan.highlight ? '0 16px 40px rgba(111,31,6,0.12)' : 'none',
                   transform: plan.highlight ? 'translateY(-6px)' : 'none',
                 }}
               >
                 {/* Badge */}
                 {plan.badge && (
-                  <div style={{
-                    position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
-                    background: PAYG_BORDER, color: '#fff',
-                    padding: '3px 14px', borderRadius: 20,
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
-                    whiteSpace: 'nowrap',
-                  }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -13,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: PAYG_BORDER,
+                      color: '#fff',
+                      padding: '3px 14px',
+                      borderRadius: 20,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {plan.badge}
                   </div>
                 )}
 
                 {/* Plan name */}
-                <p style={{
-                  fontFamily: 'var(--font-inknut)', fontSize: 15, fontWeight: 500,
-                  color: 'var(--color-paper-dark)', margin: '0 0 8px',
-                }}>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-inknut)',
+                    fontSize: 15,
+                    fontWeight: 500,
+                    color: 'var(--color-paper-dark)',
+                    margin: '0 0 8px',
+                  }}
+                >
                   {plan.name}
                 </p>
 
                 {/* Price */}
-                <p style={{
-                  fontFamily: "'Calistoga', serif",
-                  fontSize: plan.highlight ? 36 : 44,
-                  fontWeight: 400, color: 'var(--color-paper-dark)',
-                  margin: '0 0 4px', lineHeight: 1.1,
-                }}>
+                <p
+                  style={{
+                    fontFamily: "'Calistoga', serif",
+                    fontSize: plan.highlight ? 36 : 44,
+                    fontWeight: 400,
+                    color: 'var(--color-paper-dark)',
+                    margin: '0 0 4px',
+                    lineHeight: 1.1,
+                  }}
+                >
                   {plan.price}
                 </p>
-                <p style={{
-                  fontFamily: "'Newsreader', serif", fontSize: 13,
-                  color: 'var(--color-paper-mid)', margin: '0 0 20px',
-                }}>
+                <p
+                  style={{
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: 13,
+                    color: 'var(--color-paper-mid)',
+                    margin: '0 0 20px',
+                  }}
+                >
                   {plan.sub}
                 </p>
 
@@ -514,9 +679,13 @@ const LandingPage = () => {
                 <button
                   onClick={() => navigate(ROUTES.APP)}
                   style={{
-                    width: '100%', padding: '11px 0', marginBottom: 20,
-                    borderRadius: 999, cursor: 'pointer',
-                    fontFamily: "'Newsreader', serif", fontSize: 15,
+                    width: '100%',
+                    padding: '11px 0',
+                    marginBottom: 20,
+                    borderRadius: 999,
+                    cursor: 'pointer',
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: 15,
                     background: plan.ctaOutline ? 'transparent' : PAYG_BORDER,
                     color: plan.ctaOutline ? 'var(--color-paper-mid)' : '#fff',
                     border: plan.ctaOutline ? '1px solid var(--color-paper-mid)' : 'none',
@@ -532,12 +701,19 @@ const LandingPage = () => {
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Icon
                         icon={ok ? 'mdi:check-circle' : 'mdi:close-circle'}
-                        style={{ fontSize: 18, flexShrink: 0, color: ok ? 'var(--color-paper-mid)' : '#CDBFAD' }}
+                        style={{
+                          fontSize: 18,
+                          flexShrink: 0,
+                          color: ok ? 'var(--color-paper-mid)' : '#CDBFAD',
+                        }}
                       />
-                      <span style={{
-                        fontFamily: "'Newsreader', serif", fontSize: 15,
-                        color: 'var(--color-paper-mid)',
-                      }}>
+                      <span
+                        style={{
+                          fontFamily: "'Newsreader', serif",
+                          fontSize: 15,
+                          color: 'var(--color-paper-mid)',
+                        }}
+                      >
                         {label}
                       </span>
                     </div>
@@ -547,18 +723,21 @@ const LandingPage = () => {
             ))}
           </div>
 
-          <p style={{
-            textAlign: 'center', marginTop: 28,
-            fontFamily: "'Newsreader', serif", fontSize: 14,
-            color: 'var(--color-paper-mid)',
-          }}>
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 28,
+              fontFamily: "'Newsreader', serif",
+              fontSize: 14,
+              color: 'var(--color-paper-mid)',
+            }}
+          >
             Need more mid-cycle? Top up Literature Review / PDF Agent right inside the app.
           </p>
         </section>
 
         {/* Footer */}
         <SiteFooter />
-
       </div>
     </div>
   );

@@ -36,9 +36,7 @@ async def write_themes_node(state: ResearchState) -> dict:
         with_abstract = [p for p in cluster_papers if p.abstract]
         if not with_abstract:
             return None
-        papers_payload = [
-            {"paper_id": p.paper_id, "title": p.title, "abstract": p.abstract} for p in with_abstract
-        ]
+        papers_payload = [{"paper_id": p.paper_id, "title": p.title, "abstract": p.abstract} for p in with_abstract]
         try:
             content = await content_agent.run(theme.title, theme.description or "", papers_payload)
             return {

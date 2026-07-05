@@ -19,15 +19,24 @@ const useIsScrolled = (threshold = 8) => {
   return scrolled;
 };
 
-const THEME_ICONS = { light: 'mdi:weather-sunny', dark: 'mdi:weather-night', system: 'mdi:monitor' };
+const THEME_ICONS = {
+  light: 'mdi:weather-sunny',
+  dark: 'mdi:weather-night',
+  system: 'mdi:monitor',
+};
 
 const getInitials = (user) =>
   user?.name
-    ? user.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+    ? user.name
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
     : (user?.email?.[0]?.toUpperCase() ?? '?');
 
 const NAV_LINKS = [
-  { label: 'Home',      to: ROUTES.HOME      },
+  { label: 'Home', to: ROUTES.HOME },
   { label: 'Community', to: ROUTES.COMMUNITY },
 ];
 
@@ -40,7 +49,10 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
   const isAdmin = user?.role === 'admin';
   const initials = getInitials(user);
 
-  const go = (path) => { onClose(); navigate(path); };
+  const go = (path) => {
+    onClose();
+    navigate(path);
+  };
 
   const handleLogout = async () => {
     onClose();
@@ -65,8 +77,8 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
         textAlign: 'left',
         transition: 'background 0.12s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--color-paper-surface)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
       <Icon
         icon={icon}
@@ -74,13 +86,20 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
         // ProfileModal.jsx and for "Delete" elsewhere (ReviewDetailPage,
         // Sidebar's kebab menu). This was wrongly using brand-600 (green),
         // which made "Sign out" look like a regular/safe action.
-        style={{ fontSize: 16, color: danger ? '#c0392b' : 'var(--color-paper-mid)', flexShrink: 0 }}
+        style={{
+          fontSize: 16,
+          color: danger ? '#c0392b' : 'var(--color-paper-mid)',
+          flexShrink: 0,
+        }}
       />
-      <span style={{
-        fontFamily: "'Newsreader', serif", fontSize: 14,
-        color: danger ? '#c0392b' : 'var(--color-paper-dark)',
-        fontWeight: 500,
-      }}>
+      <span
+        style={{
+          fontFamily: "'Newsreader', serif",
+          fontSize: 14,
+          color: danger ? '#c0392b' : 'var(--color-paper-dark)',
+          fontWeight: 500,
+        }}
+      >
         {label}
       </span>
     </button>
@@ -108,50 +127,89 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
       }}
     >
       {/* User card */}
-      <div style={{
-        padding: '14px 16px',
-        borderBottom: '1px solid rgba(41, 17, 0, 0.08)',
-        display: 'flex', alignItems: 'center', gap: 12,
-      }}>
-        <div style={{
-          // Circular, matching the chat-UI avatar shape (Sidebar profile
-          // row / round icon-button convention) instead of this menu's old
-          // rounded-square swatch.
-          width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-          background: 'var(--color-paper-surface)',
-          border: '1px solid var(--color-paper-light)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--font-inknut)', fontSize: 14, fontWeight: 500,
-          color: 'var(--color-paper-dark)', overflow: 'hidden',
-        }}>
-          {user?.avatar_url
-            ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : initials}
+      <div
+        style={{
+          padding: '14px 16px',
+          borderBottom: '1px solid rgba(41, 17, 0, 0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            // Circular, matching the chat-UI avatar shape (Sidebar profile
+            // row / round icon-button convention) instead of this menu's old
+            // rounded-square swatch.
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: 'var(--color-paper-surface)',
+            border: '1px solid var(--color-paper-light)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-inknut)',
+            fontSize: 14,
+            fontWeight: 500,
+            color: 'var(--color-paper-dark)',
+            overflow: 'hidden',
+          }}
+        >
+          {user?.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            initials
+          )}
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{
-            fontFamily: "'Newsreader', serif", fontSize: 14, fontWeight: 600,
-            color: 'var(--color-paper-dark)', whiteSpace: 'nowrap',
-            overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>
+          <div
+            style={{
+              fontFamily: "'Newsreader', serif",
+              fontSize: 14,
+              fontWeight: 600,
+              color: 'var(--color-paper-dark)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {user?.name || 'Account'}
           </div>
-          <div style={{
-            fontFamily: "'Newsreader', serif", fontSize: 12,
-            color: 'var(--color-paper-mid)', whiteSpace: 'nowrap',
-            overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2,
-          }}>
+          <div
+            style={{
+              fontFamily: "'Newsreader', serif",
+              fontSize: 12,
+              color: 'var(--color-paper-mid)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              marginTop: 2,
+            }}
+          >
             {user?.email || ''}
           </div>
           {isAdmin && (
-            <span style={{
-              display: 'inline-block', marginTop: 5,
-              padding: '1px 7px', borderRadius: 2,
-              border: '1px solid var(--color-paper-light)',
-              fontFamily: "'Newsreader', serif",
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-              color: 'var(--color-paper-mid)', textTransform: 'uppercase',
-            }}>
+            <span
+              style={{
+                display: 'inline-block',
+                marginTop: 5,
+                padding: '1px 7px',
+                borderRadius: 2,
+                border: '1px solid var(--color-paper-light)',
+                fontFamily: "'Newsreader', serif",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                color: 'var(--color-paper-mid)',
+                textTransform: 'uppercase',
+              }}
+            >
               Admin
             </span>
           )}
@@ -162,16 +220,23 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
       <div style={{ padding: '6px' }}>
         {menuItem('mdi:home-outline', 'Go to App', () => go(ROUTES.APP))}
         {menuItem('mdi:bookshelf', 'My Reviews', () => go(ROUTES.MY_REVIEWS))}
-        {isAdmin && menuItem('mdi:view-dashboard-outline', 'Dashboard', () => go(ROUTES.ADMIN_DASHBOARD))}
+        {isAdmin &&
+          menuItem('mdi:view-dashboard-outline', 'Dashboard', () => go(ROUTES.ADMIN_DASHBOARD))}
       </div>
 
       {/* Appearance */}
       <div style={{ padding: '6px', borderTop: '1px solid rgba(41, 17, 0, 0.08)' }}>
-        <div style={{
-          padding: '4px 10px 8px',
-          fontFamily: "'Newsreader', serif", fontSize: 10, fontWeight: 700,
-          color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.08em',
-        }}>
+        <div
+          style={{
+            padding: '4px 10px 8px',
+            fontFamily: "'Newsreader', serif",
+            fontSize: 10,
+            fontWeight: 700,
+            color: 'var(--color-paper-mid)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
           Appearance
         </div>
         <div style={{ display: 'flex', gap: 4, padding: '0 2px' }}>
@@ -181,22 +246,36 @@ const AvatarMenu = ({ user, onClose, menuRef, isMobile }) => {
               onClick={() => setTheme(t)}
               title={t}
               style={{
-                flex: 1, padding: '8px 4px',
+                flex: 1,
+                padding: '8px 4px',
                 border: '1px solid',
                 borderColor: theme === t ? 'var(--color-paper-dark)' : 'rgba(41, 17, 0, 0.08)',
                 borderRadius: 2,
                 background: theme === t ? 'var(--color-paper-surface)' : 'transparent',
                 cursor: 'pointer',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
                 transition: 'all 0.12s',
               }}
             >
-              <Icon icon={THEME_ICONS[t]} style={{ fontSize: 15, color: theme === t ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)' }} />
-              <span style={{
-                fontFamily: "'Newsreader', serif", fontSize: 10,
-                color: theme === t ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
-                textTransform: 'capitalize', fontWeight: theme === t ? 600 : 400,
-              }}>
+              <Icon
+                icon={THEME_ICONS[t]}
+                style={{
+                  fontSize: 15,
+                  color: theme === t ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: 10,
+                  color: theme === t ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
+                  textTransform: 'capitalize',
+                  fontWeight: theme === t ? 600 : 400,
+                }}
+              >
                 {t}
               </span>
             </button>
@@ -238,7 +317,9 @@ const SiteHeader = () => {
   // color pre-mixed with its own opacity (CSS can't blur a var() directly),
   // recomputed per branch so it still matches once glass-blur kicks in.
   const navBg = scrolled
-    ? (isDark ? 'rgba(26,26,24,0.78)' : 'rgba(255,252,240,0.78)')
+    ? isDark
+      ? 'rgba(26,26,24,0.78)'
+      : 'rgba(255,252,240,0.78)'
     : 'var(--color-landing-tone-1)';
 
   const openMenu = () => {
@@ -269,31 +350,56 @@ const SiteHeader = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
         style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
           background: navBg,
           backdropFilter: scrolled ? 'blur(12px)' : 'none',
           WebkitBackdropFilter: scrolled ? 'blur(12px)' : 'none',
           borderBottom: scrolled ? 'none' : '1px solid rgba(41, 17, 0, 0.08)',
-          boxShadow: scrolled ? '0 1px 0 rgba(41, 17, 0, 0.08), 0 10px 30px rgba(41,17,0,0.06)' : 'none',
+          boxShadow: scrolled
+            ? '0 1px 0 rgba(41, 17, 0, 0.08), 0 10px 30px rgba(41,17,0,0.06)'
+            : 'none',
           padding: isMobile ? '10px 16px' : '12px 40px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           gap: 8,
           transition: 'background 0.2s, box-shadow 0.2s',
         }}
       >
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0 }} onClick={() => navigate(ROUTES.HOME)}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+          onClick={() => navigate(ROUTES.HOME)}
+        >
           <img
             src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}
             alt="PaperPulse"
             style={{ height: isMobile ? 26 : 32, width: 'auto' }}
           />
           {!isMobile && (
-            <span style={{
-              fontFamily: "'Newsreader', serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-              color: 'var(--color-brand-600)', background: 'var(--color-brand-50)',
-              border: '1px solid var(--color-brand-100)', borderRadius: 4, padding: '2px 6px',
-            }}>
+            <span
+              style={{
+                fontFamily: "'Newsreader', serif",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                color: 'var(--color-brand-600)',
+                background: 'var(--color-brand-50)',
+                border: '1px solid var(--color-brand-100)',
+                borderRadius: 4,
+                padding: '2px 6px',
+              }}
+            >
               BETA
             </span>
           )}
@@ -309,8 +415,12 @@ const SiteHeader = () => {
                 onClick={() => navigate(item.to)}
                 style={{
                   position: 'relative',
-                  background: 'none', border: 'none', cursor: 'pointer', padding: isMobile ? '6px 0' : '4px 0',
-                  fontFamily: "'Newsreader', serif", fontSize: isMobile ? 13 : 15,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: isMobile ? '6px 0' : '4px 0',
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: isMobile ? 13 : 15,
                   color: isActive ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
                   fontWeight: isActive ? 600 : 400,
                   transition: 'color 0.15s',
@@ -322,8 +432,13 @@ const SiteHeader = () => {
                     layoutId="nav-underline"
                     transition={{ type: 'spring', stiffness: 420, damping: 32 }}
                     style={{
-                      position: 'absolute', left: 0, right: 0, bottom: -6,
-                      height: 2, borderRadius: 2, background: 'var(--color-brand-500)',
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      bottom: -6,
+                      height: 2,
+                      borderRadius: 2,
+                      background: 'var(--color-brand-500)',
                     }}
                   />
                 )}
@@ -333,7 +448,9 @@ const SiteHeader = () => {
         </div>
 
         {/* Right */}
-        <div style={{ display: 'flex', gap: isMobile ? 6 : 10, alignItems: 'center', flexShrink: 0 }}>
+        <div
+          style={{ display: 'flex', gap: isMobile ? 6 : 10, alignItems: 'center', flexShrink: 0 }}
+        >
           <button
             onClick={toggleTheme}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -343,13 +460,22 @@ const SiteHeader = () => {
               // the chat UI (bell/graph/help buttons on ChatPage) so this
               // light/dark toggle reads as the same control family.
               border: '1px solid var(--color-paper-light)',
-              borderRadius: 999, padding: isMobile ? '8px' : '6px 8px',
-              minWidth: isMobile ? 38 : undefined, minHeight: isMobile ? 38 : undefined,
-              cursor: 'pointer', color: 'var(--color-paper-mid)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
+              borderRadius: 999,
+              padding: isMobile ? '8px' : '6px 8px',
+              minWidth: isMobile ? 38 : undefined,
+              minHeight: isMobile ? 38 : undefined,
+              cursor: 'pointer',
+              color: 'var(--color-paper-mid)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 0,
             }}
           >
-            <Icon icon={isDark ? 'mdi:weather-sunny' : 'mdi:weather-night'} style={{ fontSize: 18 }} />
+            <Icon
+              icon={isDark ? 'mdi:weather-sunny' : 'mdi:weather-night'}
+              style={{ fontSize: 18 }}
+            />
           </button>
 
           {isAuthenticated ? (
@@ -358,24 +484,37 @@ const SiteHeader = () => {
               onClick={openMenu}
               title="Account"
               style={{
-                width: isMobile ? 38 : 34, height: isMobile ? 38 : 34,
+                width: isMobile ? 38 : 34,
+                height: isMobile ? 38 : 34,
                 // Circular, matching the chat-UI avatar shape instead of
                 // this button's old rounded-square frame.
                 borderRadius: '50%',
-                border: menuOpen ? '1px solid var(--color-paper-dark)' : '1px solid var(--color-paper-light)',
+                border: menuOpen
+                  ? '1px solid var(--color-paper-dark)'
+                  : '1px solid var(--color-paper-light)',
                 background: 'var(--color-paper-surface)',
                 cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--font-inknut)', fontSize: 12, fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--font-inknut)',
+                fontSize: 12,
+                fontWeight: 500,
                 color: 'var(--color-paper-dark)',
                 overflow: 'hidden',
                 transition: 'border-color 0.15s',
                 padding: 0,
               }}
             >
-              {user?.avatar_url
-                ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : initials}
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
             </button>
           ) : (
             <>
@@ -384,8 +523,12 @@ const SiteHeader = () => {
                 style={{
                   background: 'transparent',
                   border: '1px solid var(--color-paper-mid)',
-                  color: 'var(--color-paper-mid)', padding: isMobile ? '8px 12px' : '7px 20px',
-                  borderRadius: 999, fontFamily: "'Newsreader', serif", fontSize: isMobile ? 13 : 15, cursor: 'pointer',
+                  color: 'var(--color-paper-mid)',
+                  padding: isMobile ? '8px 12px' : '7px 20px',
+                  borderRadius: 999,
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: isMobile ? 13 : 15,
+                  cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -394,9 +537,14 @@ const SiteHeader = () => {
               <button
                 onClick={() => navigate(ROUTES.SIGNUP)}
                 style={{
-                  background: 'var(--color-paper-dark)', border: 'none',
-                  color: 'var(--color-paper-bg)', padding: isMobile ? '8px 12px' : '7px 20px',
-                  borderRadius: 999, fontFamily: "'Newsreader', serif", fontSize: isMobile ? 13 : 15, cursor: 'pointer',
+                  background: 'var(--color-paper-dark)',
+                  border: 'none',
+                  color: 'var(--color-paper-bg)',
+                  padding: isMobile ? '8px 12px' : '7px 20px',
+                  borderRadius: 999,
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: isMobile ? 13 : 15,
+                  cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -408,26 +556,29 @@ const SiteHeader = () => {
       </motion.nav>
 
       {/* Avatar dropdown portal */}
-      {isAuthenticated && createPortal(
-        <AnimatePresence>
-          {menuOpen && (
-            <div style={{
-              position: 'fixed',
-              top: menuPos.top,
-              right: Math.max(12, menuPos.right),
-              zIndex: 9999,
-            }}>
-              <AvatarMenu
-                user={user}
-                onClose={() => setMenuOpen(false)}
-                menuRef={menuRef}
-                isMobile={isMobile}
-              />
-            </div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      {isAuthenticated &&
+        createPortal(
+          <AnimatePresence>
+            {menuOpen && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: menuPos.top,
+                  right: Math.max(12, menuPos.right),
+                  zIndex: 9999,
+                }}
+              >
+                <AvatarMenu
+                  user={user}
+                  onClose={() => setMenuOpen(false)}
+                  menuRef={menuRef}
+                  isMobile={isMobile}
+                />
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
     </>
   );
 };

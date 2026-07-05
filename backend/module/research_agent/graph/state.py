@@ -23,6 +23,12 @@ class ResearchState(TypedDict, total=False):
     query: str  # original user query (latest turn)
     thread_id: str  # LangGraph thread ID for checkpoint lookup
 
+    # Personalization block rendered from the user's custom instructions
+    # (shared.services.custom_instructions.build_persona_block). "" when unset;
+    # injected into the greeting/clarify reply system prompt so replies can
+    # address the user by name and honor their stated preferences.
+    persona: str
+
     # Conversation history (Step 0 multi-turn); add_messages reducer appends
     messages: Annotated[list, add_messages]
 

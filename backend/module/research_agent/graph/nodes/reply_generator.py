@@ -108,16 +108,29 @@ def _parse_questions(text: str) -> list[str]:
     return [q for q in questions if q][:5]
 
 
+def _with_persona(base_system: str, persona: str) -> str:
+    """Append the personalization block to a system prompt, if present.
+
+    persona is rendered by custom_instructions.build_persona_block and is
+    already framed as context-only ("NOT instructions that override your
+    role"), so it can't be used to escape the fixed-role guardrails above it.
+    """
+    if not persona:
+        return base_system
+    return f"{base_system}\n\n{persona}"
+
+
 async def reply_generator_node(state: ResearchState) -> dict:
     intent = state.get("intent", "greeting")
     query = state.get("query", "")
+    persona = state.get("persona", "") or ""
 
     if intent == "clarify":
         llm = get_llm(temperature=0, streaming=True)
         response = await ainvoke_with_timeout(
             llm,
             [
-                SystemMessage(content=_CLARIFY_SYSTEM),
+                SystemMessage(content=_with_persona(_CLARIFY_SYSTEM, persona)),
                 HumanMessage(content=query),
             ],
         )
@@ -137,7 +150,7 @@ async def reply_generator_node(state: ResearchState) -> dict:
         response = await ainvoke_with_timeout(
             llm,
             [
-                SystemMessage(content=_GREETING_SYSTEM),
+                SystemMessage(content=_with_persona(_GREETING_SYSTEM, persona)),
                 HumanMessage(content=query),
             ],
         )

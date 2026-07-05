@@ -1,16 +1,19 @@
 -- ============================================================
 -- PaperPulse – reset script (KEEP user-info tables)
 -- Run BEFORE schema.sql. Drops everything this project created
--- EXCEPT the user-identity tables (profiles, login_logs) and the
--- Supabase Auth users — so existing accounts survive a rebuild.
+-- EXCEPT the user-info tables (profiles, login_logs,
+-- user_custom_instructions) and the Supabase Auth users — so existing
+-- accounts AND their personalization survive a rebuild.
 --
--- schema.sql creates profiles/login_logs with IF NOT EXISTS and
--- re-creates their triggers/policies idempotently, so re-running it
--- after this reset will not clobber the preserved rows.
+-- schema.sql creates those tables with IF NOT EXISTS and re-creates their
+-- triggers/policies idempotently, so re-running it after this reset will not
+-- clobber the preserved rows.
 -- ============================================================
 
 -- 1. Drop tables (CASCADE clears dependent views, FKs, policies, indexes,
 --    triggers). profiles + login_logs are intentionally NOT dropped.
+DROP SCHEMA IF EXISTS research_agent_checkpoints CASCADE;
+DROP SCHEMA IF EXISTS pdf_agent_checkpoints CASCADE;
 DROP TABLE IF EXISTS public.quota_ledger          CASCADE;
 DROP TABLE IF EXISTS public.payment_transactions   CASCADE;
 DROP TABLE IF EXISTS public.billing_accounts       CASCADE;
@@ -24,6 +27,14 @@ DROP TABLE IF EXISTS public.search_cache           CASCADE;  -- removed table (s
 DROP TABLE IF EXISTS public.paper_embeddings       CASCADE;
 DROP TABLE IF EXISTS public.gap_nim_embeddings     CASCADE;
 DROP TABLE IF EXISTS public.gap_specter_embeddings CASCADE;
+-- Topic-monitoring tables (schema.sql §3–4). Children first, though CASCADE
+-- would handle FKs anyway. These were missing here, so they survived resets.
+DROP TABLE IF EXISTS public.notification_events    CASCADE;
+DROP TABLE IF EXISTS public.topic_paper_matches    CASCADE;
+DROP TABLE IF EXISTS public.user_topic_interests   CASCADE;
+DROP TABLE IF EXISTS public.research_topics        CASCADE;
+DROP TABLE IF EXISTS public.papers                 CASCADE;
+DROP TABLE IF EXISTS public.notification_settings  CASCADE;
 
 -- 2. Drop view + leaderboard (recomputed from contributions in schema.sql)
 DROP VIEW IF EXISTS public.leaderboard CASCADE;
@@ -47,8 +58,3 @@ DROP TYPE IF EXISTS public.payment_status;
 DROP TYPE IF EXISTS public.payment_type;
 DROP TYPE IF EXISTS public.billing_tier;
 DROP TYPE IF EXISTS public.contribution_status;
-
--- NOTE: public.user_role, the profiles/login_logs tables, their triggers
--- (set_updated_at, handle_new_user, protect_privileged_profile_fields), and
--- auth.users are intentionally left in place so existing users are preserved.
--- schema.sql re-creates them with IF NOT EXISTS / DROP-then-CREATE guards.

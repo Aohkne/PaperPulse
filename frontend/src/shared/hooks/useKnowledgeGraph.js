@@ -11,7 +11,7 @@ import { API_ENDPOINTS } from '@/shared/constant/endpoints';
  */
 export function useKnowledgeGraph(threadId) {
   const [graph, setGraph] = useState(null);
-  const [raw, setRaw] = useState(null);   // {nodes, edges, stats} — for sidebars/stat bars
+  const [raw, setRaw] = useState(null); // {nodes, edges, stats} — for sidebars/stat bars
   const [loading, setLoading] = useState(Boolean(threadId));
   const [error, setError] = useState(null);
 
@@ -50,7 +50,9 @@ export function useKnowledgeGraph(threadId) {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [threadId]);
 
   return { graph, raw, loading, error };

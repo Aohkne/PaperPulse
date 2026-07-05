@@ -11,9 +11,12 @@ export const useThemeStore = create(
       toggleTheme: () => {
         const current = get().theme;
         // When toggling from system, resolve actual value first
-        const resolved = current === 'system'
-          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : current;
+        const resolved =
+          current === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : current;
         set({ theme: resolved === 'dark' ? 'light' : 'dark' });
       },
     }),

@@ -129,4 +129,4 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.taskipy.tasks]
-ci = "ruff format . && ruff check . --output-format=github && cd frontend && bun run lint && cd .. && pytest tests/ -q"
+ci = "ruff format . && ruff check . --output-format=github && cd frontend && bun run format:check && bun run lint && cd .. && pytest tests/ -q"

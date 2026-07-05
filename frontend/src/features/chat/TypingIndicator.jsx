@@ -4,16 +4,18 @@ import { Icon } from '@iconify/react';
 // The spinner + "Thinking…" pill itself, reusable standalone or nested inside
 // an existing message bubble (ChatMessage already renders its own avatar).
 const TypingPill = () => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    background: 'var(--color-paper-surface)',
-    border: '1px solid var(--color-paper-light)',
-    borderRadius: '16px',
-    minHeight: '38px',
-  }}>
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 12px',
+      background: 'var(--color-paper-surface)',
+      border: '1px solid var(--color-paper-light)',
+      borderRadius: '16px',
+      minHeight: '38px',
+    }}
+  >
     <motion.div
       animate={{ rotate: 360 }}
       transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
@@ -21,13 +23,15 @@ const TypingPill = () => (
     >
       <Icon icon="mdi:loading" style={{ fontSize: '13px', color: 'var(--color-brand-500)' }} />
     </motion.div>
-    <span style={{
-      fontFamily: "'Newsreader', serif",
-      fontSize: '13px',
-      fontStyle: 'italic',
-      color: 'var(--color-paper-dark)',
-      opacity: 0.75,
-    }}>
+    <span
+      style={{
+        fontFamily: "'Newsreader', serif",
+        fontSize: '13px',
+        fontStyle: 'italic',
+        color: 'var(--color-paper-dark)',
+        opacity: 0.75,
+      }}
+    >
       Thinking…
     </span>
   </div>
@@ -45,14 +49,27 @@ const TypingIndicator = ({ inline = false }) => {
       style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '20px' }}
     >
       {/* Avatar */}
-      <div style={{
-        width: '28px', height: '28px',
-        backgroundColor: 'var(--color-paper-mid)',
-        borderRadius: '10px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        <span style={{ fontFamily: 'var(--font-inknut)', color: 'var(--color-paper-bg)', fontSize: '14px', fontWeight: 600, lineHeight: 1 }}>
+      <div
+        style={{
+          width: '28px',
+          height: '28px',
+          backgroundColor: 'var(--color-paper-mid)',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-inknut)',
+            color: 'var(--color-paper-bg)',
+            fontSize: '14px',
+            fontWeight: 600,
+            lineHeight: 1,
+          }}
+        >
           P
         </span>
       </div>

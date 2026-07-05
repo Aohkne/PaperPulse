@@ -11,9 +11,9 @@ const PRICE_FONT = "'Lora', 'Newsreader', serif";
 // Token-weighted billing: one shared monthly credit pool per tier (credits=null
 // → unlimited). All features (LR · PDF · Research Gap) draw from it.
 const TIERS = [
-  { key: 'free',      label: 'Free',      price: '0đ',              credits: 50 },
-  { key: 'plus',      label: 'Plus',      price: '19.000đ/month',   credits: 100, popular: true },
-  { key: 'unlimited', label: 'Unlimited', price: '299.000đ/month',  credits: null },
+  { key: 'free', label: 'Free', price: '0đ', credits: 50 },
+  { key: 'plus', label: 'Plus', price: '19.000đ/month', credits: 100, popular: true },
+  { key: 'unlimited', label: 'Unlimited', price: '299.000đ/month', credits: null },
 ];
 
 const sectionTitle = {
@@ -48,7 +48,9 @@ const CheckoutModal = ({ checkout, onClose }) => {
     pollTransaction(checkout.transaction_id).then((result) => {
       if (!cancelled) setStatus(result);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [checkout.transaction_id, pollTransaction]);
 
   return (
@@ -57,8 +59,13 @@ const CheckoutModal = ({ checkout, onClose }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(41,17,0,0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001,
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(41,17,0,0.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10001,
       }}
       onClick={onClose}
     >
@@ -71,7 +78,9 @@ const CheckoutModal = ({ checkout, onClose }) => {
           background: 'var(--color-paper-bg)',
           border: '1px solid var(--color-paper-surface)',
           borderRadius: '10px',
-          padding: '28px', maxWidth: '360px', textAlign: 'center',
+          padding: '28px',
+          maxWidth: '360px',
+          textAlign: 'center',
           boxShadow: '0 16px 48px rgba(41,17,0,0.22)',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -91,10 +100,25 @@ const CheckoutModal = ({ checkout, onClose }) => {
               >
                 <Icon icon="mdi:check-circle" style={{ fontSize: 56, color: '#10b981' }} />
               </motion.div>
-              <p style={{ marginTop: 14, fontFamily: PRICE_FONT, fontSize: 16, fontWeight: 600, color: 'var(--color-paper-dark)' }}>
+              <p
+                style={{
+                  marginTop: 14,
+                  fontFamily: PRICE_FONT,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: 'var(--color-paper-dark)',
+                }}
+              >
                 Payment successful
               </p>
-              <p style={{ marginTop: 4, fontFamily: PRICE_FONT, fontSize: 13, color: 'var(--color-paper-mid)' }}>
+              <p
+                style={{
+                  marginTop: 4,
+                  fontFamily: PRICE_FONT,
+                  fontSize: 13,
+                  color: 'var(--color-paper-mid)',
+                }}
+              >
                 Your account has been updated.
               </p>
             </motion.div>
@@ -105,10 +129,26 @@ const CheckoutModal = ({ checkout, onClose }) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <p style={{ fontFamily: PRICE_FONT, fontSize: 14, fontWeight: 600, color: 'var(--color-paper-dark)', margin: '0 0 4px' }}>
+              <p
+                style={{
+                  fontFamily: PRICE_FONT,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'var(--color-paper-dark)',
+                  margin: '0 0 4px',
+                }}
+              >
                 Scan to pay
               </p>
-              <p style={{ fontFamily: PRICE_FONT, fontSize: 22, fontWeight: 700, color: 'var(--color-brand-600)', margin: '0 0 18px' }}>
+              <p
+                style={{
+                  fontFamily: PRICE_FONT,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: 'var(--color-brand-600)',
+                  margin: '0 0 18px',
+                }}
+              >
                 {checkout.amount_vnd.toLocaleString('vi-VN')}đ
               </p>
 
@@ -117,40 +157,87 @@ const CheckoutModal = ({ checkout, onClose }) => {
                   animate={{ opacity: [0.55, 0.15, 0.55], scale: [1, 1.045, 1] }}
                   transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                   style={{
-                    position: 'absolute', inset: 0, borderRadius: 14,
-                    border: '2px solid var(--color-brand-500)', pointerEvents: 'none',
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 14,
+                    border: '2px solid var(--color-brand-500)',
+                    pointerEvents: 'none',
                   }}
                 />
-                <div style={{
-                  position: 'relative', width: '100%', height: '100%',
-                  background: '#fff', borderRadius: 12, padding: 8, boxSizing: 'border-box',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 16px rgba(41,17,0,0.10)',
-                }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
+                    background: '#fff',
+                    borderRadius: 12,
+                    padding: 8,
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 16px rgba(41,17,0,0.10)',
+                  }}
+                >
                   <QRCodeSVG value={checkout.qr_code} size={204} />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  marginTop: 16,
+                }}
+              >
                 <motion.span
                   animate={{ opacity: [1, 0.3, 1] }}
                   transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-                  style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-paper-light)', display: 'inline-block', flexShrink: 0 }}
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--color-paper-light)',
+                    display: 'inline-block',
+                    flexShrink: 0,
+                  }}
                 />
-                <p style={{ fontSize: 12, color: 'var(--color-paper-mid)', fontFamily: PRICE_FONT, margin: 0 }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--color-paper-mid)',
+                    fontFamily: PRICE_FONT,
+                    margin: 0,
+                  }}
+                >
                   {status === 'pending' ? 'Waiting for payment...' : `Status: ${status}`}
                 </p>
               </div>
 
-              <a href={checkout.checkout_url} target="_blank" rel="noreferrer"
-                style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: 'var(--color-brand-600)', fontFamily: PRICE_FONT, textDecoration: 'underline' }}>
+              <a
+                href={checkout.checkout_url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-block',
+                  marginTop: 10,
+                  fontSize: 13,
+                  color: 'var(--color-brand-600)',
+                  fontFamily: PRICE_FONT,
+                  textDecoration: 'underline',
+                }}
+              >
                 Open banking app
               </a>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <button style={{ ...baseButtonStyle, marginTop: 18 }} onClick={onClose}>Close</button>
+        <button style={{ ...baseButtonStyle, marginTop: 18 }} onClick={onClose}>
+          Close
+        </button>
       </motion.div>
     </motion.div>
   );
@@ -165,7 +252,9 @@ const BillingPanel = () => {
   const clearPendingCheckout = useBillingStore((s) => s.clearPendingCheckout);
   const checkoutError = useBillingStore((s) => s.checkoutError);
 
-  useEffect(() => { fetchAccount(); }, [fetchAccount]);
+  useEffect(() => {
+    fetchAccount();
+  }, [fetchAccount]);
 
   const currentTierIndex = TIERS.findIndex((t) => t.key === account?.tier);
 
@@ -183,7 +272,14 @@ const BillingPanel = () => {
   return (
     <div>
       {checkoutError && (
-        <p style={{ color: 'var(--color-brand-600)', fontFamily: PRICE_FONT, fontSize: 13, marginBottom: 12 }}>
+        <p
+          style={{
+            color: 'var(--color-brand-600)',
+            fontFamily: PRICE_FONT,
+            fontSize: 13,
+            marginBottom: 12,
+          }}
+        >
           {friendlyError(checkoutError, "Couldn't start checkout — please try again.")}
         </p>
       )}
@@ -198,9 +294,7 @@ const BillingPanel = () => {
             <div
               key={tier.key}
               style={{
-                border: isPopular
-                  ? '1.5px solid #6F1F06'
-                  : '1px solid var(--color-paper-surface)',
+                border: isPopular ? '1.5px solid #6F1F06' : '1px solid var(--color-paper-surface)',
                 borderRadius: '4px',
                 padding: '16px 18px',
                 background: isPopular ? 'var(--color-paper-surface)' : 'var(--color-paper-bg)',
@@ -211,48 +305,79 @@ const BillingPanel = () => {
             >
               {/* Popular badge */}
               {isPopular && (
-                <div style={{
-                  position: 'absolute', top: -1, right: 12,
-                  background: '#6F1F06',
-                  color: 'var(--color-paper-bg)',
-                  fontSize: 9, fontFamily: PRICE_FONT, fontWeight: 700,
-                  letterSpacing: '0.08em', textTransform: 'uppercase',
-                  padding: '2px 8px',
-                  borderRadius: '0 0 3px 3px',
-                }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -1,
+                    right: 12,
+                    background: '#6F1F06',
+                    color: 'var(--color-paper-bg)',
+                    fontSize: 9,
+                    fontFamily: PRICE_FONT,
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    padding: '2px 8px',
+                    borderRadius: '0 0 3px 3px',
+                  }}
+                >
                   Popular
                 </div>
               )}
 
-              <p style={{
-                fontFamily: "'Fraunces', 'Newsreader', serif",
-                fontWeight: 500, fontSize: '15px',
-                color: 'var(--color-paper-dark)', margin: '0 0 4px',
-              }}>
+              <p
+                style={{
+                  fontFamily: "'Fraunces', 'Newsreader', serif",
+                  fontWeight: 500,
+                  fontSize: '15px',
+                  color: 'var(--color-paper-dark)',
+                  margin: '0 0 4px',
+                }}
+              >
                 {tier.label}
               </p>
 
-              <p style={{
-                fontFamily: PRICE_FONT,
-                fontSize: '18px', fontWeight: 600,
-                color: 'var(--color-brand-600)',
-                margin: '0 0 12px',
-              }}>
+              <p
+                style={{
+                  fontFamily: PRICE_FONT,
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  color: 'var(--color-brand-600)',
+                  margin: '0 0 12px',
+                }}
+              >
                 {tier.price}
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {(tier.credits === null
-                  ? ['Unlimited usage — no monthly cap', 'All tools — LR · PDF · Research Gap', 'Knowledge Graph included free']
-                  : [`${tier.credits} credits / month`, 'One shared pool — LR · PDF · Research Gap', 'Knowledge Graph included free']
+                  ? [
+                      'Unlimited usage — no monthly cap',
+                      'All tools — LR · PDF · Research Gap',
+                      'Knowledge Graph included free',
+                    ]
+                  : [
+                      `${tier.credits} credits / month`,
+                      'One shared pool — LR · PDF · Research Gap',
+                      'Knowledge Graph included free',
+                    ]
                 ).map((line) => (
-                  <p key={line} style={{
-                    fontSize: 13, margin: 0,
-                    fontFamily: PRICE_FONT,
-                    color: 'var(--color-paper-mid)',
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}>
-                    <Icon icon="mdi:check" style={{ fontSize: 14, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
+                  <p
+                    key={line}
+                    style={{
+                      fontSize: 13,
+                      margin: 0,
+                      fontFamily: PRICE_FONT,
+                      color: 'var(--color-paper-mid)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Icon
+                      icon="mdi:check"
+                      style={{ fontSize: 14, color: 'var(--color-paper-mid)', flexShrink: 0 }}
+                    />
                     {line}
                   </p>
                 ))}
@@ -261,25 +386,34 @@ const BillingPanel = () => {
               <button
                 style={{
                   ...baseButtonStyle,
-                  ...(isCurrent ? {
-                    background: 'transparent',
-                    border: '1px solid var(--color-paper-surface)',
-                    color: 'var(--color-paper-light)',
-                    cursor: 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  } : isPopular ? {
-                    background: '#6F1F06',
-                    border: '1px solid #6F1F06',
-                    color: 'var(--color-paper-bg)',
-                  } : {}),
+                  ...(isCurrent
+                    ? {
+                        background: 'transparent',
+                        border: '1px solid var(--color-paper-surface)',
+                        color: 'var(--color-paper-light)',
+                        cursor: 'default',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }
+                    : isPopular
+                      ? {
+                          background: '#6F1F06',
+                          border: '1px solid #6F1F06',
+                          color: 'var(--color-paper-bg)',
+                        }
+                      : {}),
                 }}
                 disabled={isCurrent}
                 onClick={() => !isCurrent && handleTierAction(tier.key)}
                 onMouseEnter={(e) => {
-                  if (!isCurrent && !isPopular) e.currentTarget.style.borderColor = 'var(--color-paper-dark)';
+                  if (!isCurrent && !isPopular)
+                    e.currentTarget.style.borderColor = 'var(--color-paper-dark)';
                 }}
                 onMouseLeave={(e) => {
-                  if (!isCurrent && !isPopular) e.currentTarget.style.borderColor = 'var(--color-paper-surface)';
+                  if (!isCurrent && !isPopular)
+                    e.currentTarget.style.borderColor = 'var(--color-paper-surface)';
                 }}
               >
                 {isCurrent && <Icon icon="mdi:check-circle-outline" style={{ fontSize: 15 }} />}
@@ -290,12 +424,22 @@ const BillingPanel = () => {
         })}
       </div>
 
-      <p style={{ fontSize: 13, color: 'var(--color-paper-mid)', fontFamily: PRICE_FONT, marginTop: 4 }}>
-        All features share one monthly credit pool. When it runs out, upgrade or wait for the next period — there is no top-up.
+      <p
+        style={{
+          fontSize: 13,
+          color: 'var(--color-paper-mid)',
+          fontFamily: PRICE_FONT,
+          marginTop: 4,
+        }}
+      >
+        All features share one monthly credit pool. When it runs out, upgrade or wait for the next
+        period — there is no top-up.
       </p>
 
       <AnimatePresence>
-        {pendingCheckout && <CheckoutModal checkout={pendingCheckout} onClose={clearPendingCheckout} />}
+        {pendingCheckout && (
+          <CheckoutModal checkout={pendingCheckout} onClose={clearPendingCheckout} />
+        )}
       </AnimatePresence>
     </div>
   );

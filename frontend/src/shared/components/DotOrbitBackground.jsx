@@ -43,12 +43,22 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const toRgba = (input, alpha) => {
   const s = (input || '').trim();
   if (s.startsWith('rgba(') || s.startsWith('rgb(')) {
-    const nums = s.replace(/rgba?\(/, '').replace(')', '').split(',').map((v) => parseFloat(v.trim()));
+    const nums = s
+      .replace(/rgba?\(/, '')
+      .replace(')', '')
+      .split(',')
+      .map((v) => parseFloat(v.trim()));
     const [r = 0, g = 0, b = 0] = nums;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
   const hx = s.replace('#', '').trim();
-  const full = hx.length === 3 ? hx.split('').map((c) => c + c).join('') : hx.slice(0, 6);
+  const full =
+    hx.length === 3
+      ? hx
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : hx.slice(0, 6);
   const n = parseInt(full || '000000', 16);
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
@@ -102,7 +112,7 @@ export default function DotOrbitBackground(rawProps) {
     let w = 1;
     let h = 1;
 
-    const easeToLerp = (ease) => clamp(clamp(ease, 0, 100) / 100 * 0.3, 0, 0.3);
+    const easeToLerp = (ease) => clamp((clamp(ease, 0, 100) / 100) * 0.3, 0, 0.3);
 
     const resize = () => {
       const r = wrap.getBoundingClientRect();
@@ -127,7 +137,7 @@ export default function DotOrbitBackground(rawProps) {
     resize();
 
     const rebuildDots = () => {
-      const count = clamp(Math.floor((w * h) / 12000 * props.density), 20, 320);
+      const count = clamp(Math.floor(((w * h) / 12000) * props.density), 20, 320);
       const cx = w * 0.5;
       const cy = h * 0.5;
       return Array.from({ length: count }).map((_, i) => {
@@ -269,10 +279,21 @@ export default function DotOrbitBackground(rawProps) {
       }
     };
   }, [
-    props.mode, props.interaction, props.tracking, props.density, props.speed,
-    props.dotSize, props.linkDistance, props.background, props.dotColor,
-    props.lineColor, props.opacity, props.alpha, props.interactionRadius,
-    props.interactionStrength, props.cursorEase,
+    props.mode,
+    props.interaction,
+    props.tracking,
+    props.density,
+    props.speed,
+    props.dotSize,
+    props.linkDistance,
+    props.background,
+    props.dotColor,
+    props.lineColor,
+    props.opacity,
+    props.alpha,
+    props.interactionRadius,
+    props.interactionStrength,
+    props.cursorEase,
   ]);
 
   const onPointerMove = (e) => {
@@ -305,7 +326,10 @@ export default function DotOrbitBackground(rawProps) {
         ...props.style,
       }}
     >
-      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
+      <canvas
+        ref={canvasRef}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}
+      />
     </div>
   );
 }

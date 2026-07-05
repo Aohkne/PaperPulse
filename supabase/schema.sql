@@ -1120,3 +1120,37 @@ BEGIN
     END IF;
 END;
 $$;
+
+
+-- ============================================================
+-- 7. user personalization ("What should PaperPulse call you?" form)
+-- IF NOT EXISTS + idempotent guards — this is USER-INFO DATA, so reset.sql
+-- intentionally does NOT drop it (preserved across rebuilds, like profiles).
+-- One row per user; injected into the research greeting via
+-- custom_instructions.build_persona_block. `instructions` also carries who the
+-- user is (the separate "about" field was merged into it).
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.user_custom_instructions (
+  user_id      uuid        PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  call_name    text,
+  instructions text,
+  created_at   timestamptz NOT NULL DEFAULT NOW(),
+  updated_at   timestamptz NOT NULL DEFAULT NOW()
+);
+
+-- Drop a leftover column if this table was created by an earlier revision that
+-- still had `about_user` (preserved tables aren't recreated, so migrate in place).
+ALTER TABLE public.user_custom_instructions DROP COLUMN IF EXISTS about_user;
+
+DROP TRIGGER IF EXISTS user_custom_instructions_set_updated_at ON public.user_custom_instructions;
+CREATE TRIGGER user_custom_instructions_set_updated_at
+  BEFORE UPDATE ON public.user_custom_instructions
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_custom_instructions TO authenticated;
+
+ALTER TABLE public.user_custom_instructions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "user_custom_instructions_all_own" ON public.user_custom_instructions;
+CREATE POLICY "user_custom_instructions_all_own" ON public.user_custom_instructions
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

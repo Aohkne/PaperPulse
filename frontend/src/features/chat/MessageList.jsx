@@ -11,10 +11,17 @@ const MessageList = ({ messages, isLoading }) => {
 
   if (!messages.length && !isLoading) {
     return (
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", fontSize: '16px',
-      }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-paper-mid)',
+          fontFamily: "'Newsreader', serif",
+          fontSize: '16px',
+        }}
+      >
         Start a new research session
       </div>
     );

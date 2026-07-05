@@ -15,7 +15,14 @@ const AppLayout = ({ children }) => {
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-3">
           <button
             onClick={() => navigate('/')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+            }}
           >
             <img
               src={isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png'}

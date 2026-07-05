@@ -22,7 +22,10 @@ function ensureDecorationStyles() {
  * PLAN §7 Phase 6) — an annotation whose exact text no longer matches simply stops
  * being decorated (it "disappears" without an error, per the PLAN's anchor contract).
  */
-const TexEditor = forwardRef(function TexEditor({ value, onChange, annotations, onAnnotationClick, onSelectionChange }, ref) {
+const TexEditor = forwardRef(function TexEditor(
+  { value, onChange, annotations, onAnnotationClick, onSelectionChange },
+  ref
+) {
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const decorationIdsRef = useRef([]);
@@ -51,7 +54,11 @@ const TexEditor = forwardRef(function TexEditor({ value, onChange, annotations, 
     if (!editor || !monaco) return;
     const model = editor.getModel();
     const matched = reanchorAnnotations(value, annotations);
-    decoratedRangesRef.current = matched.map((m) => ({ id: m.id, startOffset: m.start, endOffset: m.end }));
+    decoratedRangesRef.current = matched.map((m) => ({
+      id: m.id,
+      startOffset: m.start,
+      endOffset: m.end,
+    }));
 
     const newDecorations = matched.map((m) => {
       const start = model.getPositionAt(m.start);
@@ -84,7 +91,9 @@ const TexEditor = forwardRef(function TexEditor({ value, onChange, annotations, 
     editor.onMouseDown((e) => {
       if (!e.target.position) return;
       const offset = editor.getModel().getOffsetAt(e.target.position);
-      const hit = decoratedRangesRef.current.find((d) => offset >= d.startOffset && offset < d.endOffset);
+      const hit = decoratedRangesRef.current.find(
+        (d) => offset >= d.startOffset && offset < d.endOffset
+      );
       if (hit) onAnnotationClick?.(hit.id);
     });
 

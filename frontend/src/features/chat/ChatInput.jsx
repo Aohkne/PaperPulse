@@ -8,7 +8,9 @@ import { useQuotaExhausted } from '@/shared/hooks/useQuotaExhausted';
 const ChatInput = () => {
   const [value, setValue] = useState('');
   const sendMessage = useChatStore((s) => s.sendMessage);
-  const status = useChatStore((s) => s.sessions.find((sess) => sess.id === s.activeSessionId)?.status ?? 'idle');
+  const status = useChatStore(
+    (s) => s.sessions.find((sess) => sess.id === s.activeSessionId)?.status ?? 'idle'
+  );
   const textareaRef = useRef(null);
   const quotaExhausted = useQuotaExhausted('lr');
   const isLoading = status === 'loading';
@@ -103,7 +105,8 @@ const ChatInput = () => {
               // Circular, arrow-up icon, brand green when ready — same shape
               // and color as the welcome-screen send button (ChatPage.jsx),
               // so both send buttons in the app read as the same control.
-              backgroundColor: inputDisabled || !value.trim() ? 'var(--color-paper-bg)' : 'var(--color-paper-mid)',
+              backgroundColor:
+                inputDisabled || !value.trim() ? 'var(--color-paper-bg)' : 'var(--color-paper-mid)',
               color: 'var(--color-paper-surface)',
               border: 'none',
               borderRadius: '50%',
@@ -127,7 +130,15 @@ const ChatInput = () => {
                   style={{ display: 'flex' }}
                 >
                   <span
-                    style={{ display: 'block', width: 15, height: 15, border: '2px solid var(--color-paper-surface)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }}
+                    style={{
+                      display: 'block',
+                      width: 15,
+                      height: 15,
+                      border: '2px solid var(--color-paper-surface)',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 0.9s linear infinite',
+                    }}
                   />
                 </motion.span>
               ) : isAwaitingPlan ? (

@@ -18,7 +18,9 @@ const UsagePanel = () => {
   const accountLoading = useBillingStore((s) => s.accountLoading);
   const fetchAccount = useBillingStore((s) => s.fetchAccount);
 
-  useEffect(() => { fetchAccount(); }, [fetchAccount]);
+  useEffect(() => {
+    fetchAccount();
+  }, [fetchAccount]);
 
   if (accountLoading && !account) return <p>Loading...</p>;
   if (!account) return null;
@@ -35,27 +37,63 @@ const UsagePanel = () => {
         Current plan: {TIER_LABELS[account.tier] ?? account.tier}
         {account.pending_downgrade_tier && (
           <span style={{ fontSize: 12, color: 'var(--color-paper-mid)', fontWeight: 400 }}>
-            {' '}(switching to {account.pending_downgrade_tier} next period)
+            {' '}
+            (switching to {account.pending_downgrade_tier} next period)
           </span>
         )}
       </p>
 
       {/* Single shared credit budget bar (all features draw from one pool). */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 13.5, marginBottom: 6 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          fontSize: 13.5,
+          marginBottom: 6,
+        }}
+      >
         <span style={{ color: 'var(--color-paper-mid)' }}>
           {unlimited ? 'Usage this period' : 'Monthly budget used'}
         </span>
-        <span style={{ fontWeight: 700, color: unlimited ? 'var(--color-brand-600)' : barColor(pct), fontVariantNumeric: 'tabular-nums' }}>
+        <span
+          style={{
+            fontWeight: 700,
+            color: unlimited ? 'var(--color-brand-600)' : barColor(pct),
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
           {unlimited ? `${used.toFixed(1)} credits` : `${pct}%`}
         </span>
       </div>
       {/* Progress bar only for capped tiers — Unlimited has no monthly cap. */}
       {!unlimited && (
-        <div style={{ height: 10, borderRadius: 999, background: 'var(--color-hairline-border)', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: barColor(pct), borderRadius: 999 }} />
+        <div
+          style={{
+            height: 10,
+            borderRadius: 999,
+            background: 'var(--color-hairline-border)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${pct}%`,
+              background: barColor(pct),
+              borderRadius: 999,
+            }}
+          />
         </div>
       )}
-      <p style={{ fontSize: 12, color: 'var(--color-paper-mid)', marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
+      <p
+        style={{
+          fontSize: 12,
+          color: 'var(--color-paper-mid)',
+          marginTop: 6,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
         {unlimited
           ? 'Unlimited plan — no monthly cap'
           : `${used.toFixed(1)} / ${budget.toFixed(0)} credits used · ${Math.max(0, Number(balance)).toFixed(1)} left`}

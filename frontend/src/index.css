@@ -1,5 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Calistoga&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Enable class-based dark mode: dark: utilities apply inside .dark */
 @variant dark (&:where(.dark, .dark *));
@@ -7,11 +7,11 @@
 @theme {
   /* Brand = paper-mid green (#5A6B33), matches dark-mode brand family below.
      50/100 = tints mixed toward paper-bg; 600/700 = darkened via HSL lightness. */
-  --color-brand-50: #F3F2E3;
-  --color-brand-100: #E1E2CE;
-  --color-brand-500: #5A6B33;
+  --color-brand-50: #f3f2e3;
+  --color-brand-100: #e1e2ce;
+  --color-brand-500: #5a6b33;
   --color-brand-600: #465328;
-  --color-brand-700: #343E1E;
+  --color-brand-700: #343e1e;
 
   /* Page now sits a shade deeper than the card (paper-surface), same layered
      idea as before — but NOT the raw old --paper-surface value (#EDE8D4).
@@ -20,14 +20,14 @@
      lightness), while #EDE8D4 vs #FFFCF0 was a 9.1-point gap. #F8F4E5 below
      is calibrated (40% mix of old paper-bg → old paper-surface) to match
      Planner's ratio: L≈93.5%, i.e. still a soft warm cream, not khaki. */
-  --color-paper-bg: #F8F4E5;
+  --color-paper-bg: #f8f4e5;
   --color-paper-dark: #291100;
-  --color-paper-mid: #5A6B33;
-  --color-paper-light: #968F27;
-  --color-paper-surface: #FFFCF0;
+  --color-paper-mid: #5a6b33;
+  --color-paper-light: #968f27;
+  --color-paper-surface: #fffcf0;
 
-  --color-quality-medium: #7A6530;
-  --color-quality-low: #8B4A2F;
+  --color-quality-medium: #7a6530;
+  --color-quality-low: #8b4a2f;
 
   /* Dedicated, softer tone for the Hero dot-orbit decoration only — NOT the
      same as --color-brand-500 (too dark/heavy once hundreds of overlapping
@@ -36,42 +36,42 @@
      of the two, kept as its own token so this purely-decorative graphic can
      be tuned without touching brand-* (used everywhere else: buttons,
      checkmarks, etc). See html.dark below — dark mode is untouched. */
-  --color-orbit-dot: #9DA680;
-  --color-orbit-line: #C7CDA8;
+  --color-orbit-dot: #9da680;
+  --color-orbit-line: #c7cda8;
 
-  --font-sans: "Inter", "Segoe UI", "Noto Sans", system-ui, -apple-system, Roboto, sans-serif;
+  --font-sans: 'Inter', 'Segoe UI', 'Noto Sans', system-ui, -apple-system, Roboto, sans-serif;
   --font-inknut: 'Fraunces', 'Newsreader', serif;
   --font-noto-serif: 'Newsreader', serif;
 }
 
 /* Dark mode — warm amber gold palette */
 html.dark {
-  --color-paper-bg: #1A1A18;
+  --color-paper-bg: #1a1a18;
   /* Main bg */
-  --color-paper-dark: #E5E3DC;
+  --color-paper-dark: #e5e3dc;
   /* Primary text */
-  --color-paper-mid: #B8C88D;
+  --color-paper-mid: #b8c88d;
   /* Secondary/muted text */
-  --color-paper-light: #BFBFBA;
+  --color-paper-light: #bfbfba;
   /* Placeholder/subtle */
   --color-paper-surface: #242422;
   /* Elevated surface (cards, panels) */
 
-  --color-quality-medium: #B8C88D;
+  --color-quality-medium: #b8c88d;
   /* Brand green mid */
   --color-quality-low: #888885;
   /* Muted gray */
 
   /* Brand — olive green scale +25L */
-  --color-brand-50: #1A1F0D;
+  --color-brand-50: #1a1f0d;
   /* Brand tinted bg (rất tối) */
-  --color-brand-100: #2A3318;
+  --color-brand-100: #2a3318;
   /* Brand surface */
-  --color-brand-500: #9FB668;
+  --color-brand-500: #9fb668;
   /* Base brand */
-  --color-brand-600: #91AF55;
+  --color-brand-600: #91af55;
   /* Darker brand */
-  --color-brand-700: #B8C88D;
+  --color-brand-700: #b8c88d;
   /* Lighter brand */
 
   /* Scrollbar thumb — neutral light-gray at low opacity (see :root above
@@ -109,17 +109,17 @@ html.dark {
   --dot-color: rgba(229, 227, 220, 0.04);
 
   /* Admin UI */
-  --color-admin-bg: #1A1A18;
+  --color-admin-bg: #1a1a18;
   --color-admin-surface: #242422;
   --color-admin-border: #3c3c38;
-  --color-admin-text: #E5E3DC;
-  --color-admin-mid: #B8C88D;
+  --color-admin-text: #e5e3dc;
+  --color-admin-mid: #b8c88d;
   /* Brand green mid */
   --color-admin-muted: #888885;
   --color-admin-input-bg: #222220;
-  --color-admin-accent: #9FB668;
-  --color-admin-accent-bg: #667A33;
-  --color-admin-accent-text: #B8C88D;
+  --color-admin-accent: #9fb668;
+  --color-admin-accent-bg: #667a33;
+  --color-admin-accent-text: #b8c88d;
   --color-admin-role-bg: #242422;
   --color-admin-role-border: #363634;
 }
@@ -155,17 +155,17 @@ html.dark {
 
 /* Admin UI — light mode, aligned with paper palette */
 :root {
-  --color-admin-bg: #EDE8D4;
-  --color-admin-surface: #FFFCF0;
+  --color-admin-bg: #ede8d4;
+  --color-admin-surface: #fffcf0;
   --color-admin-border: #d4c9a8;
   --color-admin-text: #291100;
-  --color-admin-mid: #5A6B33;
+  --color-admin-mid: #5a6b33;
   --color-admin-muted: #8a9a6a;
-  --color-admin-input-bg: #FFFCF0;
+  --color-admin-input-bg: #fffcf0;
   --color-admin-accent: #8040e8;
   --color-admin-accent-bg: #f3eeff;
   --color-admin-accent-text: #6c27da;
-  --color-admin-role-bg: #EDE8D4;
+  --color-admin-role-bg: #ede8d4;
   --color-admin-role-border: #e0ccff;
 }
 
@@ -180,7 +180,6 @@ html.dark {
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;

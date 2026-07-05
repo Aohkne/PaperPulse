@@ -2,15 +2,18 @@
 // errors) into short, end-user-facing English sentences — never expose stack
 // traces, status codes, or "Error: ..." prefixes directly in the UI.
 const KNOWN_PATTERNS = [
-  [/network ?error|failed to fetch|ECONNREFUSED/i, "Network error — please check your connection and try again."],
-  [/timeout|timed out/i, "That took too long to respond — please try again."],
-  [/HTTP 401|unauthorized/i, "Your session has expired — please sign in again."],
+  [
+    /network ?error|failed to fetch|ECONNREFUSED/i,
+    'Network error — please check your connection and try again.',
+  ],
+  [/timeout|timed out/i, 'That took too long to respond — please try again.'],
+  [/HTTP 401|unauthorized/i, 'Your session has expired — please sign in again.'],
   [/HTTP 402|quota/i, "You've used up your quota for this — please upgrade your plan."],
   [/HTTP 403|forbidden/i, "You don't have permission to do that."],
   [/HTTP 404|not found/i, "We couldn't find what you were looking for."],
-  [/HTTP 409/i, "That changed since you last loaded it — please refresh and try again."],
-  [/HTTP 429|rate limit/i, "Too many requests — please wait a moment and try again."],
-  [/HTTP 5\d\d|internal server error/i, "Something went wrong on our end — please try again."],
+  [/HTTP 409/i, 'That changed since you last loaded it — please refresh and try again.'],
+  [/HTTP 429|rate limit/i, 'Too many requests — please wait a moment and try again.'],
+  [/HTTP 5\d\d|internal server error/i, 'Something went wrong on our end — please try again.'],
 ];
 
 /**
@@ -20,7 +23,7 @@ const KNOWN_PATTERNS = [
  */
 export function friendlyError(err, fallback = 'Something went wrong. Please try again.') {
   const raw = String(
-    (typeof err === 'string' ? err : err?.message ?? err?.detail ?? err) ?? ''
+    (typeof err === 'string' ? err : (err?.message ?? err?.detail ?? err)) ?? ''
   ).trim();
 
   for (const [pattern, message] of KNOWN_PATTERNS) {

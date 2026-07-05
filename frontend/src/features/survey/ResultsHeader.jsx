@@ -9,8 +9,7 @@ const ResultsHeader = ({ count, query, onClear }) => {
       <div className="flex items-center gap-2 text-sm text-brand-700 min-w-0">
         <Icon icon="mdi:check-circle" className="w-4 h-4 text-brand-500 shrink-0" />
         <span className="truncate">
-          Found <strong>{count}</strong> paper{count !== 1 ? 's' : ''} for:{' '}
-          <em>"{query}"</em>
+          Found <strong>{count}</strong> paper{count !== 1 ? 's' : ''} for: <em>"{query}"</em>
         </span>
       </div>
       <Button variant="ghost" size="sm" icon="mdi:close" onClick={onClear}>

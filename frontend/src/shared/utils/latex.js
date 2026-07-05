@@ -12,4 +12,7 @@ const ESCAPE_MAP = {
 };
 
 export const escapeLatex = (text) =>
-  (text ?? '').split('').map((ch) => ESCAPE_MAP[ch] ?? ch).join('');
+  (text ?? '')
+    .split('')
+    .map((ch) => ESCAPE_MAP[ch] ?? ch)
+    .join('');

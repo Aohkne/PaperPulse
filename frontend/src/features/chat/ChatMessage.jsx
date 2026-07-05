@@ -14,8 +14,8 @@ const formatTime = (ts) => {
 };
 
 // Typewriter that progressively reveals LaTeX source then re-parses each frame
-const CHUNK = 28;   // chars revealed per tick
-const TICK  = 18;   // ms between ticks (~55 fps)
+const CHUNK = 28; // chars revealed per tick
+const TICK = 18; // ms between ticks (~55 fps)
 
 const TypewriterLatex = ({ content }) => {
   const [displayed, setDisplayed] = useState('');
@@ -60,12 +60,32 @@ const ChatMessage = ({ message, animate = true }) => {
 
   if (message.role === 'user') {
     return (
-      <motion.div variants={msgVariants} initial="initial" animate="animate"
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginBottom: '16px' }}>
+      <motion.div
+        variants={msgVariants}
+        initial="initial"
+        animate="animate"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          marginBottom: '16px',
+        }}
+      >
         {/* Borderless, like Gemini's user bubble — fill only, no outline.
             Radius bumped from the old sharp 4px to 16px to match the
             rounded-card convention used on LoginPage and elsewhere. */}
-        <div style={{ backgroundColor: 'var(--color-paper-surface)', borderRadius: '16px', padding: '10px 14px', maxWidth: '480px', color: 'var(--color-paper-dark)', fontFamily: "'Newsreader', serif", fontSize: '16px', lineHeight: '1.6' }}>
+        <div
+          style={{
+            backgroundColor: 'var(--color-paper-surface)',
+            borderRadius: '16px',
+            padding: '10px 14px',
+            maxWidth: '480px',
+            color: 'var(--color-paper-dark)',
+            fontFamily: "'Newsreader', serif",
+            fontSize: '16px',
+            lineHeight: '1.6',
+          }}
+        >
           {message.content}
         </div>
         <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)', marginTop: '4px' }}>
@@ -81,11 +101,35 @@ const ChatMessage = ({ message, animate = true }) => {
   return (
     <>
       <motion.div
-        variants={msgVariants} initial="initial" animate="animate"
+        variants={msgVariants}
+        initial="initial"
+        animate="animate"
         style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '20px' }}
       >
-        <div style={{ width: '28px', height: '28px', backgroundColor: 'var(--color-paper-mid)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-          <span style={{ fontFamily: 'var(--font-inknut)', color: 'var(--color-paper-bg)', fontSize: '14px', fontWeight: 600, lineHeight: 1 }}>P</span>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            backgroundColor: 'var(--color-paper-mid)',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            marginTop: '2px',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-inknut)',
+              color: 'var(--color-paper-bg)',
+              fontSize: '14px',
+              fontWeight: 600,
+              lineHeight: 1,
+            }}
+          >
+            P
+          </span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* ReAct reasoning trace (nếu có) */}
@@ -102,12 +146,15 @@ const ChatMessage = ({ message, animate = true }) => {
           )}
 
           {/* Final answer — only render preview when content exists */}
-          {shouldRenderContent
-            ? animate
-              ? <TypewriterLatex content={message.content} />
-              : <LatexPreview content={message.content} />
-            : !message.steps?.length && !shouldRenderPendingPlan && <TypingIndicator inline />
-          }
+          {shouldRenderContent ? (
+            animate ? (
+              <TypewriterLatex content={message.content} />
+            ) : (
+              <LatexPreview content={message.content} />
+            )
+          ) : (
+            !message.steps?.length && !shouldRenderPendingPlan && <TypingIndicator inline />
+          )}
           {/* Timestamp + Save sit in the same row, anchored to the END of the
               message content instead of floating absolute over its top edge.
               The old version pinned "Save" to the top-right corner of the
@@ -117,7 +164,14 @@ const ChatMessage = ({ message, animate = true }) => {
               corner is contested space. Anchoring to the timestamp row is a
               landmark that's always the last thing in the message, so it
               can't collide with content above it no matter what that is. */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: '4px',
+            }}
+          >
             <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)' }}>
               {formatTime(message.timestamp)}
             </span>
@@ -126,14 +180,24 @@ const ChatMessage = ({ message, animate = true }) => {
                 onClick={() => setSaveOpen(true)}
                 title="Save to My Reviews"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  background: 'none', border: 'none', padding: '2px 0',
-                  cursor: 'pointer', color: 'var(--color-paper-mid)',
-                  fontFamily: "'Newsreader', serif", fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'none',
+                  border: 'none',
+                  padding: '2px 0',
+                  cursor: 'pointer',
+                  color: 'var(--color-paper-mid)',
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: '12px',
                   transition: 'color 0.15s',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-paper-dark)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-paper-mid)'; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--color-paper-dark)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-paper-mid)';
+                }}
               >
                 <Icon icon="mdi:bookmark-plus-outline" style={{ width: 13, height: 13 }} />
                 Save

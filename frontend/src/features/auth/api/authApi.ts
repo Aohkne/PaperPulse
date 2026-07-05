@@ -30,7 +30,11 @@ export const authApi = {
     return handleResponse<TokenResponse>(res);
   },
 
-  register: async (email: string, password: string, redirectTo?: string): Promise<TokenResponse> => {
+  register: async (
+    email: string,
+    password: string,
+    redirectTo?: string
+  ): Promise<TokenResponse> => {
     const res = await fetch(API_ENDPOINTS.AUTH.REGISTER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

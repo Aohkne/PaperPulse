@@ -7,28 +7,34 @@ const token = () => useAuthStore.getState().token;
 
 // ── Step labels (pipeline Steps 0→10) ───────────────────────────────────────
 const STEP_LABELS = {
-  0:  'Analyzing intent',
-  1:  'Searching papers',
-  2:  'Removing duplicates',
-  3:  'Citation snowball',
-  4:  'Building embeddings',
-  5:  'Generating outline',
-  6:  'Writing sections',
-  7:  'Extracting claims',
-  8:  'Verifying claims',
-  9:  'Routing claims',
+  0: 'Analyzing intent',
+  1: 'Searching papers',
+  2: 'Removing duplicates',
+  3: 'Citation snowball',
+  4: 'Building embeddings',
+  5: 'Generating outline',
+  6: 'Writing sections',
+  7: 'Extracting claims',
+  8: 'Verifying claims',
+  9: 'Routing claims',
   10: 'Exporting LaTeX',
 };
 
 const SSE_STEP_IDX = {
-  '0': 0, '1': 1, '2': 2, '3': 3,
-  '4': 4, '5': 5, '6': 6, '7': 7,
-  '8': 8, '9': 9, '10': 10,
+  0: 0,
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
+  10: 10,
 };
 
-const initialSteps = Object.fromEntries(
-  Object.keys(STEP_LABELS).map((k) => [Number(k), 'idle'])
-);
+const initialSteps = Object.fromEntries(Object.keys(STEP_LABELS).map((k) => [Number(k), 'idle']));
 
 // ── SSE parser ───────────────────────────────────────────────────────────────
 async function* parseSse(response) {
@@ -44,7 +50,11 @@ async function* parseSse(response) {
     for (const block of blocks) {
       for (const line of block.split('\n')) {
         if (line.startsWith('data: ')) {
-          try { yield JSON.parse(line.slice(6)); } catch { /* skip */ }
+          try {
+            yield JSON.parse(line.slice(6));
+          } catch {
+            /* skip */
+          }
         }
       }
     }
@@ -58,26 +68,26 @@ const useResearchStore = create((set, get) => ({
   steps: { ...initialSteps },
   stepLabels: STEP_LABELS,
   error: null,
-  quotaExceeded: false,  // true on HTTP 402 — UI should prompt the user to upgrade
+  quotaExceeded: false, // true on HTTP 402 — UI should prompt the user to upgrade
   activePanel: 'outline',
 
   // ── Pipeline state ───────────────────────────────────────────────────────────
   threadId: null,
   v2Running: false,
-  pendingInterrupt: null,   // null | { type: 'outline'|'routing', data }
-  stepLog: [],              // [{ stepNum, content, stat }]
+  pendingInterrupt: null, // null | { type: 'outline'|'routing', data }
+  stepLog: [], // [{ stepNum, content, stat }]
 
   // ── Step 0 conversational states ────────────────────────────────────────────
   // mode: 'idle' | 'thinking' | 'replying' | 'greeting' | 'clarify' | 'pipeline'
   conversationMode: 'idle',
-  thinkingText: '',         // streaming tokens from intent_router (WHY this intent)
-  replyText: '',            // streaming tokens from reply_generator (the actual response)
-  greetingReply: null,      // string — complete reply shown after streaming
-  clarifyQuestions: [],     // list of strings — shown for user to answer
-  conversationHistory: [],  // [{role:'user'|'assistant', content}] — for multi-turn
-  refinedQuery: '',         // LLM-optimised search string (search intent)
-  planDescription: '',      // one-sentence plan description (search intent)
-  stepTokens: {},           // { [stepNum: string]: string } — streaming narrator tokens per step
+  thinkingText: '', // streaming tokens from intent_router (WHY this intent)
+  replyText: '', // streaming tokens from reply_generator (the actual response)
+  greetingReply: null, // string — complete reply shown after streaming
+  clarifyQuestions: [], // list of strings — shown for user to answer
+  conversationHistory: [], // [{role:'user'|'assistant', content}] — for multi-turn
+  refinedQuery: '', // LLM-optimised search string (search intent)
+  planDescription: '', // one-sentence plan description (search intent)
+  stepTokens: {}, // { [stepNum: string]: string } — streaming narrator tokens per step
 
   // ── Research content ─────────────────────────────────────────────────────────
   papers: [],
@@ -90,8 +100,7 @@ const useResearchStore = create((set, get) => ({
   bibContent: null,
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
-  _setStep: (n, status) =>
-    set((s) => ({ steps: { ...s.steps, [n]: status } })),
+  _setStep: (n, status) => set((s) => ({ steps: { ...s.steps, [n]: status } })),
 
   setQuery: (q) => set({ query: q }),
   setActivePanel: (p) => set({ activePanel: p }),
@@ -138,7 +147,7 @@ const useResearchStore = create((set, get) => ({
           greetingReply: event.content,
           conversationMode: 'greeting',
           v2Running: false,
-          replyText: '',  // streaming done — final text now in greetingReply
+          replyText: '', // streaming done — final text now in greetingReply
         });
         _setStep(0, 'done');
         break;
@@ -149,7 +158,7 @@ const useResearchStore = create((set, get) => ({
           clarifyQuestions: event.questions || [],
           conversationMode: 'clarify',
           v2Running: false,
-          replyText: '',  // streaming done
+          replyText: '', // streaming done
           conversationHistory: [
             ...s.conversationHistory,
             { role: 'assistant', content: event.questions.join('\n') },
@@ -273,10 +282,7 @@ const useResearchStore = create((set, get) => ({
     _setStep(0, 'loading');
 
     // Append the new user turn to history
-    const updatedHistory = [
-      ...conversationHistory,
-      { role: 'user', content: query },
-    ];
+    const updatedHistory = [...conversationHistory, { role: 'user', content: query }];
     set({ conversationHistory: updatedHistory });
 
     try {
@@ -360,7 +366,8 @@ const useResearchStore = create((set, get) => ({
       href: URL.createObjectURL(new Blob([reviewLatex], { type: 'text/x-tex' })),
       download: 'literature_review.tex',
     });
-    a.click(); URL.revokeObjectURL(a.href);
+    a.click();
+    URL.revokeObjectURL(a.href);
   },
 
   exportBib: () => {
@@ -370,7 +377,8 @@ const useResearchStore = create((set, get) => ({
       href: URL.createObjectURL(new Blob([bibContent], { type: 'text/plain' })),
       download: 'references.bib',
     });
-    a.click(); URL.revokeObjectURL(a.href);
+    a.click();
+    URL.revokeObjectURL(a.href);
   },
 
   exportReview: () => get().exportLatex(),

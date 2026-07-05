@@ -42,9 +42,16 @@ const DAMPING = 0.85;
 const MAX_TICKS = 200;
 
 const NODE_STYLES = {
-  paper:  { r: 18, fill: '#657733', labelColor: '#FBF2DA', fontSize: 10, fontWeight: 400 },
-  author: { r: 13, fill: '#EDE8D4', stroke: '#657733', labelColor: '#657733', fontSize: 10, fontWeight: 400 },
-  topic:  { r: 22, fill: '#D7E3A4', labelColor: '#291100', fontSize: 11, fontWeight: 500 },
+  paper: { r: 18, fill: '#657733', labelColor: '#FBF2DA', fontSize: 10, fontWeight: 400 },
+  author: {
+    r: 13,
+    fill: '#EDE8D4',
+    stroke: '#657733',
+    labelColor: '#657733',
+    fontSize: 10,
+    fontWeight: 400,
+  },
+  topic: { r: 22, fill: '#D7E3A4', labelColor: '#291100', fontSize: 11, fontWeight: 500 },
 };
 
 const wrapLabel = (label) => {
@@ -72,7 +79,9 @@ function buildGraphData(papers) {
 
   papers.slice(0, 30).forEach((p, i) => {
     const pid = `p_${i}`;
-    const shortTitle = p.title ? p.title.slice(0, 18) + (p.title.length > 18 ? '…' : '') : `Paper ${i + 1}`;
+    const shortTitle = p.title
+      ? p.title.slice(0, 18) + (p.title.length > 18 ? '…' : '')
+      : `Paper ${i + 1}`;
     nodes.push({ id: pid, label: shortTitle, type: 'paper' });
 
     const firstAuthor = p.authors?.[0];
@@ -100,7 +109,9 @@ export default function KnowledgeGraph({ papers }) {
   const { nodes: graphNodes, edges: graphEdges } = buildGraphData(papers);
 
   const svgRef = useRef(null);
-  const nodesRef = useRef(graphNodes.map((n) => ({ ...n, x: 0, y: 0, vx: 0, vy: 0, r: NODE_STYLES[n.type]?.r ?? 18 })));
+  const nodesRef = useRef(
+    graphNodes.map((n) => ({ ...n, x: 0, y: 0, vx: 0, vy: 0, r: NODE_STYLES[n.type]?.r ?? 18 }))
+  );
   const tickRef = useRef(0);
   const rafRef = useRef(null);
 
@@ -118,7 +129,14 @@ export default function KnowledgeGraph({ papers }) {
       const w = width || 280;
       const h = height || 380;
 
-      nodesRef.current = graphNodes.map((n) => ({ ...n, x: 0, y: 0, vx: 0, vy: 0, r: NODE_STYLES[n.type]?.r ?? 18 }));
+      nodesRef.current = graphNodes.map((n) => ({
+        ...n,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        r: NODE_STYLES[n.type]?.r ?? 18,
+      }));
       const nodes = nodesRef.current;
       nodes.forEach((n) => {
         n.x = w * 0.15 + Math.random() * w * 0.7;
@@ -142,27 +160,37 @@ export default function KnowledgeGraph({ papers }) {
         // Repulsion between all pairs
         for (let i = 0; i < nodes.length; i++) {
           for (let j = i + 1; j < nodes.length; j++) {
-            const a = nodes[i], b = nodes[j];
-            const dx = b.x - a.x, dy = b.y - a.y;
+            const a = nodes[i],
+              b = nodes[j];
+            const dx = b.x - a.x,
+              dy = b.y - a.y;
             const d2 = dx * dx + dy * dy || 0.01;
             const d = Math.sqrt(d2);
             const f = REPULSION / d2;
-            const fx = (f * dx) / d, fy = (f * dy) / d;
-            a.vx -= fx; a.vy -= fy;
-            b.vx += fx; b.vy += fy;
+            const fx = (f * dx) / d,
+              fy = (f * dy) / d;
+            a.vx -= fx;
+            a.vy -= fy;
+            b.vx += fx;
+            b.vy += fy;
           }
         }
 
         // Spring attraction along edges
         for (const { source, target } of graphEdges) {
-          const s = nodeMap.get(source), t = nodeMap.get(target);
+          const s = nodeMap.get(source),
+            t = nodeMap.get(target);
           if (!s || !t) continue;
-          const dx = t.x - s.x, dy = t.y - s.y;
+          const dx = t.x - s.x,
+            dy = t.y - s.y;
           const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
           const f = SPRING_K * (d - REST_LEN);
-          const fx = (f * dx) / d, fy = (f * dy) / d;
-          s.vx += fx; s.vy += fy;
-          t.vx -= fx; t.vy -= fy;
+          const fx = (f * dx) / d,
+            fy = (f * dy) / d;
+          s.vx += fx;
+          s.vy += fy;
+          t.vx -= fx;
+          t.vy -= fy;
         }
 
         // Centering + integrate + damp + clamp
@@ -191,7 +219,7 @@ export default function KnowledgeGraph({ papers }) {
       clearTimeout(timer);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [papers]);
 
   const anyVisible = Object.values(positions).some((p) => p.x !== 0 || p.y !== 0);
@@ -200,23 +228,21 @@ export default function KnowledgeGraph({ papers }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* SVG area */}
       <div style={{ width: '100%', height: '100%', overflow: 'hidden', flex: 1 }}>
-        <svg
-          ref={svgRef}
-          width="100%"
-          height="100%"
-          style={{ display: 'block' }}
-        >
+        <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block' }}>
           {anyVisible && (
             <>
               {/* Edges */}
               {graphEdges.map((edge, i) => {
-                const s = positions[edge.source], t = positions[edge.target];
+                const s = positions[edge.source],
+                  t = positions[edge.target];
                 if (!s || !t || s.x === 0) return null;
                 return (
                   <line
                     key={i}
-                    x1={s.x} y1={s.y}
-                    x2={t.x} y2={t.y}
+                    x1={s.x}
+                    y1={s.y}
+                    x2={t.x}
+                    y2={t.y}
                     stroke="#D7E3A4"
                     strokeWidth={1}
                     opacity={0.8}
@@ -246,7 +272,9 @@ export default function KnowledgeGraph({ papers }) {
 
                     {selected && (
                       <circle
-                        cx={pos.x} cy={pos.y} r={r + 4}
+                        cx={pos.x}
+                        cy={pos.y}
+                        r={r + 4}
                         fill="none"
                         stroke="#291100"
                         strokeWidth={2}
@@ -254,7 +282,9 @@ export default function KnowledgeGraph({ papers }) {
                     )}
 
                     <circle
-                      cx={pos.x} cy={pos.y} r={r}
+                      cx={pos.x}
+                      cy={pos.y}
+                      r={r}
                       fill={style.fill}
                       stroke={style.stroke ?? 'none'}
                       strokeWidth={style.stroke ? 1 : 0}
@@ -300,9 +330,22 @@ export default function KnowledgeGraph({ papers }) {
         {LEGEND.map(({ fill, stroke, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <svg width="12" height="12">
-              <circle cx="6" cy="6" r="5" fill={fill} stroke={stroke ?? 'none'} strokeWidth={stroke ? 1 : 0} />
+              <circle
+                cx="6"
+                cy="6"
+                r="5"
+                fill={fill}
+                stroke={stroke ?? 'none'}
+                strokeWidth={stroke ? 1 : 0}
+              />
             </svg>
-            <span style={{ fontSize: '12px', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif" }}>
+            <span
+              style={{
+                fontSize: '12px',
+                color: 'var(--color-paper-mid)',
+                fontFamily: "'Newsreader', serif",
+              }}
+            >
               {label}
             </span>
           </div>

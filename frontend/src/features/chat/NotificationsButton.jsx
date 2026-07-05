@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useChatStore } from '@/shared/store/useChatStore';
 import { friendlyError } from '@/shared/utils/errorMessage';
@@ -13,97 +13,33 @@ const formatTime = (date) => {
   return d.toLocaleDateString();
 };
 
-const stateLabel = (state) => {
-  if (state === 'auto_watching') return 'Watching';
-  if (state === 'muted') return 'Muted';
-  return 'Candidate';
-};
-
-const TopicDeleteConfirmModal = ({ isOpen, topicLabel, deleting, onCancel, onConfirm }) => {
-  if (!isOpen) return null;
-
+// Slim on/off switch for in-app alerts. pauseAllInApp === true means OFF.
+const AlertsToggle = ({ pauseAllInApp, onToggle }) => {
+  const on = !pauseAllInApp;
   return (
-    <div
-      onClick={deleting ? undefined : onCancel}
+    <button
+      onClick={() => onToggle(!pauseAllInApp)}
+      title={on ? 'Notifications on' : 'Notifications off'}
       style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(46, 39, 31, 0.22)',
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        zIndex: 210,
+        gap: 6,
+        border: '1px solid rgba(41, 17, 0, 0.12)',
+        borderRadius: 999,
+        background: on ? 'var(--color-brand-50)' : 'transparent',
+        padding: '4px 10px',
+        fontSize: 11,
+        color: on ? 'var(--color-brand-600)' : 'var(--color-paper-mid)',
+        cursor: 'pointer',
+        flexShrink: 0,
       }}
     >
-      <div
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: '320px',
-          border: '1px solid var(--color-paper-light)',
-          borderRadius: '10px',
-          background: 'var(--color-paper-bg)',
-          boxShadow: '0 22px 40px rgba(46, 39, 31, 0.16)',
-          padding: '18px 18px 16px',
-        }}
-      >
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '18px', color: 'var(--color-paper-dark)', marginBottom: '8px' }}>
-          Remove tracked topic?
-        </div>
-        <div style={{ fontSize: '13px', color: 'var(--color-paper-mid)', lineHeight: 1.5 }}>
-          This topic will be removed from your tracked interests.
-        </div>
-        {topicLabel && (
-          <div
-            style={{
-              marginTop: '10px',
-              fontSize: '12px',
-              color: 'var(--color-paper-mid)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-            title={topicLabel}
-          >
-            {topicLabel}
-          </div>
-        )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
-          <button
-            onClick={onCancel}
-            disabled={deleting}
-            style={{
-              border: '1px solid var(--color-paper-light)',
-              borderRadius: '999px',
-              background: 'transparent',
-              padding: '6px 12px',
-              fontSize: '12px',
-              color: 'var(--color-paper-mid)',
-              cursor: deleting ? 'not-allowed' : 'pointer',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={deleting}
-            style={{
-              border: '1px solid #b65a52',
-              borderRadius: '999px',
-              background: '#b65a52',
-              padding: '6px 12px',
-              fontSize: '12px',
-              color: 'white',
-              cursor: deleting ? 'not-allowed' : 'pointer',
-              opacity: deleting ? 0.72 : 1,
-            }}
-          >
-            {deleting ? 'Deleting...' : 'Remove'}
-          </button>
-        </div>
-      </div>
-    </div>
+      <Icon
+        icon={on ? 'mdi:bell-outline' : 'mdi:bell-off-outline'}
+        style={{ width: 14, height: 14 }}
+      />
+      {on ? 'On' : 'Off'}
+    </button>
   );
 };
 
@@ -112,338 +48,214 @@ const NotificationPanel = ({
   unreadCount,
   notificationsError,
   pauseAllInApp,
-  topicInterests,
-  topicInterestsError,
-  topicInterestsLoading,
   onTogglePause,
   onMarkOneRead,
   onMarkAllRead,
-  onToggleTopicState,
-  onDeleteTopic,
-  topicInterestPendingById,
-}) => {
-  const [topicControlsExpanded, setTopicControlsExpanded] = useState(false);
-
-  const topicSummary = useMemo(() => {
-    if (topicInterestsLoading) return 'Loading tracked topics...';
-    if (topicInterests.length === 0) return 'No tracked topics yet';
-
-    const counts = topicInterests.reduce((acc, topic) => {
-      acc.total += 1;
-      if (topic.state === 'auto_watching') acc.watching += 1;
-      else if (topic.state === 'muted') acc.muted += 1;
-      else acc.candidate += 1;
-      return acc;
-    }, { total: 0, watching: 0, muted: 0, candidate: 0 });
-
-    const parts = [];
-    if (counts.watching) parts.push(`${counts.watching} watching`);
-    if (counts.candidate) parts.push(`${counts.candidate} candidate`);
-    if (counts.muted) parts.push(`${counts.muted} muted`);
-    return parts.length > 0 ? parts.join(', ') : `${counts.total} tracked topics`;
-  }, [topicInterests, topicInterestsLoading]);
-
-  return (
-    <div
-      className="themed-scroll"
-      style={{
-        position: 'absolute',
-        top: 'calc(100% + 8px)',
-        right: 0,
-        width: '340px',
-        maxWidth: 'calc(100vw - 32px)',
-        maxHeight: '75vh',
-        overflowY: 'auto',
-        // Login-card convention: hairline border + paper-surface bg + soft
-        // double-layer shadow, instead of the older olive border-light +
-        // flat paper-bg + heavy single drop shadow this panel had before.
-        border: '1px solid rgba(41, 17, 0, 0.08)',
-        borderRadius: '16px',
-        background: 'var(--color-paper-surface)',
-        boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
-        zIndex: 30,
-      }}
-    >
-      <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(41, 17, 0, 0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-          <div>
-            <div style={{ fontFamily: 'Georgia, serif', fontSize: '15px', color: 'var(--color-paper-dark)' }}>
-              Notifications
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)' }}>
-              {pauseAllInApp ? 'Paused globally' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-            </div>
-          </div>
+}) => (
+  <div
+    className="themed-scroll"
+    style={{
+      position: 'absolute',
+      top: 'calc(100% + 8px)',
+      right: 0,
+      width: '340px',
+      maxWidth: 'calc(100vw - 32px)',
+      maxHeight: '75vh',
+      overflowY: 'auto',
+      border: '1px solid rgba(41, 17, 0, 0.08)',
+      borderRadius: '16px',
+      background: 'var(--color-paper-surface)',
+      boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.12)',
+      zIndex: 30,
+    }}
+  >
+    {/* Header: title + on/off toggle, then status + mark-all-read */}
+    <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(41, 17, 0, 0.08)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'Georgia, serif',
+            fontSize: '15px',
+            color: 'var(--color-paper-dark)',
+          }}
+        >
+          Notifications
+        </div>
+        <AlertsToggle pauseAllInApp={pauseAllInApp} onToggle={onTogglePause} />
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+          marginTop: '4px',
+        }}
+      >
+        <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)' }}>
+          {pauseAllInApp
+            ? 'Notifications are off'
+            : unreadCount > 0
+              ? `${unreadCount} unread`
+              : 'All caught up'}
+        </div>
+        {unreadCount > 0 && (
           <button
             onClick={onMarkAllRead}
-            disabled={unreadCount === 0}
             style={{
-              border: '1px solid rgba(41, 17, 0, 0.12)',
-              borderRadius: '999px',
+              border: 'none',
               background: 'transparent',
-              padding: '4px 9px',
+              padding: 0,
               fontSize: '11px',
-              color: unreadCount === 0 ? 'var(--color-paper-light)' : 'var(--color-paper-mid)',
-              cursor: unreadCount === 0 ? 'not-allowed' : 'pointer',
+              color: 'var(--color-paper-mid)',
+              cursor: 'pointer',
             }}
           >
             Mark all read
           </button>
-        </div>
+        )}
       </div>
+    </div>
 
-      <div style={{ padding: '12px 14px 14px', borderBottom: '1px solid rgba(41, 17, 0, 0.08)' }}>
-        <div
-          style={{
-            border: '1px solid rgba(41, 17, 0, 0.08)',
-            borderRadius: '8px',
-            background: 'rgba(196, 166, 122, 0.08)',
-            padding: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-paper-mid)' }}>
-            Controls
-          </div>
+    {notificationsError && (
+      <div
+        style={{
+          margin: '10px 12px 0',
+          padding: '8px 10px',
+          border: '1px solid #d8b4b4',
+          borderRadius: '4px',
+          color: '#8c3b3b',
+          fontSize: '12px',
+          lineHeight: 1.4,
+        }}
+      >
+        {friendlyError(notificationsError, "Couldn't load your notifications.")}
+      </div>
+    )}
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)' }}>
-                Pause in-app alerts
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginTop: '2px', lineHeight: 1.45 }}>
-                Keep topic scoring running, but stop materializing alerts for now.
-              </div>
-            </div>
-            <button
-              onClick={() => onTogglePause(!pauseAllInApp)}
+    {notifications.length === 0 ? (
+      <div
+        style={{
+          padding: '18px 14px',
+          fontSize: '12px',
+          color: 'var(--color-paper-mid)',
+          lineHeight: 1.5,
+        }}
+      >
+        No paper alerts yet.
+      </div>
+    ) : (
+      notifications.map((item) => {
+        const title = item.paper_ref?.title || 'Untitled paper';
+        const topicLine = item.content || 'New paper alert';
+        return (
+          <div
+            key={item.id}
+            style={{
+              padding: '12px 14px',
+              borderTop: '1px solid rgba(41, 17, 0, 0.08)',
+              background: item.is_read ? 'transparent' : 'rgba(196, 166, 122, 0.08)',
+            }}
+          >
+            <div
               style={{
-                border: '1px solid rgba(41, 17, 0, 0.12)',
-                borderRadius: '999px',
-                background: pauseAllInApp ? 'var(--color-paper-dark)' : 'transparent',
-                color: pauseAllInApp ? 'var(--color-paper-bg)' : 'var(--color-paper-mid)',
-                padding: '4px 10px',
-                fontSize: '11px',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              {pauseAllInApp ? 'Paused' : 'Active'}
-            </button>
-          </div>
-
-          <div style={{ borderTop: '1px solid rgba(41, 17, 0, 0.08)', paddingTop: '12px' }}>
-            <button
-              onClick={() => setTopicControlsExpanded((value) => !value)}
-              style={{
-                width: '100%',
-                border: 'none',
-                background: 'transparent',
-                padding: 0,
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 gap: '10px',
-                cursor: 'pointer',
-                textAlign: 'left',
               }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)' }}>
-                  Topic controls
+                <div
+                  style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginBottom: '3px' }}
+                >
+                  {topicLine}
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginTop: '2px', lineHeight: 1.45 }}>
-                  {topicSummary}
+                <div
+                  style={{
+                    fontFamily: 'Georgia, serif',
+                    fontSize: '14px',
+                    color: 'var(--color-paper-dark)',
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {title}
+                </div>
+                <div
+                  style={{ marginTop: '7px', fontSize: '11px', color: 'var(--color-paper-mid)' }}
+                >
+                  {formatTime(item.created_at)}
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                <span style={{ fontSize: '11px', color: 'var(--color-paper-mid)' }}>
-                  {topicControlsExpanded ? 'Hide' : 'Show'}
-                </span>
-                <Icon icon={topicControlsExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} style={{ width: 16, height: 16, color: 'var(--color-paper-mid)' }} />
-              </div>
-            </button>
-
-            {topicControlsExpanded && (
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginBottom: '10px', lineHeight: 1.45 }}>
-                  Mute, restore, or remove tracked topics without leaving the chat shell.
-                </div>
-
-                {topicInterestsError && (
-                  <div style={{ marginBottom: '10px', padding: '8px 10px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '12px', lineHeight: 1.4 }}>
-                    {friendlyError(topicInterestsError, "Couldn't load your tracked topics.")}
-                  </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: '8px',
+                  flexShrink: 0,
+                }}
+              >
+                {!item.is_read && (
+                  <span
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: 'var(--color-brand-600)',
+                    }}
+                  />
                 )}
-
-                {topicInterestsLoading ? (
-                  <div style={{ fontSize: '12px', color: 'var(--color-paper-mid)' }}>Loading topics...</div>
-                ) : topicInterests.length === 0 ? (
-                  <div style={{ fontSize: '12px', color: 'var(--color-paper-mid)' }}>No tracked topics yet.</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {topicInterests.map((topic) => {
-                      const topicPending = Boolean(topicInterestPendingById[topic.topic_id]);
-                      return (
-                      <div key={topic.topic_id} style={{ border: '1px solid rgba(41, 17, 0, 0.08)', borderRadius: '6px', padding: '10px', background: 'var(--color-paper-bg)', opacity: topicPending ? 0.72 : 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)', lineHeight: 1.35 }}>
-                              {topic.label}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '10px', color: 'var(--color-paper-mid)', border: '1px solid rgba(41, 17, 0, 0.12)', borderRadius: '999px', padding: '2px 7px' }}>
-                                {stateLabel(topic.state)}
-                              </span>
-                              {topic.auto_watch_reason && (
-                                <span style={{ fontSize: '10px', color: 'var(--color-paper-mid)' }}>
-                                  {topic.auto_watch_reason}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => onDeleteTopic(topic.topic_id)}
-                            disabled={topicPending}
-                            style={{ border: 'none', background: 'transparent', padding: 0, color: 'var(--color-paper-mid)', cursor: topicPending ? 'not-allowed' : 'pointer', opacity: topicPending ? 0.6 : 1 }}
-                            title="Delete topic interest"
-                          >
-                            <Icon icon="mdi:trash-can-outline" style={{ width: 14, height: 14 }} />
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginTop: '8px' }}>
-                          <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)' }}>
-                            Score {Number(topic.interest_score ?? 0).toFixed(1)}
-                          </div>
-                          <button
-                            onClick={() => onToggleTopicState(topic.topic_id, topic.state === 'muted' ? 'candidate' : 'muted')}
-                            disabled={topicPending}
-                            style={{
-                              border: '1px solid rgba(41, 17, 0, 0.12)',
-                              borderRadius: '999px',
-                              background: topicPending ? 'var(--color-paper-bg)' : 'transparent',
-                              padding: '4px 9px',
-                              fontSize: '11px',
-                              color: 'var(--color-paper-mid)',
-                              cursor: topicPending ? 'not-allowed' : 'pointer',
-                              flexShrink: 0,
-                              opacity: topicPending ? 0.7 : 1,
-                            }}
-                          >
-                            {topicPending ? 'Updating...' : topic.state === 'muted' ? 'Unmute' : 'Mute'}
-                          </button>
-                        </div>
-                      </div>
-                    );})}
-                  </div>
+                {!item.is_read && (
+                  <button
+                    onClick={() => onMarkOneRead(item.id)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      fontSize: '11px',
+                      color: 'var(--color-paper-mid)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Mark read
+                  </button>
                 )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: '12px 14px 8px', borderBottom: notifications.length > 0 ? '1px solid rgba(41, 17, 0, 0.08)' : 'none' }}>
-        <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-paper-mid)' }}>
-          Alert feed
-        </div>
-        <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginTop: '3px' }}>
-          Recent paper matches for your watched topics.
-        </div>
-      </div>
-
-      {notificationsError && (
-        <div style={{ margin: '10px 12px 0', padding: '8px 10px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '12px', lineHeight: 1.4 }}>
-          {friendlyError(notificationsError, "Couldn't load your notifications.")}
-        </div>
-      )}
-
-      {notifications.length === 0 ? (
-        <div style={{ padding: '16px 14px 18px', fontSize: '12px', color: 'var(--color-paper-mid)', lineHeight: 1.5 }}>
-          No paper alerts yet.
-        </div>
-      ) : (
-        notifications.map((item) => {
-          const title = item.paper_ref?.title || 'Untitled paper';
-          const topicLine = item.content || 'New paper alert';
-          return (
-            <div
-              key={item.id}
-              style={{
-                padding: '12px 14px',
-                borderTop: '1px solid rgba(41, 17, 0, 0.08)',
-                background: item.is_read ? 'transparent' : 'rgba(196, 166, 122, 0.08)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: '11px', color: 'var(--color-paper-mid)', marginBottom: '3px' }}>
-                    {topicLine}
-                  </div>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: 'var(--color-paper-dark)', lineHeight: 1.35 }}>
-                    {title}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-paper-mid)', lineHeight: 1.45, marginTop: '5px' }}>
-                    {item.reason || 'Matched your watched topic.'}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '7px', fontSize: '11px', color: 'var(--color-paper-mid)', flexWrap: 'wrap' }}>
-                    <span>{formatTime(item.created_at)}</span>
-                    {item.score != null && <span>Score {Number(item.score).toFixed(2)}</span>}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
-                  {!item.is_read && (
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-brand-600)' }} />
-                  )}
-                  {!item.is_read && (
-                    <button
-                      onClick={() => onMarkOneRead(item.id)}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        padding: 0,
-                        fontSize: '11px',
-                        color: 'var(--color-paper-mid)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Mark read
-                    </button>
-                  )}
-                  {item.paper_ref?.url && (
-                    <a
-                      href={item.paper_ref.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontSize: '11px', color: 'var(--color-brand-600)', textDecoration: 'none' }}
-                    >
-                      Open paper
-                    </a>
-                  )}
-                </div>
+                {item.paper_ref?.url && (
+                  <a
+                    href={item.paper_ref.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--color-brand-600)',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Open paper
+                  </a>
+                )}
               </div>
             </div>
-          );
-        })
-      )}
-    </div>
-  );
-};
+          </div>
+        );
+      })
+    )}
+  </div>
+);
 
 /**
  * Bell notification trigger + dropdown panel — lives next to the "Open
- * Knowledge Graph" button in ChatLayout (both desktop and mobile) so the two
- * top-level chat actions are grouped together instead of the bell being
- * anchored inside the sidebar header, far from the graph button.
+ * Knowledge Graph" button in ChatLayout. Slimmed to just an on/off toggle and
+ * the alert feed (topic-management controls were removed as redundant).
  */
-// size/iconSize default to the 28px / 14px round-icon-button spec shared
-// with the "?" help button on PDFAgentPage/ResearchPage (desktop). The
-// mobile header passes size=44/iconSize=16 instead — that's a deliberate
-// exception, not leftover inconsistency: 44px is the standard minimum
-// touch-target size (Apple HIG / Material both recommend it), so shrinking
-// tap targets to match desktop's tighter 28px would hurt thumb accuracy.
 const NotificationsButton = ({ size = 28, iconSize = 14 }) => {
   const notifications = useChatStore((s) => s.notifications);
   const notificationsLoaded = useChatStore((s) => s.notificationsLoaded);
@@ -455,19 +267,8 @@ const NotificationsButton = ({ size = 28, iconSize = 14 }) => {
   const markNotificationRead = useChatStore((s) => s.markNotificationRead);
   const markAllNotificationsRead = useChatStore((s) => s.markAllNotificationsRead);
   const setNotificationsPanelOpen = useChatStore((s) => s.setNotificationsPanelOpen);
-  const topicInterests = useChatStore((s) => s.topicInterests);
-  const topicInterestsLoaded = useChatStore((s) => s.topicInterestsLoaded);
-  const topicInterestsError = useChatStore((s) => s.topicInterestsError);
-  const topicInterestsLoading = useChatStore((s) => s.topicInterestsLoading);
   const pauseAllInApp = useChatStore((s) => s.pauseAllInApp);
-  const loadTopicInterests = useChatStore((s) => s.loadTopicInterests);
   const setPauseAllInApp = useChatStore((s) => s.setPauseAllInApp);
-  const updateTopicInterestState = useChatStore((s) => s.updateTopicInterestState);
-  const deleteTopicInterest = useChatStore((s) => s.deleteTopicInterest);
-  const topicInterestPendingById = useChatStore((s) => s.topicInterestPendingById);
-
-  const [topicDeleteTarget, setTopicDeleteTarget] = useState(null);
-  const [topicDeletePending, setTopicDeletePending] = useState(false);
 
   useEffect(() => {
     if (!notificationsLoaded && !notificationsLoading) {
@@ -475,38 +276,10 @@ const NotificationsButton = ({ size = 28, iconSize = 14 }) => {
     }
   }, [notificationsLoaded, notificationsLoading, loadNotifications]);
 
-  useEffect(() => {
-    if (!topicInterestsLoaded && !topicInterestsLoading) {
-      loadTopicInterests();
-    }
-  }, [topicInterestsLoaded, topicInterestsLoading, loadTopicInterests]);
-
   const handleToggleNotifications = () => {
     const nextOpen = !notificationsPanelOpen;
     setNotificationsPanelOpen(nextOpen);
-    if (nextOpen) {
-      void loadNotifications();
-      void loadTopicInterests();
-    }
-  };
-
-  const handleDeleteTopic = (topicId, label) => {
-    setTopicDeleteTarget({ id: topicId, label });
-  };
-
-  const handleCancelDeleteTopic = () => {
-    if (topicDeletePending) return;
-    setTopicDeleteTarget(null);
-  };
-
-  const handleConfirmDeleteTopic = async () => {
-    if (!topicDeleteTarget?.id || topicDeletePending) return;
-    setTopicDeletePending(true);
-    const deleted = await deleteTopicInterest(topicDeleteTarget.id);
-    setTopicDeletePending(false);
-    if (deleted) {
-      setTopicDeleteTarget(null);
-    }
+    if (nextOpen) void loadNotifications();
   };
 
   return (
@@ -517,9 +290,6 @@ const NotificationsButton = ({ size = 28, iconSize = 14 }) => {
         style={{
           position: 'relative',
           background: 'var(--color-paper-bg)',
-          // Matches the "?" help button on PDFAgentPage/ResearchPage exactly:
-          // same border color, same 28px circle, same 14px icon — one shared
-          // round-icon-button size/color spec used everywhere in the app.
           border: '1px solid var(--color-paper-light)',
           borderRadius: '50%',
           cursor: 'pointer',
@@ -562,28 +332,11 @@ const NotificationsButton = ({ size = 28, iconSize = 14 }) => {
           unreadCount={unreadNotificationCount}
           notificationsError={notificationsError}
           pauseAllInApp={pauseAllInApp}
-          topicInterests={topicInterests}
-          topicInterestsError={topicInterestsError}
-          topicInterestsLoading={topicInterestsLoading}
           onTogglePause={setPauseAllInApp}
           onMarkOneRead={markNotificationRead}
           onMarkAllRead={markAllNotificationsRead}
-          onToggleTopicState={updateTopicInterestState}
-          topicInterestPendingById={topicInterestPendingById}
-          onDeleteTopic={(topicId) => {
-            const topic = topicInterests.find((item) => item.topic_id === topicId);
-            handleDeleteTopic(topicId, topic?.label || 'this topic');
-          }}
         />
       )}
-
-      <TopicDeleteConfirmModal
-        isOpen={Boolean(topicDeleteTarget)}
-        topicLabel={topicDeleteTarget?.label || ''}
-        deleting={topicDeletePending}
-        onCancel={handleCancelDeleteTopic}
-        onConfirm={handleConfirmDeleteTopic}
-      />
     </div>
   );
 };

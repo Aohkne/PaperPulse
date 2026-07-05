@@ -29,33 +29,36 @@ const ResearchLayout = ({ left, center, right, papers }) => {
   const containerRef = useRef(null);
   const dragging = useRef(null);
 
-  const onMouseDown = useCallback((side) => (e) => {
-    e.preventDefault();
-    dragging.current = side;
-    setIsDragging(true);
+  const onMouseDown = useCallback(
+    (side) => (e) => {
+      e.preventDefault();
+      dragging.current = side;
+      setIsDragging(true);
 
-    const onMove = (e) => {
-      if (!containerRef.current || !dragging.current) return;
-      const { left: cLeft, width } = containerRef.current.getBoundingClientRect();
-      const pct = ((e.clientX - cLeft) / width) * 100;
+      const onMove = (e) => {
+        if (!containerRef.current || !dragging.current) return;
+        const { left: cLeft, width } = containerRef.current.getBoundingClientRect();
+        const pct = ((e.clientX - cLeft) / width) * 100;
 
-      if (dragging.current === 'left') {
-        setLeftW(Math.max(16, Math.min(32, pct)));
-      } else {
-        setRightW(Math.max(18, Math.min(40, 100 - pct)));
-      }
-    };
+        if (dragging.current === 'left') {
+          setLeftW(Math.max(16, Math.min(32, pct)));
+        } else {
+          setRightW(Math.max(18, Math.min(40, 100 - pct)));
+        }
+      };
 
-    const onUp = () => {
-      dragging.current = null;
-      setIsDragging(false);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
+      const onUp = () => {
+        dragging.current = null;
+        setIsDragging(false);
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, []);
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    },
+    []
+  );
 
   const divider = {
     width: '1px',
@@ -74,17 +77,40 @@ const ResearchLayout = ({ left, center, right, papers }) => {
 
   if (isMobile) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--color-paper-bg)' }}>
-        <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--color-paper-light)' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+          background: 'var(--color-paper-bg)',
+        }}
+      >
+        <div
+          style={{
+            flexShrink: 0,
+            display: 'flex',
+            borderBottom: '1px solid var(--color-paper-light)',
+          }}
+        >
           {MOBILE_TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setMobileTab(tab.key)}
               style={{
-                flex: 1, padding: '12px 8px', minHeight: 44,
-                border: 'none', borderBottom: mobileTab === tab.key ? '2px solid var(--color-paper-dark)' : '2px solid transparent',
-                background: 'none', cursor: 'pointer',
-                fontFamily: "'Newsreader', serif", fontSize: '13px', fontWeight: mobileTab === tab.key ? 600 : 400,
+                flex: 1,
+                padding: '12px 8px',
+                minHeight: 44,
+                border: 'none',
+                borderBottom:
+                  mobileTab === tab.key
+                    ? '2px solid var(--color-paper-dark)'
+                    : '2px solid transparent',
+                background: 'none',
+                cursor: 'pointer',
+                fontFamily: "'Newsreader', serif",
+                fontSize: '13px',
+                fontWeight: mobileTab === tab.key ? 600 : 400,
                 color: mobileTab === tab.key ? 'var(--color-paper-dark)' : 'var(--color-paper-mid)',
               }}
             >
@@ -93,13 +119,39 @@ const ResearchLayout = ({ left, center, right, papers }) => {
           ))}
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: mobileTab === 'left' ? 'flex' : 'none', flexDirection: 'column', padding: '16px' }}>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            display: mobileTab === 'left' ? 'flex' : 'none',
+            flexDirection: 'column',
+            padding: '16px',
+          }}
+        >
           {left}
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: mobileTab === 'center' ? 'flex' : 'none', flexDirection: 'column', padding: '16px' }}>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            display: mobileTab === 'center' ? 'flex' : 'none',
+            flexDirection: 'column',
+            padding: '16px',
+          }}
+        >
           {center}
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: mobileTab === 'right' ? 'flex' : 'none', flexDirection: 'column' }}>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            display: mobileTab === 'right' ? 'flex' : 'none',
+            flexDirection: 'column',
+          }}
+        >
           <GraphPanel papers={papers} onClose={() => setMobileTab('center')} />
           <div style={{ padding: '0 12px 12px' }}>{right}</div>
         </div>
@@ -119,7 +171,15 @@ const ResearchLayout = ({ left, center, right, papers }) => {
       }}
     >
       {/* ── Left panel ─────────────────────────────────────────────────── */}
-      <div style={{ ...panelBase, width: `${leftW}%`, flexShrink: 0, overflowY: 'auto', padding: '20px 16px' }}>
+      <div
+        style={{
+          ...panelBase,
+          width: `${leftW}%`,
+          flexShrink: 0,
+          overflowY: 'auto',
+          padding: '20px 16px',
+        }}
+      >
         {left}
       </div>
 
@@ -169,9 +229,7 @@ const ResearchLayout = ({ left, center, right, papers }) => {
           />
           <div style={{ ...panelBase, width: `${rightW}%`, flexShrink: 0, overflowY: 'auto' }}>
             <GraphPanel papers={papers} onClose={() => setRightOpen(false)} />
-            <div style={{ padding: '0 12px 12px' }}>
-              {right}
-            </div>
+            <div style={{ padding: '0 12px 12px' }}>{right}</div>
           </div>
         </>
       )}

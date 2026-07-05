@@ -64,7 +64,12 @@ const GapSection = () => {
       <GapProgressPanel events={streamEvents} loading={gapLoading} />
 
       {/* ③ Results panel — flows naturally in page scroll */}
-      <GapResultPanel narrative={gapNarrative} gapReport={gapReport} loading={gapLoading} error={gapError} />
+      <GapResultPanel
+        narrative={gapNarrative}
+        gapReport={gapReport}
+        loading={gapLoading}
+        error={gapError}
+      />
     </div>
   );
 };

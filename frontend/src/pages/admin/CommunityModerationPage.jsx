@@ -12,22 +12,38 @@ const TABS = [
 ];
 
 function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 function StatusBadge({ status }) {
   const colors = {
     pending: { bg: '#fff3cd', text: '#8a6d00', border: '#f0dca0' },
-    approved: { bg: 'var(--color-admin-role-bg)', text: 'var(--color-admin-mid)', border: 'var(--color-admin-border)' },
+    approved: {
+      bg: 'var(--color-admin-role-bg)',
+      text: 'var(--color-admin-mid)',
+      border: 'var(--color-admin-border)',
+    },
     rejected: { bg: '#fed7d7', text: '#c0392b', border: '#e8a8a8' },
   };
   const c = colors[status] || colors.pending;
   return (
-    <span style={{
-      display: 'inline-block', padding: '2px 10px', borderRadius: 20,
-      fontSize: 11, fontWeight: 600, textTransform: 'capitalize',
-      background: c.bg, color: c.text, border: `1px solid ${c.border}`,
-    }}>
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '2px 10px',
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 600,
+        textTransform: 'capitalize',
+        background: c.bg,
+        color: c.text,
+        border: `1px solid ${c.border}`,
+      }}
+    >
       {status}
     </span>
   );
@@ -40,25 +56,45 @@ function ContributionRow({ c, onApprove, onReject }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       style={{
-        border: '1px solid var(--color-admin-border)', borderRadius: 10,
-        padding: '14px 16px', background: 'var(--color-admin-surface)',
+        border: '1px solid var(--color-admin-border)',
+        borderRadius: 10,
+        padding: '14px 16px',
+        background: 'var(--color-admin-surface)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-admin-text)', margin: 0 }}>{c.title}</h3>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 6,
+          flexWrap: 'wrap',
+        }}
+      >
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-admin-text)', margin: 0 }}>
+          {c.title}
+        </h3>
         <StatusBadge status={c.status} />
         <span style={{ fontSize: 12, color: 'var(--color-admin-mid)' }}>
           {c.author_name || 'Anonymous'} · {fmtDate(c.created_at)}
         </span>
         {c.status === 'approved' && (
-          <span style={{ fontSize: 12, color: 'var(--color-admin-mid)' }}>· {c.total_votes} votes</span>
+          <span style={{ fontSize: 12, color: 'var(--color-admin-mid)' }}>
+            · {c.total_votes} votes
+          </span>
         )}
       </div>
 
-      <p style={{
-        fontSize: 13, color: 'var(--color-admin-mid)', margin: '0 0 10px',
-        whiteSpace: 'pre-wrap', maxHeight: 80, overflow: 'hidden',
-      }}>
+      <p
+        style={{
+          fontSize: 13,
+          color: 'var(--color-admin-mid)',
+          margin: '0 0 10px',
+          whiteSpace: 'pre-wrap',
+          maxHeight: 80,
+          overflow: 'hidden',
+        }}
+      >
         {c.content}
       </p>
 
@@ -73,8 +109,14 @@ function ContributionRow({ c, onApprove, onReject }) {
           <button
             onClick={() => onApprove(c.id)}
             style={{
-              padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
-              background: 'var(--color-admin-accent)', color: '#fff', fontSize: 12, fontWeight: 500,
+              padding: '6px 14px',
+              borderRadius: 6,
+              border: 'none',
+              cursor: 'pointer',
+              background: 'var(--color-admin-accent)',
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 500,
             }}
           >
             Approve
@@ -82,8 +124,13 @@ function ContributionRow({ c, onApprove, onReject }) {
           <button
             onClick={() => onReject(c.id)}
             style={{
-              padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
-              border: '1px solid #e8a8a8', background: '#fff5f5', color: '#c0392b', fontSize: 12,
+              padding: '6px 14px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              border: '1px solid #e8a8a8',
+              background: '#fff5f5',
+              color: '#c0392b',
+              fontSize: 12,
             }}
           >
             Reject
@@ -101,12 +148,15 @@ export default function CommunityModerationPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchQueue = useCallback((s) => {
-    if (!token) {
-      return Promise.resolve(null);
-    }
-    return adminApi.getContributions(token, { status: s || undefined, limit: 50 });
-  }, [token]);
+  const fetchQueue = useCallback(
+    (s) => {
+      if (!token) {
+        return Promise.resolve(null);
+      }
+      return adminApi.getContributions(token, { status: s || undefined, limit: 50 });
+    },
+    [token]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -181,14 +231,22 @@ export default function CommunityModerationPage() {
         {TABS.map(([key, label]) => (
           <button
             key={key || 'all'}
-            onClick={() => { setLoading(true); setStatus(key); }}
+            onClick={() => {
+              setLoading(true);
+              setStatus(key);
+            }}
             style={{
-              padding: '6px 14px', borderRadius: 8, border: '1px solid',
-              borderColor: status === key ? 'var(--color-admin-accent)' : 'var(--color-admin-border)',
+              padding: '6px 14px',
+              borderRadius: 8,
+              border: '1px solid',
+              borderColor:
+                status === key ? 'var(--color-admin-accent)' : 'var(--color-admin-border)',
               background: status === key ? 'var(--color-admin-accent-bg)' : 'transparent',
               color: status === key ? 'var(--color-admin-accent-text)' : 'var(--color-admin-mid)',
-              fontSize: 12, fontWeight: status === key ? 600 : 400,
-              cursor: 'pointer', transition: 'all 0.15s',
+              fontSize: 12,
+              fontWeight: status === key ? 600 : 400,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
             }}
           >
             {label}

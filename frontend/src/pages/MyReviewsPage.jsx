@@ -28,7 +28,9 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e) => { if (!menuRef.current?.contains(e.target)) setMenuOpen(false); };
+    const handler = (e) => {
+      if (!menuRef.current?.contains(e.target)) setMenuOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
@@ -48,30 +50,71 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
         padding: '16px 18px',
         background: 'var(--color-paper-surface)',
         boxShadow: '0 1px 3px rgba(41, 17, 0, 0.05)',
-        display: 'flex', alignItems: 'center', gap: '14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
         cursor: 'pointer',
         transition: 'border-color 0.15s, box-shadow 0.15s',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-brand-500)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(41, 17, 0, 0.10)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(41, 17, 0, 0.08)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(41, 17, 0, 0.05)'; }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--color-brand-500)';
+        e.currentTarget.style.boxShadow = '0 4px 14px rgba(41, 17, 0, 0.10)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(41, 17, 0, 0.08)';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(41, 17, 0, 0.05)';
+      }}
       onClick={() => navigate(ROUTES.REVIEW_DETAIL(review.id))}
     >
-      <Icon icon="mdi:file-document-outline" style={{ width: 22, height: 22, color: 'var(--color-brand-500)', flexShrink: 0 }} />
+      <Icon
+        icon="mdi:file-document-outline"
+        style={{ width: 22, height: 22, color: 'var(--color-brand-500)', flexShrink: 0 }}
+      />
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: "'Newsreader', serif", fontSize: '16px', fontWeight: 600, color: 'var(--color-paper-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div
+          style={{
+            fontFamily: "'Newsreader', serif",
+            fontSize: '16px',
+            fontWeight: 600,
+            color: 'var(--color-paper-dark)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
           {review.title}
         </div>
-        <div style={{ fontFamily: "'Newsreader', serif", fontSize: '13px', color: 'var(--color-paper-mid)', marginTop: '2px' }}>
+        <div
+          style={{
+            fontFamily: "'Newsreader', serif",
+            fontSize: '13px',
+            color: 'var(--color-paper-mid)',
+            marginTop: '2px',
+          }}
+        >
           {relativeDate(review.updated_at)} · {review.query}
         </div>
       </div>
 
       {/* Action menu */}
-      <div style={{ position: 'relative', flexShrink: 0 }} ref={menuRef} onClick={(e) => e.stopPropagation()}>
+      <div
+        style={{ position: 'relative', flexShrink: 0 }}
+        ref={menuRef}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'var(--color-paper-mid)',
+            padding: '4px',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
         >
           <Icon icon="mdi:dots-horizontal" style={{ width: 16, height: 16 }} />
         </button>
@@ -83,35 +126,105 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.12 }}
               style={{
-                position: 'absolute', right: 0, top: '30px',
+                position: 'absolute',
+                right: 0,
+                top: '30px',
                 background: 'var(--color-paper-surface)',
                 border: '1px solid rgba(41, 17, 0, 0.08)',
                 borderRadius: '12px',
                 boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.14)',
-                minWidth: '160px', zIndex: 100,
+                minWidth: '160px',
+                zIndex: 100,
                 overflow: 'hidden',
               }}
             >
               {[
-                { icon: 'mdi:open-in-new', label: 'Open', action: () => navigate(ROUTES.REVIEW_DETAIL(review.id)) },
-                { icon: 'mdi:file-code-outline', label: 'Export LaTeX', action: () => reviewsApi.download(token(), review.id, 'tex').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
-                { icon: 'mdi:language-markdown-outline', label: 'Export Markdown', action: () => reviewsApi.download(token(), review.id, 'markdown').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
-                { icon: 'mdi:file-pdf-box', label: 'Export PDF', action: () => reviewsApi.download(token(), review.id, 'pdf').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
-                { icon: 'mdi:folder-zip-outline', label: 'Export ZIP', action: () => reviewsApi.download(token(), review.id, 'zip').catch((e) => showError(e, "Couldn't export this review — please try again.")) },
-                { icon: 'mdi:content-copy', label: 'Duplicate', action: () => { onDuplicate(review.id); setMenuOpen(false); } },
-                { icon: 'mdi:delete-outline', label: 'Delete', action: () => { onDelete(review.id); setMenuOpen(false); }, danger: true },
+                {
+                  icon: 'mdi:open-in-new',
+                  label: 'Open',
+                  action: () => navigate(ROUTES.REVIEW_DETAIL(review.id)),
+                },
+                {
+                  icon: 'mdi:file-code-outline',
+                  label: 'Export LaTeX',
+                  action: () =>
+                    reviewsApi
+                      .download(token(), review.id, 'tex')
+                      .catch((e) =>
+                        showError(e, "Couldn't export this review — please try again.")
+                      ),
+                },
+                {
+                  icon: 'mdi:language-markdown-outline',
+                  label: 'Export Markdown',
+                  action: () =>
+                    reviewsApi
+                      .download(token(), review.id, 'markdown')
+                      .catch((e) =>
+                        showError(e, "Couldn't export this review — please try again.")
+                      ),
+                },
+                {
+                  icon: 'mdi:file-pdf-box',
+                  label: 'Export PDF',
+                  action: () =>
+                    reviewsApi
+                      .download(token(), review.id, 'pdf')
+                      .catch((e) =>
+                        showError(e, "Couldn't export this review — please try again.")
+                      ),
+                },
+                {
+                  icon: 'mdi:folder-zip-outline',
+                  label: 'Export ZIP',
+                  action: () =>
+                    reviewsApi
+                      .download(token(), review.id, 'zip')
+                      .catch((e) =>
+                        showError(e, "Couldn't export this review — please try again.")
+                      ),
+                },
+                {
+                  icon: 'mdi:content-copy',
+                  label: 'Duplicate',
+                  action: () => {
+                    onDuplicate(review.id);
+                    setMenuOpen(false);
+                  },
+                },
+                {
+                  icon: 'mdi:delete-outline',
+                  label: 'Delete',
+                  action: () => {
+                    onDelete(review.id);
+                    setMenuOpen(false);
+                  },
+                  danger: true,
+                },
               ].map(({ icon, label, action, danger }) => (
                 <button
                   key={label}
-                  onClick={() => { action(); setMenuOpen(false); }}
+                  onClick={() => {
+                    action();
+                    setMenuOpen(false);
+                  }}
                   style={{
-                    width: '100%', textAlign: 'left', padding: '8px 12px',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    fontFamily: "'Newsreader', serif", fontSize: '14px',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '8px 12px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: '14px',
                     color: danger ? '#c0392b' : 'var(--color-paper-dark)',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-surface)')}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = 'var(--color-paper-surface)')
+                  }
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                 >
                   <Icon icon={icon} style={{ width: 14, height: 14 }} />
@@ -129,11 +242,24 @@ const ReviewCard = ({ review, onDelete, onDuplicate }) => {
 const MyReviewsPage = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile(480);
-  const { items, pagination, search, listLoading, listError, fetchList, loadMore, setSearch, deleteReview, duplicateReview } = useReviewsStore();
+  const {
+    items,
+    pagination,
+    search,
+    listLoading,
+    listError,
+    fetchList,
+    loadMore,
+    setSearch,
+    deleteReview,
+    duplicateReview,
+  } = useReviewsStore();
   const [searchInput, setSearchInput] = useState(search);
   const debounceRef = useRef(null);
 
-  useEffect(() => { fetchList(1); }, [fetchList]);
+  useEffect(() => {
+    fetchList(1);
+  }, [fetchList]);
 
   const handleSearch = (val) => {
     setSearchInput(val);
@@ -162,39 +288,81 @@ const MyReviewsPage = () => {
   };
 
   return (
-    <div className="themed-scroll" style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 14px' : '32px 24px' }}>
+    <div
+      className="themed-scroll"
+      style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 14px' : '32px 24px' }}
+    >
       <div style={{ maxWidth: '780px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
           <button
             onClick={() => navigate(-1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: 0, display: 'flex', alignItems: 'center' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--color-paper-mid)',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+            }}
           >
             <Icon icon="mdi:arrow-left" style={{ width: 18, height: 18 }} />
           </button>
-          <h1 style={{ fontFamily: "'Newsreader', serif", fontSize: '21px', fontWeight: 700, color: 'var(--color-paper-dark)', margin: 0 }}>
+          <h1
+            style={{
+              fontFamily: "'Newsreader', serif",
+              fontSize: '21px',
+              fontWeight: 700,
+              color: 'var(--color-paper-dark)',
+              margin: 0,
+            }}
+          >
             My Reviews
           </h1>
-          <span style={{ fontFamily: "'Newsreader', serif", fontSize: '14px', color: 'var(--color-paper-mid)', marginLeft: 'auto' }}>
+          <span
+            style={{
+              fontFamily: "'Newsreader', serif",
+              fontSize: '14px',
+              color: 'var(--color-paper-mid)',
+              marginLeft: 'auto',
+            }}
+          >
             {pagination.total} review{pagination.total !== 1 ? 's' : ''}
           </span>
         </div>
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: '16px' }}>
-          <Icon icon="mdi:magnify" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: 'var(--color-paper-mid)' }} />
+          <Icon
+            icon="mdi:magnify"
+            style={{
+              position: 'absolute',
+              left: '14px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 18,
+              height: 18,
+              color: 'var(--color-paper-mid)',
+            }}
+          />
           <input
             type="text"
             value={searchInput}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search by name..."
             style={{
-              width: '100%', boxSizing: 'border-box',
-              paddingLeft: '40px', paddingRight: '14px', paddingTop: '11px', paddingBottom: '11px',
+              width: '100%',
+              boxSizing: 'border-box',
+              paddingLeft: '40px',
+              paddingRight: '14px',
+              paddingTop: '11px',
+              paddingBottom: '11px',
               border: '1px solid rgba(41, 17, 0, 0.12)',
               borderRadius: '12px',
               background: 'var(--color-paper-surface)',
-              fontFamily: "'Newsreader', serif", fontSize: '16px',
+              fontFamily: "'Newsreader', serif",
+              fontSize: '16px',
               color: 'var(--color-paper-dark)',
               outline: 'none',
             }}
@@ -203,7 +371,15 @@ const MyReviewsPage = () => {
 
         {/* List */}
         {listError && (
-          <div style={{ fontFamily: "'Newsreader', serif", fontSize: '14px', color: '#c0392b', padding: '12px', marginBottom: '12px' }}>
+          <div
+            style={{
+              fontFamily: "'Newsreader', serif",
+              fontSize: '14px',
+              color: '#c0392b',
+              padding: '12px',
+              marginBottom: '12px',
+            }}
+          >
             {friendlyError(listError, "Couldn't load your reviews.")}
           </div>
         )}
@@ -211,15 +387,30 @@ const MyReviewsPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <AnimatePresence initial={false}>
             {items.map((r) => (
-              <ReviewCard key={r.id} review={r} onDelete={handleDelete} onDuplicate={handleDuplicate} />
+              <ReviewCard
+                key={r.id}
+                review={r}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+              />
             ))}
           </AnimatePresence>
         </div>
 
         {/* Empty state */}
         {!listLoading && items.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", fontSize: '16px' }}>
-            {search ? 'No reviews found.' : 'No reviews yet. Create a Literature Review to get started!'}
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '48px 0',
+              color: 'var(--color-paper-mid)',
+              fontFamily: "'Newsreader', serif",
+              fontSize: '16px',
+            }}
+          >
+            {search
+              ? 'No reviews found.'
+              : 'No reviews yet. Create a Literature Review to get started!'}
           </div>
         )}
 
@@ -240,18 +431,35 @@ const MyReviewsPage = () => {
                 borderRadius: '999px',
                 background: 'var(--color-paper-surface)',
                 cursor: listLoading ? 'wait' : 'pointer',
-                fontFamily: "'Newsreader', serif", fontSize: '13px', fontWeight: 600,
+                fontFamily: "'Newsreader', serif",
+                fontSize: '13px',
+                fontWeight: 600,
                 color: 'var(--color-paper-mid)',
-                display: 'flex', alignItems: 'center', gap: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={(e) => { if (!listLoading) e.currentTarget.style.background = 'var(--color-brand-50)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-paper-surface)'; }}
+              onMouseEnter={(e) => {
+                if (!listLoading) e.currentTarget.style.background = 'var(--color-brand-50)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-paper-surface)';
+              }}
             >
-              {listLoading
-                ? <><Icon icon="mdi:loading" style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Loading...</>
-                : <>Load more <Icon icon="mdi:chevron-down" style={{ width: 14, height: 14 }} /></>
-              }
+              {listLoading ? (
+                <>
+                  <Icon
+                    icon="mdi:loading"
+                    style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }}
+                  />{' '}
+                  Loading...
+                </>
+              ) : (
+                <>
+                  Load more <Icon icon="mdi:chevron-down" style={{ width: 14, height: 14 }} />
+                </>
+              )}
             </button>
           </div>
         )}
@@ -259,7 +467,15 @@ const MyReviewsPage = () => {
         {/* Loading spinner (first page) */}
         {listLoading && items.length === 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-            <Icon icon="mdi:loading" style={{ width: 24, height: 24, color: 'var(--color-paper-mid)', animation: 'spin 1s linear infinite' }} />
+            <Icon
+              icon="mdi:loading"
+              style={{
+                width: 24,
+                height: 24,
+                color: 'var(--color-paper-mid)',
+                animation: 'spin 1s linear infinite',
+              }}
+            />
           </div>
         )}
       </div>

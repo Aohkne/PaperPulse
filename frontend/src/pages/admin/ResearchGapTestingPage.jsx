@@ -7,10 +7,18 @@ import { Icon } from '@iconify/react';
  * pipeline). Swap this in for a real testing UI once that feature exists.
  */
 const ResearchGapTestingPage = () => (
-  <div style={{
-    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    height: '100%', gap: 10, color: 'var(--color-admin-mid)', textAlign: 'center',
-  }}>
+  <div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      gap: 10,
+      color: 'var(--color-admin-mid)',
+      textAlign: 'center',
+    }}
+  >
     <Icon icon="mdi:wrench-clock-outline" style={{ fontSize: 32 }} />
     <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--color-admin-text)' }}>
       Research Gap testing — coming soon

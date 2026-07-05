@@ -17,14 +17,27 @@ export const usePdfAgentStore = create((set, get) => ({
 
   reset: () =>
     set({
-      docId: null, title: '', status: 'idle', steps: [], texContent: '',
-      annotations: [], error: null, reviewId: null, selectionResult: null,
+      docId: null,
+      title: '',
+      status: 'idle',
+      steps: [],
+      texContent: '',
+      annotations: [],
+      error: null,
+      reviewId: null,
+      selectionResult: null,
     }),
 
   upload: async (file) => {
     set({
-      status: 'uploading', error: null, steps: [], docId: null, annotations: [],
-      texContent: '', reviewId: null, title: file.name.replace(/\.[^.]+$/, ''),
+      status: 'uploading',
+      error: null,
+      steps: [],
+      docId: null,
+      annotations: [],
+      texContent: '',
+      reviewId: null,
+      title: file.name.replace(/\.[^.]+$/, ''),
     });
     try {
       const res = await pdfAgentApi.upload(getToken(), file);
@@ -42,12 +55,17 @@ export const usePdfAgentStore = create((set, get) => ({
         break;
       case 'step_start':
         set((s) => ({
-          steps: [...s.steps.filter((st) => st.node !== event.node), { node: event.node, label: event.label, status: 'running' }],
+          steps: [
+            ...s.steps.filter((st) => st.node !== event.node),
+            { node: event.node, label: event.label, status: 'running' },
+          ],
         }));
         break;
       case 'step_done':
         set((s) => ({
-          steps: s.steps.map((st) => (st.node === event.node ? { ...st, status: 'done', stats: event.stats } : st)),
+          steps: s.steps.map((st) =>
+            st.node === event.node ? { ...st, status: 'done', stats: event.stats } : st
+          ),
         }));
         break;
       case 'error':
@@ -73,7 +91,11 @@ export const usePdfAgentStore = create((set, get) => ({
         pdfAgentApi.listAnnotations(token, docId),
         pdfAgentApi.getContent(token, docId),
       ]);
-      set({ status: 'ready', annotations: annosRes.annotations, texContent: contentRes.tex_content });
+      set({
+        status: 'ready',
+        annotations: annosRes.annotations,
+        texContent: contentRes.tex_content,
+      });
     } catch (e) {
       set({ status: 'error', error: e.message || 'Failed to load results' });
     }
@@ -98,7 +120,9 @@ export const usePdfAgentStore = create((set, get) => ({
     await get()._syncBuffer();
     const res = await pdfAgentApi.updateAnnotation(getToken(), docId, annotationId, action);
     set((s) => ({
-      annotations: s.annotations.map((a) => (a.id === annotationId ? { ...a, status: res.status } : a)),
+      annotations: s.annotations.map((a) =>
+        a.id === annotationId ? { ...a, status: res.status } : a
+      ),
       texContent: res.tex_content,
     }));
   },

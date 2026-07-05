@@ -13,33 +13,54 @@ const ClaimItem = ({ claim, onApprove, onReject }) => {
   const [snippetOpen, setSnippetOpen] = useState(false);
 
   return (
-    <li style={{
-      padding: '12px',
-      borderBottom: '1px solid var(--color-paper-surface)',
-      background: 'var(--color-paper-bg)',
-    }}>
+    <li
+      style={{
+        padding: '12px',
+        borderBottom: '1px solid var(--color-paper-surface)',
+        background: 'var(--color-paper-bg)',
+      }}
+    >
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-        <span style={{
-          flexShrink: 0,
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          marginTop: '5px',
-          background: statusColor[claim.status] ?? statusColor.pending,
-        }} />
+        <span
+          style={{
+            flexShrink: 0,
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            marginTop: '5px',
+            background: statusColor[claim.status] ?? statusColor.pending,
+          }}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: '12px', color: 'var(--color-paper-dark)', margin: 0, lineHeight: '1.5' }}>
+          <p
+            style={{
+              fontSize: '12px',
+              color: 'var(--color-paper-dark)',
+              margin: 0,
+              lineHeight: '1.5',
+            }}
+          >
             {claim.text}
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontSize: '10px',
-              fontFamily: 'monospace',
-              background: 'var(--color-paper-surface)',
-              color: 'var(--color-paper-mid)',
-              padding: '1px 6px',
-              borderRadius: '3px',
-            }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '5px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                background: 'var(--color-paper-surface)',
+                color: 'var(--color-paper-mid)',
+                padding: '1px 6px',
+                borderRadius: '3px',
+              }}
+            >
               {claim.paperId}
             </span>
             {claim.snippet && (
@@ -57,24 +78,29 @@ const ClaimItem = ({ claim, onApprove, onReject }) => {
                   padding: 0,
                 }}
               >
-                <Icon icon={snippetOpen ? 'mdi:eye-off-outline' : 'mdi:eye-outline'} style={{ fontSize: '12px' }} />
+                <Icon
+                  icon={snippetOpen ? 'mdi:eye-off-outline' : 'mdi:eye-outline'}
+                  style={{ fontSize: '12px' }}
+                />
                 {snippetOpen ? 'Hide snippet' : 'View snippet'}
               </button>
             )}
           </div>
 
           {snippetOpen && claim.snippet && (
-            <blockquote style={{
-              margin: '8px 0 0',
-              padding: '8px 10px',
-              borderLeft: '3px solid var(--color-paper-light)',
-              background: 'var(--color-paper-surface)',
-              borderRadius: '0 4px 4px 0',
-              fontSize: '11px',
-              color: 'var(--color-paper-mid)',
-              lineHeight: '1.6',
-              fontStyle: 'italic',
-            }}>
+            <blockquote
+              style={{
+                margin: '8px 0 0',
+                padding: '8px 10px',
+                borderLeft: '3px solid var(--color-paper-light)',
+                background: 'var(--color-paper-surface)',
+                borderRadius: '0 4px 4px 0',
+                fontSize: '11px',
+                color: 'var(--color-paper-mid)',
+                lineHeight: '1.6',
+                fontStyle: 'italic',
+              }}
+            >
               {claim.snippet}
             </blockquote>
           )}
@@ -135,13 +161,17 @@ const ClaimVerifier = ({ claims = [], onApprove, onReject, onFinalise }) => {
 
   return (
     <div style={{ marginTop: '12px' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '8px',
-      }}>
-        <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', margin: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '8px',
+        }}
+      >
+        <p
+          style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-paper-mid)', margin: 0 }}
+        >
           Claims · {claims.length} total
           {pendingReview.length > 0 && (
             <span style={{ color: '#6366f1', marginLeft: '6px' }}>
@@ -173,15 +203,17 @@ const ClaimVerifier = ({ claims = [], onApprove, onReject, onFinalise }) => {
         )}
       </div>
 
-      <ul style={{
-        listStyle: 'none',
-        margin: 0,
-        padding: 0,
-        border: '1px solid var(--color-paper-surface)',
-        borderRadius: '6px',
-        maxHeight: '300px',
-        overflowY: 'auto',
-      }}>
+      <ul
+        style={{
+          listStyle: 'none',
+          margin: 0,
+          padding: 0,
+          border: '1px solid var(--color-paper-surface)',
+          borderRadius: '6px',
+          maxHeight: '300px',
+          overflowY: 'auto',
+        }}
+      >
         {/* Show pending review first */}
         {[...pendingReview, ...claims.filter((c) => !c.human_review)].map((c) => (
           <ClaimItem key={c.id} claim={c} onApprove={onApprove} onReject={onReject} />

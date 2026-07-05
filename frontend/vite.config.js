@@ -1,10 +1,10 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -27,15 +27,20 @@ export default defineConfig({
         // `manualChunks(id)` as a function; the `{ chunkName: [...] }` map
         // shape throws "manualChunks is not a function" at build time.
         manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined
-          if (id.includes('@monaco-editor')) return 'vendor-monaco'
-          if (id.includes('@react-sigma') || id.includes('graphology')) return 'vendor-graph'
-          if (id.includes('recharts')) return 'vendor-charts'
-          if (id.includes('framer-motion')) return 'vendor-motion'
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('react-router-dom') || id.includes('zustand')) {
-            return 'vendor-react'
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('@monaco-editor')) return 'vendor-monaco';
+          if (id.includes('@react-sigma') || id.includes('graphology')) return 'vendor-graph';
+          if (id.includes('recharts')) return 'vendor-charts';
+          if (id.includes('framer-motion')) return 'vendor-motion';
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('react-router-dom') ||
+            id.includes('zustand')
+          ) {
+            return 'vendor-react';
           }
-          return undefined
+          return undefined;
         },
       },
     },
@@ -50,4 +55,4 @@ export default defineConfig({
       },
     },
   },
-})
+});

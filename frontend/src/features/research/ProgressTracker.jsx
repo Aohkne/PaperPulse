@@ -2,9 +2,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
 
 const STATUS_ICON = {
-  loading:   { icon: 'mdi:loading',      color: 'var(--color-brand-500)', spin: true },
-  done:      { icon: 'mdi:check-circle', color: 'var(--color-paper-mid)' },
-  error:     { icon: 'mdi:close-circle', color: '#dc2626' },
+  loading: { icon: 'mdi:loading', color: 'var(--color-brand-500)', spin: true },
+  done: { icon: 'mdi:check-circle', color: 'var(--color-paper-mid)' },
+  error: { icon: 'mdi:close-circle', color: '#dc2626' },
   interrupt: { icon: 'mdi:pause-circle', color: '#f59e0b' },
 };
 
@@ -33,15 +33,31 @@ const ProgressTracker = ({ steps, stepLabels, stepTokens = {} }) => {
                 animate={{ opacity: 1, height: 'auto', x: 0 }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.25, ease: 'easeOut' }}
-                style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', overflow: 'hidden' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  overflow: 'hidden',
+                }}
               >
                 {/* Icon + connector line */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
                   <AnimatePresence mode="wait">
                     <motion.span
                       key={status}
                       initial={status === 'done' ? { scale: 0.4, opacity: 0 } : { opacity: 0 }}
-                      animate={status === 'done' ? { scale: [0.4, 1.3, 1], opacity: 1 } : { opacity: 1, scale: 1 }}
+                      animate={
+                        status === 'done'
+                          ? { scale: [0.4, 1.3, 1], opacity: 1 }
+                          : { opacity: 1, scale: 1 }
+                      }
                       transition={{ duration: 0.3, ease: 'easeOut' }}
                       style={{ display: 'flex' }}
                     >
@@ -54,7 +70,12 @@ const ProgressTracker = ({ steps, stepLabels, stepTokens = {} }) => {
                   </AnimatePresence>
                   {!isLast && (
                     <motion.div
-                      animate={{ background: status === 'done' ? 'var(--color-paper-mid)' : 'var(--color-paper-surface)' }}
+                      animate={{
+                        background:
+                          status === 'done'
+                            ? 'var(--color-paper-mid)'
+                            : 'var(--color-paper-surface)',
+                      }}
                       transition={{ duration: 0.4 }}
                       style={{ width: '1px', flex: 1, minHeight: '14px', margin: '2px 0' }}
                     />
@@ -72,18 +93,25 @@ const ProgressTracker = ({ steps, stepLabels, stepTokens = {} }) => {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.15 }}
                         style={{
-                          fontSize: '12px', lineHeight: '16px',
+                          fontSize: '12px',
+                          lineHeight: '16px',
                           color: 'var(--color-brand-600)',
-                          fontStyle: 'italic', display: 'block',
+                          fontStyle: 'italic',
+                          display: 'block',
                         }}
                       >
                         {streamedText}
-                        <span style={{
-                          display: 'inline-block', width: '1px', height: '11px',
-                          background: 'var(--color-brand-500)', marginLeft: '2px',
-                          verticalAlign: 'text-bottom',
-                          animation: 'blink 0.9s step-end infinite',
-                        }} />
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: '1px',
+                            height: '11px',
+                            background: 'var(--color-brand-500)',
+                            marginLeft: '2px',
+                            verticalAlign: 'text-bottom',
+                            animation: 'blink 0.9s step-end infinite',
+                          }}
+                        />
                       </motion.span>
                     ) : (
                       <motion.span
@@ -93,11 +121,16 @@ const ProgressTracker = ({ steps, stepLabels, stepTokens = {} }) => {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.15 }}
                         style={{
-                          fontSize: '12px', lineHeight: '16px',
-                          color: status === 'error' ? '#dc2626'
-                            : status === 'interrupt' ? '#f59e0b'
-                            : status === 'done' ? 'var(--color-paper-mid)'
-                            : 'var(--color-paper-dark)',
+                          fontSize: '12px',
+                          lineHeight: '16px',
+                          color:
+                            status === 'error'
+                              ? '#dc2626'
+                              : status === 'interrupt'
+                                ? '#f59e0b'
+                                : status === 'done'
+                                  ? 'var(--color-paper-mid)'
+                                  : 'var(--color-paper-dark)',
                           fontWeight: status === 'interrupt' ? 600 : 400,
                           display: 'block',
                         }}

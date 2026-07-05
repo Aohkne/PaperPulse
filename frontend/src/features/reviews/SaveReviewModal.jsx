@@ -6,9 +6,12 @@ import { useReviewsStore } from '@/shared/store/useReviewsStore';
 import { showSuccess, showError } from '@/shared/utils/toast';
 
 const overlayStyle = {
-  position: 'fixed', inset: 0,
+  position: 'fixed',
+  inset: 0,
   background: 'rgba(0,0,0,0.35)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   zIndex: 10000,
 };
 
@@ -93,7 +96,9 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             style={overlayStyle}
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) onClose();
+            }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -103,21 +108,52 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
               style={cardStyle}
             >
               {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Icon icon="mdi:bookmark-plus-outline" style={{ width: 18, height: 18, color: 'var(--color-paper-mid)' }} />
-                  <span style={{ fontFamily: "'Newsreader', serif", fontSize: '15px', fontWeight: 600, color: 'var(--color-paper-dark)' }}>
+                  <Icon
+                    icon="mdi:bookmark-plus-outline"
+                    style={{ width: 18, height: 18, color: 'var(--color-paper-mid)' }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: "'Newsreader', serif",
+                      fontSize: '15px',
+                      fontWeight: 600,
+                      color: 'var(--color-paper-dark)',
+                    }}
+                  >
                     Save to My Reviews
                   </span>
                 </div>
-                <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-paper-mid)', padding: 0, display: 'flex' }}>
+                <button
+                  onClick={onClose}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--color-paper-mid)',
+                    padding: 0,
+                    display: 'flex',
+                  }}
+                >
                   <Icon icon="mdi:close" style={{ width: 18, height: 18 }} />
                 </button>
               </div>
 
               {/* Title input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontFamily: "'Newsreader', serif", fontSize: '12px', color: 'var(--color-paper-mid)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <label
+                  style={{
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: '12px',
+                    color: 'var(--color-paper-mid)',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
                   Review name
                 </label>
                 <input
@@ -128,30 +164,36 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
                   onKeyDown={handleKeyDown}
                   placeholder="Enter a review name..."
                   style={{
-                    fontFamily: "'Newsreader', serif", fontSize: '14px',
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: '14px',
                     color: 'var(--color-paper-dark)',
                     border: '1px solid var(--color-paper-light)',
                     borderRadius: '4px',
                     padding: '8px 10px',
                     background: 'var(--color-paper-surface)',
                     outline: 'none',
-                    width: '100%', boxSizing: 'border-box',
+                    width: '100%',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
               {/* Preview snippet */}
               {markdownContent && (
-                <div style={{
-                  background: 'var(--color-paper-surface)',
-                  border: '1px solid var(--color-paper-light)',
-                  borderRadius: '4px',
-                  padding: '8px 10px',
-                  fontFamily: "'Newsreader', serif", fontSize: '12px',
-                  color: 'var(--color-paper-mid)',
-                  lineHeight: '1.5',
-                  maxHeight: '60px', overflow: 'hidden',
-                }}>
+                <div
+                  style={{
+                    background: 'var(--color-paper-surface)',
+                    border: '1px solid var(--color-paper-light)',
+                    borderRadius: '4px',
+                    padding: '8px 10px',
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: '12px',
+                    color: 'var(--color-paper-mid)',
+                    lineHeight: '1.5',
+                    maxHeight: '60px',
+                    overflow: 'hidden',
+                  }}
+                >
                   {stripLatexPreview(markdownContent).slice(0, 160)}…
                 </div>
               )}
@@ -161,11 +203,14 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
                 <button
                   onClick={onClose}
                   style={{
-                    fontFamily: "'Newsreader', serif", fontSize: '13px',
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: '13px',
                     color: 'var(--color-paper-mid)',
                     border: '1px solid var(--color-paper-light)',
-                    borderRadius: '4px', padding: '7px 16px',
-                    background: 'none', cursor: 'pointer',
+                    borderRadius: '4px',
+                    padding: '7px 16px',
+                    background: 'none',
+                    cursor: 'pointer',
                   }}
                 >
                   Cancel
@@ -174,15 +219,28 @@ const SaveReviewModal = ({ isOpen, onClose, markdownContent, defaultTitle = '' }
                   onClick={handleSave}
                   disabled={!title.trim() || saveLoading}
                   style={{
-                    fontFamily: "'Newsreader', serif", fontSize: '13px',
+                    fontFamily: "'Newsreader', serif",
+                    fontSize: '13px',
                     color: 'var(--color-paper-bg)',
-                    background: title.trim() && !saveLoading ? 'var(--color-paper-dark)' : 'var(--color-paper-light)',
-                    border: 'none', borderRadius: '4px', padding: '7px 16px',
+                    background:
+                      title.trim() && !saveLoading
+                        ? 'var(--color-paper-dark)'
+                        : 'var(--color-paper-light)',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '7px 16px',
                     cursor: title.trim() && !saveLoading ? 'pointer' : 'not-allowed',
-                    display: 'flex', alignItems: 'center', gap: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  {saveLoading && <Icon icon="mdi:loading" style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
+                  {saveLoading && (
+                    <Icon
+                      icon="mdi:loading"
+                      style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }}
+                    />
+                  )}
                   Save to My Reviews
                 </button>
               </div>

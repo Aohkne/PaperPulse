@@ -20,18 +20,16 @@ const WelcomeState = () => (
     <div className="flex flex-col gap-2">
       <h2 className="text-2xl font-bold text-[#6c27da]">Hi, I'm PaperPulse</h2>
       <p className="text-sm text-[#ffd2a1] max-w-sm leading-relaxed">
-        Ask me a research question and I'll find relevant papers, highlight key themes,
-        and surface research gaps.
+        Ask me a research question and I'll find relevant papers, highlight key themes, and surface
+        research gaps.
       </p>
     </div>
     <div className="flex flex-wrap justify-center gap-2 mt-2">
-      {[
-        'transformer models in NLP',
-        'RAG vs fine-tuning LLMs',
-        'bias in clinical AI',
-      ].map((hint) => (
-        <ExampleChip key={hint} text={hint} />
-      ))}
+      {['transformer models in NLP', 'RAG vs fine-tuning LLMs', 'bias in clinical AI'].map(
+        (hint) => (
+          <ExampleChip key={hint} text={hint} />
+        )
+      )}
     </div>
   </div>
 );
@@ -41,7 +39,10 @@ const ExampleChip = ({ text }) => {
   const runSearch = useSurveyStore((state) => state.runSearch);
   return (
     <button
-      onClick={() => { setQuery(text); runSearch(text); }}
+      onClick={() => {
+        setQuery(text);
+        runSearch(text);
+      }}
       className="text-xs px-3 py-1.5 rounded-full border border-[#ffd2a1]/40 text-[#ffd2a1]/80 hover:bg-[#ffd2a1]/10 hover:text-[#ffd2a1] transition-colors"
     >
       {text}
@@ -114,9 +115,7 @@ const SurveyPage = () => {
 
         {status !== 'idle' && (
           <div className="flex flex-col gap-5 max-w-3xl mx-auto">
-            {(status === 'success' || status === 'error') && (
-              <UserBubble text={query} />
-            )}
+            {(status === 'success' || status === 'error') && <UserBubble text={query} />}
             {status === 'loading' && <ThinkingBubble />}
             {status === 'success' && (
               <AssistantResponse results={results} count={results.length} query={query} />

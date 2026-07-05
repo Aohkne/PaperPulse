@@ -21,7 +21,8 @@ export const useReviewsStore = create((set, get) => ({
   saveLoading: false,
   saveError: null,
 
-  setSearch: (search) => set({ search, items: [], pagination: { page: 1, limit: 5, total: 0, has_more: false } }),
+  setSearch: (search) =>
+    set({ search, items: [], pagination: { page: 1, limit: 5, total: 0, has_more: false } }),
 
   fetchList: async (page = 1) => {
     const { search } = get();

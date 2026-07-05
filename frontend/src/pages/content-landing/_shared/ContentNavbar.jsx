@@ -16,11 +16,17 @@ const ContentNavbar = () => {
   return (
     <nav
       style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
         background: 'var(--color-paper-bg)',
         borderBottom: '1px solid var(--color-paper-surface)',
         padding: '12px 40px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
       }}
     >
       {/* Logo */}
@@ -36,12 +42,18 @@ const ContentNavbar = () => {
       <Link
         to="/"
         style={{
-          fontFamily: "'Newsreader', serif", fontSize: 15,
-          color: 'var(--color-paper-mid)', textDecoration: 'none',
+          fontFamily: "'Newsreader', serif",
+          fontSize: 15,
+          color: 'var(--color-paper-mid)',
+          textDecoration: 'none',
           transition: 'color 0.15s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-paper-dark)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-paper-mid)'; }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = 'var(--color-paper-dark)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = 'var(--color-paper-mid)';
+        }}
       >
         Home
       </Link>
@@ -54,21 +66,33 @@ const ContentNavbar = () => {
           style={{
             background: 'none',
             border: '1px solid var(--color-paper-surface)',
-            borderRadius: 2, padding: '6px 8px',
-            cursor: 'pointer', color: 'var(--color-paper-mid)',
-            display: 'flex', alignItems: 'center', lineHeight: 0,
+            borderRadius: 2,
+            padding: '6px 8px',
+            cursor: 'pointer',
+            color: 'var(--color-paper-mid)',
+            display: 'flex',
+            alignItems: 'center',
+            lineHeight: 0,
           }}
         >
-          <Icon icon={isDark ? 'mdi:weather-sunny' : 'mdi:weather-night'} style={{ fontSize: 18 }} />
+          <Icon
+            icon={isDark ? 'mdi:weather-sunny' : 'mdi:weather-night'}
+            style={{ fontSize: 18 }}
+          />
         </button>
 
         {isAuthenticated ? (
           <button
             onClick={() => navigate('/app')}
             style={{
-              background: 'var(--color-paper-dark)', border: 'none',
-              color: 'var(--color-paper-bg)', padding: '7px 20px',
-              borderRadius: 2, fontFamily: "'Newsreader', serif", fontSize: 16, cursor: 'pointer',
+              background: 'var(--color-paper-dark)',
+              border: 'none',
+              color: 'var(--color-paper-bg)',
+              padding: '7px 20px',
+              borderRadius: 2,
+              fontFamily: "'Newsreader', serif",
+              fontSize: 16,
+              cursor: 'pointer',
             }}
           >
             Go to App
@@ -80,8 +104,12 @@ const ContentNavbar = () => {
               style={{
                 background: 'transparent',
                 border: '1px solid var(--color-paper-mid)',
-                color: 'var(--color-paper-mid)', padding: '7px 20px',
-                borderRadius: 2, fontFamily: "'Newsreader', serif", fontSize: 16, cursor: 'pointer',
+                color: 'var(--color-paper-mid)',
+                padding: '7px 20px',
+                borderRadius: 2,
+                fontFamily: "'Newsreader', serif",
+                fontSize: 16,
+                cursor: 'pointer',
               }}
             >
               Log in
@@ -89,9 +117,14 @@ const ContentNavbar = () => {
             <button
               onClick={() => navigate('/signup')}
               style={{
-                background: 'var(--color-paper-dark)', border: 'none',
-                color: 'var(--color-paper-bg)', padding: '7px 20px',
-                borderRadius: 2, fontFamily: "'Newsreader', serif", fontSize: 16, cursor: 'pointer',
+                background: 'var(--color-paper-dark)',
+                border: 'none',
+                color: 'var(--color-paper-bg)',
+                padding: '7px 20px',
+                borderRadius: 2,
+                fontFamily: "'Newsreader', serif",
+                fontSize: 16,
+                cursor: 'pointer',
               }}
             >
               Get Started

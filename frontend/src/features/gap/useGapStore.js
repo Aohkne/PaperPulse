@@ -9,12 +9,12 @@ const authHeader = () => ({ Authorization: `Bearer ${useAuthStore.getState().tok
 
 const useGapStore = create((set) => ({
   // ── State ──────────────────────────────────────────────────────────────
-  gapReport: null,       // full GapReport object from API
-  gapNarrative: null,    // backward-compat alias (GapResultPanel reads this)
+  gapReport: null, // full GapReport object from API
+  gapNarrative: null, // backward-compat alias (GapResultPanel reads this)
   gapLoading: false,
   gapError: null,
-  gapRejected: null,     // { reason, message } when guardrail rejects query; null otherwise
-  streamEvents: [],      // SSE events for progress UI
+  gapRejected: null, // { reason, message } when guardrail rejects query; null otherwise
+  streamEvents: [], // SSE events for progress UI
 
   // ── Cold-start action (TIP-G07) ────────────────────────────────────────
   /**
@@ -28,7 +28,13 @@ const useGapStore = create((set) => ({
       return;
     }
 
-    set({ gapLoading: true, gapError: null, gapRejected: null, gapReport: null, gapNarrative: null });
+    set({
+      gapLoading: true,
+      gapError: null,
+      gapRejected: null,
+      gapReport: null,
+      gapNarrative: null,
+    });
 
     try {
       const res = await fetch(API_ENDPOINTS.GAP.BASE, {
@@ -39,7 +45,11 @@ const useGapStore = create((set) => ({
 
       if (!res.ok) {
         let detail = `Error ${res.status}`;
-        try { detail = (await res.json()).detail ?? detail; } catch { /* no JSON body */ }
+        try {
+          detail = (await res.json()).detail ?? detail;
+        } catch {
+          /* no JSON body */
+        }
         throw new Error(detail);
       }
 
@@ -61,7 +71,14 @@ const useGapStore = create((set) => ({
       return;
     }
 
-    set({ gapLoading: true, gapError: null, gapRejected: null, gapReport: null, gapNarrative: null, streamEvents: [] });
+    set({
+      gapLoading: true,
+      gapError: null,
+      gapRejected: null,
+      gapReport: null,
+      gapNarrative: null,
+      streamEvents: [],
+    });
 
     try {
       const res = await fetch(`${API_ENDPOINTS.GAP.STREAM}?topic=${encodeURIComponent(trimmed)}`, {
@@ -69,7 +86,11 @@ const useGapStore = create((set) => ({
       });
       if (!res.ok) {
         let detail = `Error ${res.status}`;
-        try { detail = (await res.json()).detail ?? detail; } catch { /* no JSON body */ }
+        try {
+          detail = (await res.json()).detail ?? detail;
+        } catch {
+          /* no JSON body */
+        }
         throw new Error(detail);
       }
 
@@ -86,25 +107,28 @@ const useGapStore = create((set) => ({
         buffer = parts.pop();
 
         for (const part of parts) {
-          const line = part.split('\n').find(l => l.startsWith('data: '));
+          const line = part.split('\n').find((l) => l.startsWith('data: '));
           if (!line) continue;
-          
+
           try {
             const event = JSON.parse(line.slice(6));
             if (event.type === 'node_start') {
-              set(s => ({ streamEvents: [...s.streamEvents, event] }));
+              set((s) => ({ streamEvents: [...s.streamEvents, event] }));
             } else if (event.type === 'done') {
               const report = event.report;
-              set(s => ({ 
+              set((s) => ({
                 streamEvents: [...s.streamEvents, event],
                 gapReport: report,
                 gapNarrative: report?.narrative ?? null,
-                gapLoading: false 
+                gapLoading: false,
               }));
             } else if (event.type === 'insufficient') {
               set({ gapNarrative: event.narrative, gapLoading: false });
             } else if (event.type === 'rejected') {
-              set({ gapRejected: { reason: event.reason, message: event.message }, gapLoading: false });
+              set({
+                gapRejected: { reason: event.reason, message: event.message },
+                gapLoading: false,
+              });
             } else if (event.type === 'error') {
               set({ gapError: event.message, gapLoading: false });
             }
@@ -117,7 +141,6 @@ const useGapStore = create((set) => ({
       set({ gapError: e.message ?? 'An unknown error occurred.', gapLoading: false });
     }
   },
-
 
   // ── warm-start disabled (Lưu ý 2) — re-enable later ───────────────────
   // findResearchGaps: async () => {
@@ -146,7 +169,15 @@ const useGapStore = create((set) => ({
   //   }
   // },
 
-  reset: () => set({ gapReport: null, gapNarrative: null, gapLoading: false, gapError: null, gapRejected: null, streamEvents: [] }),
+  reset: () =>
+    set({
+      gapReport: null,
+      gapNarrative: null,
+      gapLoading: false,
+      gapError: null,
+      gapRejected: null,
+      streamEvents: [],
+    }),
 }));
 
 export default useGapStore;

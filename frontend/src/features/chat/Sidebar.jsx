@@ -12,16 +12,20 @@ import { friendlyError } from '@/shared/utils/errorMessage';
 
 const getInitials = (user) =>
   user?.name
-    ? user.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+    ? user.name
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
     : (user?.email?.[0]?.toUpperCase() ?? '?');
 
-const getSessionActivityAt = (session) => (
+const getSessionActivityAt = (session) =>
   session?.last_message_at ??
   session?.lastMessageAt ??
   session?.created_at ??
   session?.createdAt ??
-  ''
-);
+  '';
 
 const ChatDeleteConfirmModal = ({ isOpen, chatTitle, deleting, onCancel, onConfirm }) => {
   if (!isOpen) return null;
@@ -52,7 +56,14 @@ const ChatDeleteConfirmModal = ({ isOpen, chatTitle, deleting, onCancel, onConfi
           padding: '18px 18px 16px',
         }}
       >
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '18px', color: 'var(--color-paper-dark)', marginBottom: '8px' }}>
+        <div
+          style={{
+            fontFamily: 'Georgia, serif',
+            fontSize: '18px',
+            color: 'var(--color-paper-dark)',
+            marginBottom: '8px',
+          }}
+        >
           Delete chat history?
         </div>
         <div style={{ fontSize: '13px', color: 'var(--color-paper-mid)', lineHeight: 1.5 }}>
@@ -73,7 +84,9 @@ const ChatDeleteConfirmModal = ({ isOpen, chatTitle, deleting, onCancel, onConfi
             {chatTitle}
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+        <div
+          style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}
+        >
           <button
             onClick={onCancel}
             disabled={deleting}
@@ -125,7 +138,9 @@ const SessionRow = ({ title, isActive, isPersisted, onSelect, onDelete }) => {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e) => { if (!menuRef.current?.contains(e.target)) setMenuOpen(false); };
+    const handler = (e) => {
+      if (!menuRef.current?.contains(e.target)) setMenuOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
@@ -141,33 +156,54 @@ const SessionRow = ({ title, isActive, isPersisted, onSelect, onDelete }) => {
       <button
         onClick={onSelect}
         style={{
-          width: '100%', textAlign: 'left', padding: '6px 12px',
-          background: 'none', border: 'none',
+          width: '100%',
+          textAlign: 'left',
+          padding: '6px 12px',
+          background: 'none',
+          border: 'none',
           borderLeft: isActive ? '2px solid var(--color-paper-mid)' : '2px solid transparent',
           backgroundColor: isActive ? 'var(--color-paper-surface)' : 'transparent',
-          cursor: 'pointer', display: 'block',
+          cursor: 'pointer',
+          display: 'block',
         }}
       >
-        <div style={{
-          fontSize: '15px', fontFamily: "'Newsreader', serif",
-          fontWeight: 400,
-          color: 'var(--color-paper-dark)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          paddingRight: isPersisted ? '26px' : 0,
-        }}>
+        <div
+          style={{
+            fontSize: '15px',
+            fontFamily: "'Newsreader', serif",
+            fontWeight: 400,
+            color: 'var(--color-paper-dark)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            paddingRight: isPersisted ? '26px' : 0,
+          }}
+        >
           {title}
         </div>
       </button>
 
       {showKebab && (
         <button
-          onClick={(event) => { event.stopPropagation(); setMenuOpen((v) => !v); }}
+          onClick={(event) => {
+            event.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
           title="Chat options"
           style={{
-            position: 'absolute', top: '6px', right: '6px',
-            width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: menuOpen ? 'var(--color-paper-bg)' : 'none', border: 'none', borderRadius: '6px',
-            cursor: 'pointer', color: 'var(--color-paper-mid)',
+            position: 'absolute',
+            top: '6px',
+            right: '6px',
+            width: 26,
+            height: 26,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: menuOpen ? 'var(--color-paper-bg)' : 'none',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            color: 'var(--color-paper-mid)',
           }}
         >
           <Icon icon="mdi:dots-horizontal" style={{ width: 16, height: 16 }} />
@@ -183,18 +219,39 @@ const SessionRow = ({ title, isActive, isPersisted, onSelect, onDelete }) => {
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12 }}
             style={{
-              position: 'absolute', top: '34px', right: '6px', zIndex: 50,
-              background: 'var(--color-paper-surface)', border: '1px solid rgba(41, 17, 0, 0.08)',
-              borderRadius: '10px', boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.14)',
-              minWidth: '140px', overflow: 'hidden', padding: '4px',
+              position: 'absolute',
+              top: '34px',
+              right: '6px',
+              zIndex: 50,
+              background: 'var(--color-paper-surface)',
+              border: '1px solid rgba(41, 17, 0, 0.08)',
+              borderRadius: '10px',
+              boxShadow: '0 1px 2px rgba(41, 17, 0, 0.04), 0 8px 24px rgba(41, 17, 0, 0.14)',
+              minWidth: '140px',
+              overflow: 'hidden',
+              padding: '4px',
             }}
           >
             <button
-              onClick={(event) => { event.stopPropagation(); setMenuOpen(false); onDelete(event); }}
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenuOpen(false);
+                onDelete(event);
+              }}
               style={{
-                width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none',
-                borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
-                fontFamily: "'Newsreader', serif", fontSize: '13px', color: '#c0392b',
+                width: '100%',
+                textAlign: 'left',
+                padding: '8px 10px',
+                background: 'none',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontFamily: "'Newsreader', serif",
+                fontSize: '13px',
+                color: '#c0392b',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-paper-bg)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
@@ -220,14 +277,25 @@ const NavItem = ({ icon, label, collapsed, onClick, badge, labelWeight = 400 }) 
     onClick={onClick}
     title={collapsed ? label : undefined}
     style={{
-      width: '100%', display: 'flex', alignItems: 'center',
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: collapsed ? 'center' : 'flex-start',
-      gap: '10px', padding: collapsed ? '9px 0' : '9px 10px', minHeight: 38,
-      background: 'none', border: 'none', borderRadius: '8px', cursor: 'pointer',
+      gap: '10px',
+      padding: collapsed ? '9px 0' : '9px 10px',
+      minHeight: 38,
+      background: 'none',
+      border: 'none',
+      borderRadius: '8px',
+      cursor: 'pointer',
       transition: 'background-color 0.15s',
     }}
-    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-paper-surface)'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.backgroundColor = 'var(--color-paper-surface)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.backgroundColor = 'transparent';
+    }}
   >
     {/* Both branches use the same 24px-wide slot (badge circle vs a plain
         icon centered in an equal-size invisible box) so New Session's icon
@@ -243,15 +311,32 @@ const NavItem = ({ icon, label, collapsed, onClick, badge, labelWeight = 400 }) 
       // of a fixed dark tone — that token already flips light↔dark with the
       // theme, so the glyph automatically stays dark-on-green in light mode
       // and light-on-green in dark mode, matching either background.
-      <div style={{
-        width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-        background: 'var(--color-paper-mid)', border: 'none',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          flexShrink: 0,
+          background: 'var(--color-paper-mid)',
+          border: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <Icon icon={icon} style={{ width: 14, height: 14, color: 'var(--color-paper-bg)' }} />
       </div>
     ) : (
-      <div style={{ width: 24, height: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <Icon icon={icon} style={{ width: 18, height: 18, color: 'var(--color-paper-mid)' }} />
       </div>
     )}
@@ -263,8 +348,12 @@ const NavItem = ({ icon, label, collapsed, onClick, badge, labelWeight = 400 }) 
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
           style={{
-            fontSize: '14px', fontWeight: labelWeight, color: 'var(--color-paper-mid)',
-            fontFamily: "'Newsreader', serif", whiteSpace: 'nowrap', overflow: 'hidden',
+            fontSize: '14px',
+            fontWeight: labelWeight,
+            color: 'var(--color-paper-mid)',
+            fontFamily: "'Newsreader', serif",
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
           }}
         >
           {label}
@@ -282,10 +371,8 @@ const Sidebar = ({ collapsed, onToggle }) => {
   const setActiveSession = useChatStore((s) => s.setActiveSession);
   const newSession = useChatStore((s) => s.newSession);
   const serverChats = useChatStore((s) => s.serverChats);
-  const loadChats = useChatStore((s) => s.loadChats);
   const openServerChat = useChatStore((s) => s.openServerChat);
   const deleteServerChat = useChatStore((s) => s.deleteServerChat);
-  const chatsLoaded = useChatStore((s) => s.chatsLoaded);
   const chatsLoading = useChatStore((s) => s.chatsLoading);
   const chatsError = useChatStore((s) => s.chatsError);
   const chatMutationError = useChatStore((s) => s.chatMutationError);
@@ -302,11 +389,10 @@ const Sidebar = ({ collapsed, onToggle }) => {
   const [chatDeleteTarget, setChatDeleteTarget] = useState(null);
   const [chatDeletePending, setChatDeletePending] = useState(false);
 
-  useEffect(() => {
-    if (!chatsLoaded && !chatsLoading) {
-      loadChats();
-    }
-  }, [chatsLoaded, chatsLoading, loadChats]);
+  // Chats are now loaded (and reset on account switch) from ChatLayout's
+  // ensureLoadedForUser effect, keyed on the signed-in user id — see
+  // shared/components/layout/ChatLayout.jsx. That also fixes stale data
+  // from a previous account lingering here after logout/login.
 
   // Local-only draft session — no server call here on purpose. Calling
   // createServerChat() immediately (the old behavior) persisted an empty
@@ -354,6 +440,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
 
   const handleLogout = async () => {
     setProfileOpen(false);
+    useChatStore.getState().reset();
     await logout();
     navigate('/');
   };
@@ -367,13 +454,19 @@ const Sidebar = ({ collapsed, onToggle }) => {
   // entry automatically once the first message is sent (see
   // _sendMessageImpl in useChatStore.js), so no separate cleanup is needed.
   const sessionList = useMemo(
-    () => [...serverChats, ...sessions.filter((session) => !session.persisted && session.messages.length > 0)].sort((a, b) => {
-      const activityCompare = getSessionActivityAt(b).localeCompare(getSessionActivityAt(a));
-      if (activityCompare !== 0) return activityCompare;
-      const createdCompare = (b?.created_at ?? b?.createdAt ?? '').localeCompare(a?.created_at ?? a?.createdAt ?? '');
-      if (createdCompare !== 0) return createdCompare;
-      return String(b?.id ?? '').localeCompare(String(a?.id ?? ''));
-    }),
+    () =>
+      [
+        ...serverChats,
+        ...sessions.filter((session) => !session.persisted && session.messages.length > 0),
+      ].sort((a, b) => {
+        const activityCompare = getSessionActivityAt(b).localeCompare(getSessionActivityAt(a));
+        if (activityCompare !== 0) return activityCompare;
+        const createdCompare = (b?.created_at ?? b?.createdAt ?? '').localeCompare(
+          a?.created_at ?? a?.createdAt ?? ''
+        );
+        if (createdCompare !== 0) return createdCompare;
+        return String(b?.id ?? '').localeCompare(String(a?.id ?? ''));
+      }),
     [serverChats, sessions]
   );
 
@@ -418,31 +511,61 @@ const Sidebar = ({ collapsed, onToggle }) => {
               transition={{ duration: 0.12 }}
               onClick={() => navigate('/')}
               title="PaperPulse Home"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
             >
-              <img src={logoSrc} alt="PaperPulse" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
-              <span style={{
-                fontFamily: "'Newsreader', serif", fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em',
-                color: 'var(--color-brand-600)', background: 'var(--color-brand-50)',
-                border: '1px solid var(--color-brand-100)', borderRadius: '4px', padding: '2px 5px',
-              }}>
+              <img
+                src={logoSrc}
+                alt="PaperPulse"
+                style={{ height: '28px', width: 'auto', objectFit: 'contain' }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Newsreader', serif",
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  color: 'var(--color-brand-600)',
+                  background: 'var(--color-brand-50)',
+                  border: '1px solid var(--color-brand-100)',
+                  borderRadius: '4px',
+                  padding: '2px 5px',
+                }}
+              >
                 BETA
               </span>
             </motion.button>
           )}
         </AnimatePresence>
-<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={onToggle}
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--color-paper-mid)', padding: 0,
-              width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--color-paper-mid)',
+              padding: 0,
+              width: 36,
+              height: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <Icon icon={sidebarOpen ? 'mdi:chevron-left' : 'mdi:chevron-right'} style={{ width: 18, height: 18 }} />
+            <Icon
+              icon={sidebarOpen ? 'mdi:chevron-left' : 'mdi:chevron-right'}
+              style={{ width: 18, height: 18 }}
+            />
           </button>
         </div>
       </div>
@@ -457,34 +580,89 @@ const Sidebar = ({ collapsed, onToggle }) => {
             primary action (New Session) and product-level nav (My Reviews,
             Applications) live above the scrollable Recents/Sessions list. */}
         <div style={{ padding: sidebarOpen ? '10px 8px 4px' : '10px 4px 4px', flexShrink: 0 }}>
-          <NavItem icon="mdi:plus" label="New Session" collapsed={!sidebarOpen} onClick={handleNewSession} badge labelWeight={600} />
-          <NavItem icon="mdi:bookshelf" label="My Reviews" collapsed={!sidebarOpen} onClick={() => navigate(ROUTES.MY_REVIEWS)} labelWeight={600} />
-          <NavItem icon="mdi:apps" label="Applications" collapsed={!sidebarOpen} onClick={() => setLauncherOpen(true)} labelWeight={600} />
+          <NavItem
+            icon="mdi:plus"
+            label="New Session"
+            collapsed={!sidebarOpen}
+            onClick={handleNewSession}
+            badge
+            labelWeight={600}
+          />
+          <NavItem
+            icon="mdi:bookshelf"
+            label="My Reviews"
+            collapsed={!sidebarOpen}
+            onClick={() => navigate(ROUTES.MY_REVIEWS)}
+            labelWeight={600}
+          />
+          <NavItem
+            icon="mdi:apps"
+            label="Applications"
+            collapsed={!sidebarOpen}
+            onClick={() => setLauncherOpen(true)}
+            labelWeight={600}
+          />
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
           {sidebarOpen && (
             <>
-              <div style={{ padding: '14px 12px 4px', fontSize: '12px', fontWeight: 600, color: 'var(--color-paper-mid)', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0, borderTop: '1px solid rgba(41, 17, 0, 0.08)' }}>
+              <div
+                style={{
+                  padding: '14px 12px 4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--color-paper-mid)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  flexShrink: 0,
+                  borderTop: '1px solid rgba(41, 17, 0, 0.08)',
+                }}
+              >
                 Sessions
               </div>
 
               {(chatsError || chatMutationError) && (
-                <div style={{ margin: '0 12px 8px', padding: '8px 10px', border: '1px solid #d8b4b4', borderRadius: '4px', color: '#8c3b3b', fontSize: '12px', lineHeight: 1.4 }}>
+                <div
+                  style={{
+                    margin: '0 12px 8px',
+                    padding: '8px 10px',
+                    border: '1px solid #d8b4b4',
+                    borderRadius: '4px',
+                    color: '#8c3b3b',
+                    fontSize: '12px',
+                    lineHeight: 1.4,
+                  }}
+                >
                   {friendlyError(chatsError || chatMutationError, "Couldn't load your chats.")}
                 </div>
               )}
 
               <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto' }}>
                 {chatsLoading && sessionList.length === 0 && (
-                  <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-paper-mid)' }}>
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      color: 'var(--color-paper-mid)',
+                    }}
+                  >
                     Loading chats...
                   </div>
                 )}
 
                 {sessionList.map((session) => {
                   const isActive = session.id === activeSessionId;
-                  const isPersisted = session.persisted ?? serverChats.some((item) => item.id === session.id);
+                  const isPersisted =
+                    session.persisted ?? serverChats.some((item) => item.id === session.id);
                   return (
                     <SessionRow
                       key={session.id}
@@ -505,32 +683,64 @@ const Sidebar = ({ collapsed, onToggle }) => {
             bordered "card" button — just a top divider to separate it
             from the session list above. Pinned to the bottom of the flex
             column in both states, so it never jumps position on collapse. */}
-        <div style={{ padding: '8px', borderTop: sidebarOpen ? '1px solid rgba(41, 17, 0, 0.08)' : 'none', flexShrink: 0 }}>
+        <div
+          style={{
+            padding: '8px',
+            borderTop: sidebarOpen ? '1px solid rgba(41, 17, 0, 0.08)' : 'none',
+            flexShrink: 0,
+          }}
+        >
           <button
             onClick={() => setProfileOpen(true)}
             title={sidebarOpen ? undefined : 'Profile'}
             style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
               justifyContent: sidebarOpen ? 'flex-start' : 'center',
-              padding: sidebarOpen ? '8px 6px' : '8px 0', minHeight: 44,
+              padding: sidebarOpen ? '8px 6px' : '8px 0',
+              minHeight: 44,
               background: profileOpen ? 'var(--color-paper-surface)' : 'none',
-              border: 'none', borderRadius: '8px', cursor: 'pointer',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
               transition: 'background-color 0.15s',
             }}
-            onMouseEnter={(e) => { if (!profileOpen) e.currentTarget.style.backgroundColor = 'var(--color-paper-surface)'; }}
-            onMouseLeave={(e) => { if (!profileOpen) e.currentTarget.style.backgroundColor = 'transparent'; }}
+            onMouseEnter={(e) => {
+              if (!profileOpen)
+                e.currentTarget.style.backgroundColor = 'var(--color-paper-surface)';
+            }}
+            onMouseLeave={(e) => {
+              if (!profileOpen) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <div style={{
-              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-              background: 'var(--color-paper-surface)',
-              border: '1px solid var(--color-paper-light)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '12px', fontFamily: "'Newsreader', serif",
-              color: 'var(--color-paper-mid)', overflow: 'hidden',
-            }}>
-              {user?.avatar_url
-                ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : initials}
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                flexShrink: 0,
+                background: 'var(--color-paper-surface)',
+                border: '1px solid var(--color-paper-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontFamily: "'Newsreader', serif",
+                color: 'var(--color-paper-mid)',
+                overflow: 'hidden',
+              }}
+            >
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
             </div>
             <AnimatePresence initial={false}>
               {sidebarOpen && (
@@ -539,17 +749,50 @@ const Sidebar = ({ collapsed, onToggle }) => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.12 }}
-                  style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '10px' }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
                 >
                   <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600, fontFamily: "'Newsreader', serif", color: 'var(--color-paper-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        fontFamily: "'Newsreader', serif",
+                        color: 'var(--color-paper-dark)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
                       {user?.name || 'Account'}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--color-paper-mid)', fontFamily: "'Newsreader', serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--color-paper-mid)',
+                        fontFamily: "'Newsreader', serif",
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
                       {user?.email || ''}
                     </div>
                   </div>
-                  <Icon icon="mdi:cog-outline" style={{ width: 16, height: 16, color: 'var(--color-paper-mid)', flexShrink: 0 }} />
+                  <Icon
+                    icon="mdi:cog-outline"
+                    style={{
+                      width: 16,
+                      height: 16,
+                      color: 'var(--color-paper-mid)',
+                      flexShrink: 0,
+                    }}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>

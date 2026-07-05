@@ -15,10 +15,19 @@ const PDFUploadZone = ({ onFile, disabled = false }) => {
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragOver(true); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        if (!disabled) setDragOver(true);
+      }}
       onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-      onClick={() => { if (!disabled) inputRef.current?.click(); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        handleFiles(e.dataTransfer.files);
+      }}
+      onClick={() => {
+        if (!disabled) inputRef.current?.click();
+      }}
       style={{
         flex: 1,
         margin: '32px',
@@ -43,11 +52,29 @@ const PDFUploadZone = ({ onFile, disabled = false }) => {
         style={{ display: 'none' }}
         onChange={(e) => handleFiles(e.target.files)}
       />
-      <Icon icon="mdi:file-upload-outline" style={{ width: 48, height: 48, color: 'var(--color-paper-mid)' }} />
-      <div style={{ fontFamily: "'Newsreader', serif", fontSize: '18px', color: 'var(--color-paper-dark)', fontWeight: 600 }}>
-        {disabled ? 'Quota used up for this period' : 'Drag and drop a file here, or click to select'}
+      <Icon
+        icon="mdi:file-upload-outline"
+        style={{ width: 48, height: 48, color: 'var(--color-paper-mid)' }}
+      />
+      <div
+        style={{
+          fontFamily: "'Newsreader', serif",
+          fontSize: '18px',
+          color: 'var(--color-paper-dark)',
+          fontWeight: 600,
+        }}
+      >
+        {disabled
+          ? 'Quota used up for this period'
+          : 'Drag and drop a file here, or click to select'}
       </div>
-      <div style={{ fontFamily: "'Newsreader', serif", fontSize: '15px', color: 'var(--color-paper-mid)' }}>
+      <div
+        style={{
+          fontFamily: "'Newsreader', serif",
+          fontSize: '15px',
+          color: 'var(--color-paper-mid)',
+        }}
+      >
         Supports .pdf, .tex, .zip (Overleaf project export) — up to 20MB
       </div>
     </div>

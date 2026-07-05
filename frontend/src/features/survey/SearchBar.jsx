@@ -31,12 +31,7 @@ const SearchBar = ({ value, onChange, onSubmit, loading, error }) => {
           aria-label="Research question"
         />
       </div>
-      <Button
-        type="submit"
-        icon="mdi:magnify"
-        loading={loading}
-        className="sm:self-start"
-      >
+      <Button type="submit" icon="mdi:magnify" loading={loading} className="sm:self-start">
         Search
       </Button>
     </form>

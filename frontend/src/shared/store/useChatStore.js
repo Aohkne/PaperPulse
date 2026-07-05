@@ -37,60 +37,62 @@ const normalizeNotification = (notification) => ({
   paper_ref: notification.paper_ref ?? {},
 });
 
-const hydrateServerSession = (chat, messages = []) => createSession({
-  id: chat.id,
-  title: chat.title,
-  createdAt: chat.created_at,
-  messages: messages.map((message) => normalizeMessage({
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    timestamp: message.created_at,
-    status: message.status,
-    seq: message.seq,
-    clientMessageId: message.client_message_id,
-    metadata: message.metadata,
-  })),
-  status: chat.status ?? 'idle',
-  error: null,
-  threadId: chat.thread_id ?? null,
-  persisted: true,
-  feature: chat.feature ?? 'research',
-  summary: chat.summary ?? null,
-  lastMessageAt: chat.last_message_at ?? null,
-});
+const hydrateServerSession = (chat, messages = []) =>
+  createSession({
+    id: chat.id,
+    title: chat.title,
+    createdAt: chat.created_at,
+    messages: messages.map((message) =>
+      normalizeMessage({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        timestamp: message.created_at,
+        status: message.status,
+        seq: message.seq,
+        clientMessageId: message.client_message_id,
+        metadata: message.metadata,
+      })
+    ),
+    status: chat.status ?? 'idle',
+    error: null,
+    threadId: chat.thread_id ?? null,
+    persisted: true,
+    feature: chat.feature ?? 'research',
+    summary: chat.summary ?? null,
+    lastMessageAt: chat.last_message_at ?? null,
+  });
 
-const createOptimisticServerSession = (chat, existingSession = null) => createSession({
-  id: chat.id,
-  title: chat.title ?? existingSession?.title ?? 'Loading chat',
-  createdAt: chat.created_at ?? existingSession?.createdAt ?? new Date().toISOString(),
-  messages: existingSession?.messages ?? [],
-  status: existingSession?.messages?.length ? (existingSession.status ?? chat.status ?? 'idle') : 'loading',
-  error: null,
-  threadId: chat.thread_id ?? existingSession?.threadId ?? null,
-  persisted: true,
-  feature: chat.feature ?? existingSession?.feature ?? 'research',
-  summary: chat.summary ?? existingSession?.summary ?? null,
-  lastMessageAt: chat.last_message_at ?? existingSession?.lastMessageAt ?? null,
-});
+const createOptimisticServerSession = (chat, existingSession = null) =>
+  createSession({
+    id: chat.id,
+    title: chat.title ?? existingSession?.title ?? 'Loading chat',
+    createdAt: chat.created_at ?? existingSession?.createdAt ?? new Date().toISOString(),
+    messages: existingSession?.messages ?? [],
+    status: existingSession?.messages?.length
+      ? (existingSession.status ?? chat.status ?? 'idle')
+      : 'loading',
+    error: null,
+    threadId: chat.thread_id ?? existingSession?.threadId ?? null,
+    persisted: true,
+    feature: chat.feature ?? existingSession?.feature ?? 'research',
+    summary: chat.summary ?? existingSession?.summary ?? null,
+    lastMessageAt: chat.last_message_at ?? existingSession?.lastMessageAt ?? null,
+  });
 
-const getChatActivityAt = (chat) => (
-  chat?.last_message_at ??
-  chat?.lastMessageAt ??
-  chat?.created_at ??
-  chat?.createdAt ??
-  ''
-);
+const getChatActivityAt = (chat) =>
+  chat?.last_message_at ?? chat?.lastMessageAt ?? chat?.created_at ?? chat?.createdAt ?? '';
 
-const sortChatsByActivity = (items) => (
+const sortChatsByActivity = (items) =>
   [...items].sort((a, b) => {
     const activityCompare = getChatActivityAt(b).localeCompare(getChatActivityAt(a));
     if (activityCompare !== 0) return activityCompare;
-    const createdCompare = (b?.created_at ?? b?.createdAt ?? '').localeCompare(a?.created_at ?? a?.createdAt ?? '');
+    const createdCompare = (b?.created_at ?? b?.createdAt ?? '').localeCompare(
+      a?.created_at ?? a?.createdAt ?? ''
+    );
     if (createdCompare !== 0) return createdCompare;
     return String(b?.id ?? '').localeCompare(String(a?.id ?? ''));
-  })
-);
+  });
 
 const upsertSession = (sessions, session) => {
   const existingIndex = sessions.findIndex((item) => item.id === session.id);
@@ -100,13 +102,11 @@ const upsertSession = (sessions, session) => {
   return next;
 };
 
-const removeSessionBinding = (bindings, sessionId) => Object.fromEntries(
-  Object.entries(bindings).filter(([id]) => id !== sessionId)
-);
+const removeSessionBinding = (bindings, sessionId) =>
+  Object.fromEntries(Object.entries(bindings).filter(([id]) => id !== sessionId));
 
-const getLastAssistantMessage = (messages = []) => (
-  [...messages].reverse().find((message) => message.role === 'assistant') ?? null
-);
+const getLastAssistantMessage = (messages = []) =>
+  [...messages].reverse().find((message) => message.role === 'assistant') ?? null;
 
 const resolveAssistantId = (state, sessionId, assistantId) => {
   const session = state.sessions.find((item) => item.id === sessionId);
@@ -114,9 +114,11 @@ const resolveAssistantId = (state, sessionId, assistantId) => {
   if (assistantId && session.messages.some((message) => message.id === assistantId)) {
     return assistantId;
   }
-  return state.runningTurnBySessionId[sessionId]
-    ?? getLastAssistantMessage(session.messages)?.id
-    ?? assistantId;
+  return (
+    state.runningTurnBySessionId[sessionId] ??
+    getLastAssistantMessage(session.messages)?.id ??
+    assistantId
+  );
 };
 
 const shouldPreservePendingPlan = ({
@@ -135,9 +137,10 @@ const mergeMessageState = (baseMessage, overlayMessage) => ({
   ...overlayMessage,
   id: baseMessage.id,
   content: overlayMessage.content || baseMessage.content,
-  steps: (overlayMessage.steps?.length ?? 0) >= (baseMessage.steps?.length ?? 0)
-    ? (overlayMessage.steps ?? [])
-    : (baseMessage.steps ?? []),
+  steps:
+    (overlayMessage.steps?.length ?? 0) >= (baseMessage.steps?.length ?? 0)
+      ? (overlayMessage.steps ?? [])
+      : (baseMessage.steps ?? []),
   timestamp: overlayMessage.timestamp ?? baseMessage.timestamp,
   status: overlayMessage.status ?? baseMessage.status,
   metadata: overlayMessage.metadata ?? baseMessage.metadata,
@@ -160,10 +163,12 @@ const mergeHydratedSession = (existingSession, hydratedSession, runningAssistant
     return { session: hydratedSession, runningAssistantId };
   }
 
-  const existingAssistant = existingSession.messages.find((message) => message.id === runningAssistantId)
-    ?? getLastAssistantMessage(existingSession.messages);
-  const targetAssistant = hydratedSession.messages.find((message) => message.id === runningAssistantId)
-    ?? getLastAssistantMessage(hydratedSession.messages);
+  const existingAssistant =
+    existingSession.messages.find((message) => message.id === runningAssistantId) ??
+    getLastAssistantMessage(existingSession.messages);
+  const targetAssistant =
+    hydratedSession.messages.find((message) => message.id === runningAssistantId) ??
+    getLastAssistantMessage(hydratedSession.messages);
 
   let messages = hydratedSession.messages;
   let nextRunningAssistantId = runningAssistantId;
@@ -182,13 +187,12 @@ const mergeHydratedSession = (existingSession, hydratedSession, runningAssistant
         : (targetAssistant.pendingPlan ?? null),
     };
     nextRunningAssistantId = targetAssistant.id;
-    messages = hydratedSession.messages.map((message) => (
+    messages = hydratedSession.messages.map((message) =>
       message.id === targetAssistant.id ? mergedAssistant : message
-    ));
+    );
   } else if (existingAssistant && !targetAssistant) {
-    const appendedAssistant = status === 'awaiting_plan'
-      ? existingAssistant
-      : { ...existingAssistant, pendingPlan: null };
+    const appendedAssistant =
+      status === 'awaiting_plan' ? existingAssistant : { ...existingAssistant, pendingPlan: null };
     messages = [...hydratedSession.messages, appendedAssistant];
   }
   const shouldPreserveError = existingSession.status === 'loading' && status === 'loading';
@@ -229,6 +233,54 @@ export const useChatStore = create((set, get) => ({
   notificationSettingsLoaded: false,
   topicInterestPendingById: {},
   runningTurnBySessionId: {},
+  dataUserId: null,
+
+  // Wipes every user-scoped field back to its initial value. Called on
+  // logout (component-level, see Sidebar/AdminLayout) so the sidebar goes
+  // blank immediately instead of showing the previous account's data until
+  // a full page reload re-initializes this store.
+  reset: () =>
+    set({
+      sessions: [],
+      activeSessionId: null,
+      serverChats: [],
+      chatsLoaded: false,
+      chatsLoading: false,
+      chatsError: null,
+      chatMutationError: null,
+      notifications: [],
+      notificationsLoaded: false,
+      notificationsLoading: false,
+      notificationsError: null,
+      unreadNotificationCount: 0,
+      topicInterests: [],
+      topicInterestsLoaded: false,
+      topicInterestsLoading: false,
+      topicInterestsError: null,
+      pauseAllInApp: false,
+      notificationSettingsLoaded: false,
+      topicInterestPendingById: {},
+      runningTurnBySessionId: {},
+      dataUserId: null,
+    }),
+
+  // Keyed on the signed-in user id (not just "has this ever loaded"), so it
+  // stays correct whether the store's data belongs to no one, to the
+  // previous account, or already to the current one. ChatLayout renders once
+  // per route (no shared Outlet), so this runs on every navigation between
+  // chat/gap/reviews/pdf-agent pages — the dataUserId check is what keeps
+  // that idempotent instead of re-fetching on every route change.
+  ensureLoadedForUser: (userId) => {
+    const normalizedId = userId ?? null;
+    if (get().dataUserId === normalizedId) return;
+    get().reset();
+    set({ dataUserId: normalizedId });
+    if (normalizedId) {
+      get().loadChats();
+      get().loadNotifications();
+      get().loadTopicInterests();
+    }
+  },
 
   loadNotifications: async () => {
     const token = useAuthStore.getState().token;
@@ -251,7 +303,8 @@ export const useChatStore = create((set, get) => ({
       const items = (payload.items || []).map(normalizeNotification);
       set({
         notifications: items,
-        unreadNotificationCount: payload.unread_count ?? items.filter((item) => !item.is_read).length,
+        unreadNotificationCount:
+          payload.unread_count ?? items.filter((item) => !item.is_read).length,
         notificationsLoaded: true,
         notificationsLoading: false,
         notificationsError: null,
@@ -347,7 +400,9 @@ export const useChatStore = create((set, get) => ({
       if (!res.ok) throw new Error(`Failed to update topic: ${res.status}`);
       const updated = await res.json();
       set((store) => ({
-        topicInterests: store.topicInterests.map((item) => (item.topic_id === topicId ? { ...item, ...updated } : item)),
+        topicInterests: store.topicInterests.map((item) =>
+          item.topic_id === topicId ? { ...item, ...updated } : item
+        ),
         topicInterestPendingById: {
           ...store.topicInterestPendingById,
           [topicId]: false,
@@ -391,7 +446,9 @@ export const useChatStore = create((set, get) => ({
       if (!res.ok) throw new Error(`Failed to update notification: ${res.status}`);
       const updated = normalizeNotification(await res.json());
       set((state) => {
-        const notifications = state.notifications.map((item) => (item.id === updated.id ? updated : item));
+        const notifications = state.notifications.map((item) =>
+          item.id === updated.id ? updated : item
+        );
         return {
           notifications,
           unreadNotificationCount: notifications.filter((item) => !item.is_read).length,
@@ -423,7 +480,8 @@ export const useChatStore = create((set, get) => ({
   },
 
   setNotificationsPanelOpen: (open) => set({ notificationsPanelOpen: open }),
-  toggleNotificationsPanel: () => set((state) => ({ notificationsPanelOpen: !state.notificationsPanelOpen })),
+  toggleNotificationsPanel: () =>
+    set((state) => ({ notificationsPanelOpen: !state.notificationsPanelOpen })),
   clearNotificationsError: () => set({ notificationsError: null }),
   loadChats: async () => {
     const token = useAuthStore.getState().token;
@@ -441,7 +499,11 @@ export const useChatStore = create((set, get) => ({
       set({ serverChats: orderedChats, chatsLoaded: true, chatsLoading: false, chatsError: null });
       return orderedChats;
     } catch (err) {
-      set({ chatsLoading: false, chatsLoaded: true, chatsError: err?.message ?? 'Failed to load chats.' });
+      set({
+        chatsLoading: false,
+        chatsLoaded: true,
+        chatsError: err?.message ?? 'Failed to load chats.',
+      });
       return [];
     }
   },
@@ -459,7 +521,10 @@ export const useChatStore = create((set, get) => ({
       const chat = await res.json();
       const session = hydrateServerSession(chat, []);
       set((state) => ({
-        serverChats: sortChatsByActivity([chat, ...state.serverChats.filter((item) => item.id !== chat.id)]),
+        serverChats: sortChatsByActivity([
+          chat,
+          ...state.serverChats.filter((item) => item.id !== chat.id),
+        ]),
         sessions: upsertSession(
           state.sessions.filter((item) => item.id !== replaceSessionId),
           session
@@ -503,9 +568,11 @@ export const useChatStore = create((set, get) => ({
         return {
           sessions: upsertSession(state.sessions, merged.session),
           runningTurnBySessionId: nextRunningTurnBySessionId,
-          serverChats: sortChatsByActivity(state.serverChats.some((item) => item.id === detail.chat.id)
-            ? state.serverChats.map((item) => (item.id === detail.chat.id ? detail.chat : item))
-            : [detail.chat, ...state.serverChats]),
+          serverChats: sortChatsByActivity(
+            state.serverChats.some((item) => item.id === detail.chat.id)
+              ? state.serverChats.map((item) => (item.id === detail.chat.id ? detail.chat : item))
+              : [detail.chat, ...state.serverChats]
+          ),
         };
       });
       return session.id;
@@ -513,9 +580,9 @@ export const useChatStore = create((set, get) => ({
       const message = err?.message ?? 'Failed to open chat.';
       set((state) => ({
         chatsError: message,
-        sessions: state.sessions.map((session) => (
+        sessions: state.sessions.map((session) =>
           session.id === chatId ? { ...session, status: 'error', error: message } : session
-        )),
+        ),
       }));
       return null;
     }
@@ -604,7 +671,12 @@ export const useChatStore = create((set, get) => ({
     if (!activeSession?.persisted && token) {
       try {
         const persistedId = await get().createServerChat(
-          { title: activeSession?.title === 'New Session' ? trimmed.slice(0, 70) || 'New chat' : activeSession?.title },
+          {
+            title:
+              activeSession?.title === 'New Session'
+                ? trimmed.slice(0, 70) || 'New chat'
+                : activeSession?.title,
+          },
           { replaceSessionId: activeId }
         );
         activeId = persistedId;
@@ -665,7 +737,10 @@ export const useChatStore = create((set, get) => ({
         }),
       });
       if (res.status === 402) {
-        throw new Error(await res.text() || 'Literature Review quota exhausted - please upgrade your plan or top up.');
+        throw new Error(
+          (await res.text()) ||
+            'Literature Review quota exhausted - please upgrade your plan or top up.'
+        );
       }
       if (!res.ok) throw new Error(`Research stream failed: ${res.status}`);
 
@@ -682,7 +757,9 @@ export const useChatStore = create((set, get) => ({
   approvePlan: async (sessionId, plan) => {
     const session = get().sessions.find((item) => item.id === sessionId);
     if (!session?.threadId) return;
-    const assistantMsg = [...session.messages].reverse().find((message) => message.role === 'assistant');
+    const assistantMsg = [...session.messages]
+      .reverse()
+      .find((message) => message.role === 'assistant');
     if (!assistantMsg) return;
 
     set((state) => ({
@@ -730,10 +807,16 @@ export const useChatStore = create((set, get) => ({
   _runStream: async (activeId, assistantId, firstResponse) => {
     let response = firstResponse;
     while (response) {
-      const { interrupted, pendingApproval } = await get()._parseStream(activeId, assistantId, response);
+      const { interrupted, pendingApproval } = await get()._parseStream(
+        activeId,
+        assistantId,
+        response
+      );
       if (pendingApproval) {
         set((state) => ({
-          sessions: state.sessions.map((session) => (session.id === activeId ? { ...session, status: 'awaiting_plan' } : session)),
+          sessions: state.sessions.map((session) =>
+            session.id === activeId ? { ...session, status: 'awaiting_plan' } : session
+          ),
         }));
         return;
       }
@@ -757,7 +840,9 @@ export const useChatStore = create((set, get) => ({
     const finalSession = get().sessions.find((session) => session.id === activeId);
     if (finalSession?.status === 'loading') {
       set((state) => ({
-        sessions: state.sessions.map((session) => (session.id === activeId ? { ...session, status: 'idle' } : session)),
+        sessions: state.sessions.map((session) =>
+          session.id === activeId ? { ...session, status: 'idle' } : session
+        ),
       }));
       get()._clearRunningTurn(activeId);
     }
@@ -803,7 +888,9 @@ export const useChatStore = create((set, get) => ({
             get()._setContent(activeId, assistantId, event.content || 'Hello!');
             break;
           case 'clarify': {
-            const questions = (event.questions || []).map((question, index) => `${index + 1}. ${question}`).join('\n');
+            const questions = (event.questions || [])
+              .map((question, index) => `${index + 1}. ${question}`)
+              .join('\n');
             get()._setContent(activeId, assistantId, `I need a bit more context:\n\n${questions}`);
             break;
           }
@@ -832,7 +919,11 @@ export const useChatStore = create((set, get) => ({
             break;
           }
           case 'done':
-            get()._setContent(activeId, assistantId, event.content || '*(Pipeline complete - no content returned)*');
+            get()._setContent(
+              activeId,
+              assistantId,
+              event.content || '*(Pipeline complete - no content returned)*'
+            );
             break;
           case 'error':
             get()._setError(activeId, event.message);
@@ -847,27 +938,48 @@ export const useChatStore = create((set, get) => ({
 
   _bindRunningTurn: (sessionId, { threadId, assistantMessageId, fallbackAssistantId = null }) =>
     set((state) => {
-      const nextAssistantId = assistantMessageId || state.runningTurnBySessionId[sessionId] || fallbackAssistantId;
+      const nextAssistantId =
+        assistantMessageId || state.runningTurnBySessionId[sessionId] || fallbackAssistantId;
       return {
         sessions: state.sessions.map((session) => {
           if (session.id !== sessionId) return session;
-          const fallbackId = fallbackAssistantId || state.runningTurnBySessionId[sessionId] || nextAssistantId;
-          const hasCanonical = nextAssistantId && session.messages.some((message) => message.id === nextAssistantId);
-          const hasFallback = fallbackId && session.messages.some((message) => message.id === fallbackId);
+          const fallbackId =
+            fallbackAssistantId || state.runningTurnBySessionId[sessionId] || nextAssistantId;
+          const hasCanonical =
+            nextAssistantId && session.messages.some((message) => message.id === nextAssistantId);
+          const hasFallback =
+            fallbackId && session.messages.some((message) => message.id === fallbackId);
           let messages = session.messages;
-          if (nextAssistantId && fallbackId && nextAssistantId !== fallbackId && hasFallback && !hasCanonical) {
-            messages = session.messages.map((message) => (
+          if (
+            nextAssistantId &&
+            fallbackId &&
+            nextAssistantId !== fallbackId &&
+            hasFallback &&
+            !hasCanonical
+          ) {
+            messages = session.messages.map((message) =>
               message.id === fallbackId ? { ...message, id: nextAssistantId } : message
-            ));
-          } else if (nextAssistantId && fallbackId && nextAssistantId !== fallbackId && hasFallback && hasCanonical) {
+            );
+          } else if (
+            nextAssistantId &&
+            fallbackId &&
+            nextAssistantId !== fallbackId &&
+            hasFallback &&
+            hasCanonical
+          ) {
             const fallbackMessage = session.messages.find((message) => message.id === fallbackId);
-            const canonicalMessage = session.messages.find((message) => message.id === nextAssistantId);
-            const mergedMessage = fallbackMessage && canonicalMessage
-              ? mergeMessageState(canonicalMessage, fallbackMessage)
-              : canonicalMessage;
+            const canonicalMessage = session.messages.find(
+              (message) => message.id === nextAssistantId
+            );
+            const mergedMessage =
+              fallbackMessage && canonicalMessage
+                ? mergeMessageState(canonicalMessage, fallbackMessage)
+                : canonicalMessage;
             messages = session.messages
               .filter((message) => message.id !== fallbackId)
-              .map((message) => (message.id === nextAssistantId && mergedMessage ? mergedMessage : message));
+              .map((message) =>
+                message.id === nextAssistantId && mergedMessage ? mergedMessage : message
+              );
           }
           return {
             ...session,
@@ -878,11 +990,14 @@ export const useChatStore = create((set, get) => ({
         runningTurnBySessionId: nextAssistantId
           ? { ...state.runningTurnBySessionId, [sessionId]: nextAssistantId }
           : state.runningTurnBySessionId,
-        serverChats: state.serverChats.map((chat) => (chat.id === sessionId ? { ...chat, thread_id: threadId } : chat)),
+        serverChats: state.serverChats.map((chat) =>
+          chat.id === sessionId ? { ...chat, thread_id: threadId } : chat
+        ),
       };
     }),
 
-  _resolveAssistantId: (sessionId, assistantId) => resolveAssistantId(get(), sessionId, assistantId),
+  _resolveAssistantId: (sessionId, assistantId) =>
+    resolveAssistantId(get(), sessionId, assistantId),
 
   _clearRunningTurn: (sessionId) =>
     set((state) => ({
@@ -915,11 +1030,16 @@ export const useChatStore = create((set, get) => ({
           messages: session.messages.map((message) => {
             if (message.id !== resolvedAssistantId) return message;
             const steps = message.steps || [];
-            const idx = steps.findIndex((step) => step.stepNum === stepNum && step.status === 'running');
+            const idx = steps.findIndex(
+              (step) => step.stepNum === stepNum && step.status === 'running'
+            );
             if (idx === -1) {
               return {
                 ...message,
-                steps: [...steps, { id: ++_seq, stepNum, type: 'thought', status: 'running', content: token }],
+                steps: [
+                  ...steps,
+                  { id: ++_seq, stepNum, type: 'thought', status: 'running', content: token },
+                ],
               };
             }
             const next = [...steps];
@@ -941,7 +1061,9 @@ export const useChatStore = create((set, get) => ({
           messages: session.messages.map((message) => {
             if (message.id !== resolvedAssistantId) return message;
             const steps = message.steps || [];
-            const idx = steps.findIndex((step) => step.stepNum === event.stepNum && step.status === 'running');
+            const idx = steps.findIndex(
+              (step) => step.stepNum === event.stepNum && step.status === 'running'
+            );
             const finalised = {
               id: idx === -1 ? ++_seq : steps[idx].id,
               stepNum: event.stepNum,
@@ -969,7 +1091,10 @@ export const useChatStore = create((set, get) => ({
               ...session,
               messages: session.messages.map((message) =>
                 message.id === resolvedAssistantId
-                  ? { ...message, steps: [...(message.steps || []), { id: ++_seq, status: 'done', ...step }] }
+                  ? {
+                      ...message,
+                      steps: [...(message.steps || []), { id: ++_seq, status: 'done', ...step }],
+                    }
                   : message
               ),
             }
@@ -987,7 +1112,9 @@ export const useChatStore = create((set, get) => ({
               ...session,
               status: 'idle',
               lastMessageAt: new Date().toISOString(),
-              messages: session.messages.map((message) => (message.id === resolvedAssistantId ? { ...message, content } : message)),
+              messages: session.messages.map((message) =>
+                message.id === resolvedAssistantId ? { ...message, content } : message
+              ),
             }
           : session
       ),
@@ -1005,13 +1132,12 @@ export const useChatStore = create((set, get) => ({
 
   clearError: (sessionId) =>
     set((state) => ({
-      sessions: state.sessions.map((session) => (session.id === sessionId ? { ...session, error: null } : session)),
+      sessions: state.sessions.map((session) =>
+        session.id === sessionId ? { ...session, error: null } : session
+      ),
     })),
 
   clearChatMutationError: () => set({ chatMutationError: null }),
   clearChatsError: () => set({ chatsError: null }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 }));
-
-
-

@@ -4,31 +4,41 @@ import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { useChatStore } from '@/shared/store/useChatStore';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { ROUTES } from '@/shared/constant/routes';
 
 const NAV = [
-  { to: ROUTES.ADMIN_DASHBOARD,  label: 'Dashboard',  icon: 'mdi:view-dashboard-outline' },
-  { to: ROUTES.ADMIN_USERS,      label: 'Users',      icon: 'mdi:account-group-outline' },
-  { to: ROUTES.ADMIN_USAGE,      label: 'Usage',      icon: 'mdi:gauge' },
-  { to: ROUTES.ADMIN_COMMUNITY,  label: 'Community',  icon: 'mdi:comment-check-outline' },
-  { to: ROUTES.ADMIN_REVENUE,    label: 'Revenue',    icon: 'mdi:cash-multiple' },
+  { to: ROUTES.ADMIN_DASHBOARD, label: 'Dashboard', icon: 'mdi:view-dashboard-outline' },
+  { to: ROUTES.ADMIN_USERS, label: 'Users', icon: 'mdi:account-group-outline' },
+  { to: ROUTES.ADMIN_USAGE, label: 'Usage', icon: 'mdi:gauge' },
+  { to: ROUTES.ADMIN_COMMUNITY, label: 'Community', icon: 'mdi:comment-check-outline' },
+  { to: ROUTES.ADMIN_REVENUE, label: 'Revenue', icon: 'mdi:cash-multiple' },
   {
     key: 'testing',
     label: 'Testing',
     icon: 'mdi:flask-outline',
     children: [
       { to: ROUTES.ADMIN_TESTING_LITERATURE_REVIEW, label: 'Literature Review' },
-      { to: ROUTES.ADMIN_TESTING_RESEARCH_GAP,       label: 'Research Gap', badge: 'Update' },
+      { to: ROUTES.ADMIN_TESTING_RESEARCH_GAP, label: 'Research Gap', badge: 'Update' },
     ],
   },
 ];
 
-const THEME_ICONS = { light: 'mdi:weather-sunny', dark: 'mdi:weather-night', system: 'mdi:monitor' };
+const THEME_ICONS = {
+  light: 'mdi:weather-sunny',
+  dark: 'mdi:weather-night',
+  system: 'mdi:monitor',
+};
 
 const getInitials = (user) =>
   user?.name
-    ? user.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+    ? user.name
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
     : (user?.email?.[0]?.toUpperCase() ?? '?');
 
 // ── Profile popup (Facebook-style) ───────────────────────────────────────────
@@ -38,21 +48,41 @@ function MenuItem({ icon, label, onClick, danger }) {
     <button
       onClick={onClick}
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 12px', border: 'none', borderRadius: 8,
-        background: 'transparent', cursor: 'pointer', textAlign: 'left',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 12px',
+        border: 'none',
+        borderRadius: 8,
+        background: 'transparent',
+        cursor: 'pointer',
+        textAlign: 'left',
         color: danger ? '#e53e3e' : 'var(--color-paper-dark)',
-        fontSize: 14, transition: 'background 0.12s',
+        fontSize: 14,
+        transition: 'background 0.12s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = danger ? '#fff5f5' : 'var(--color-paper-surface)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      onMouseEnter={(e) =>
+        (e.currentTarget.style.background = danger ? '#fff5f5' : 'var(--color-paper-surface)')
+      }
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
-      <div style={{
-        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-        background: danger ? '#fed7d7' : 'var(--color-paper-bg)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon icon={icon} style={{ fontSize: 17, color: danger ? '#e53e3e' : 'var(--color-paper-mid)' }} />
+      <div
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: '50%',
+          flexShrink: 0,
+          background: danger ? '#fed7d7' : 'var(--color-paper-bg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon
+          icon={icon}
+          style={{ fontSize: 17, color: danger ? '#e53e3e' : 'var(--color-paper-mid)' }}
+        />
       </div>
       <span style={{ fontWeight: 500 }}>{label}</span>
     </button>
@@ -61,13 +91,21 @@ function MenuItem({ icon, label, onClick, danger }) {
 
 function ProfilePopup({ user, onClose, popupRef }) {
   const navigate = useNavigate();
-  const logout   = useAuthStore((s) => s.logout);
-  const theme    = useThemeStore((s) => s.theme);
+  const logout = useAuthStore((s) => s.logout);
+  const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   const initials = getInitials(user);
 
-  const go = (path) => { onClose(); navigate(path); };
-  const handleLogout = async () => { onClose(); await logout(); navigate(ROUTES.LOGIN); };
+  const go = (path) => {
+    onClose();
+    navigate(path);
+  };
+  const handleLogout = async () => {
+    onClose();
+    useChatStore.getState().reset();
+    await logout();
+    navigate(ROUTES.LOGIN);
+  };
 
   return (
     <motion.div
@@ -81,37 +119,83 @@ function ProfilePopup({ user, onClose, popupRef }) {
         border: '1px solid var(--color-paper-light)',
         borderRadius: 12,
         boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-        width: 280, overflow: 'hidden',
+        width: 280,
+        overflow: 'hidden',
       }}
     >
       {/* User card */}
-      <div style={{
-        padding: '16px', borderBottom: '1px solid var(--color-paper-surface)',
-        display: 'flex', alignItems: 'center', gap: 12,
-      }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-          background: 'var(--color-brand-100)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 16, fontWeight: 700, color: 'var(--color-brand-600)', overflow: 'hidden',
-        }}>
-          {user?.avatar_url
-            ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : initials}
+      <div
+        style={{
+          padding: '16px',
+          borderBottom: '1px solid var(--color-paper-surface)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: 'var(--color-brand-100)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 16,
+            fontWeight: 700,
+            color: 'var(--color-brand-600)',
+            overflow: 'hidden',
+          }}
+        >
+          {user?.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            initials
+          )}
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-paper-dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: 'var(--color-paper-dark)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {user?.name || 'Admin'}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--color-paper-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+          <div
+            style={{
+              fontSize: 12,
+              color: 'var(--color-paper-mid)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              marginTop: 2,
+            }}
+          >
             {user?.email || ''}
           </div>
-          <span style={{
-            display: 'inline-block', marginTop: 4,
-            padding: '1px 8px', borderRadius: 20,
-            background: 'var(--color-brand-50)', color: 'var(--color-brand-600)',
-            fontSize: 10, fontWeight: 700,
-          }}>
+          <span
+            style={{
+              display: 'inline-block',
+              marginTop: 4,
+              padding: '1px 8px',
+              borderRadius: 20,
+              background: 'var(--color-brand-50)',
+              color: 'var(--color-brand-600)',
+              fontSize: 10,
+              fontWeight: 700,
+            }}
+          >
             Admin
           </span>
         </div>
@@ -119,27 +203,60 @@ function ProfilePopup({ user, onClose, popupRef }) {
 
       {/* Nav items */}
       <div style={{ padding: '8px' }}>
-        <MenuItem icon="mdi:home-outline"    label="Go to App" onClick={() => go(ROUTES.APP)} />
-        <MenuItem icon="mdi:flask-outline"   label="Research"  onClick={() => go(ROUTES.RESEARCH)} />
+        <MenuItem icon="mdi:home-outline" label="Go to App" onClick={() => go(ROUTES.APP)} />
+        <MenuItem icon="mdi:flask-outline" label="Research" onClick={() => go(ROUTES.RESEARCH)} />
       </div>
 
       {/* Appearance */}
       <div style={{ padding: '8px', borderTop: '1px solid var(--color-paper-surface)' }}>
-        <div style={{ padding: '4px 12px 8px', fontSize: 11, fontWeight: 600, color: 'var(--color-paper-light)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div
+          style={{
+            padding: '4px 12px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--color-paper-light)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          }}
+        >
           Appearance
         </div>
         <div style={{ display: 'flex', gap: 4, padding: '0 4px' }}>
           {['light', 'dark', 'system'].map((t) => (
-            <button key={t} onClick={() => setTheme(t)} title={t} style={{
-              flex: 1, padding: '8px 4px', border: '1px solid',
-              borderColor: theme === t ? 'var(--color-brand-500)' : 'var(--color-paper-light)',
-              borderRadius: 8,
-              background: theme === t ? 'var(--color-brand-50)' : 'transparent',
-              cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              transition: 'all 0.12s',
-            }}>
-              <Icon icon={THEME_ICONS[t]} style={{ fontSize: 16, color: theme === t ? 'var(--color-brand-500)' : 'var(--color-paper-mid)' }} />
-              <span style={{ fontSize: 10, color: theme === t ? 'var(--color-brand-600)' : 'var(--color-paper-mid)', textTransform: 'capitalize', fontWeight: theme === t ? 600 : 400 }}>
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              title={t}
+              style={{
+                flex: 1,
+                padding: '8px 4px',
+                border: '1px solid',
+                borderColor: theme === t ? 'var(--color-brand-500)' : 'var(--color-paper-light)',
+                borderRadius: 8,
+                background: theme === t ? 'var(--color-brand-50)' : 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                transition: 'all 0.12s',
+              }}
+            >
+              <Icon
+                icon={THEME_ICONS[t]}
+                style={{
+                  fontSize: 16,
+                  color: theme === t ? 'var(--color-brand-500)' : 'var(--color-paper-mid)',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 10,
+                  color: theme === t ? 'var(--color-brand-600)' : 'var(--color-paper-mid)',
+                  textTransform: 'capitalize',
+                  fontWeight: theme === t ? 600 : 400,
+                }}
+              >
                 {t}
               </span>
             </button>
@@ -158,32 +275,39 @@ function ProfilePopup({ user, onClose, popupRef }) {
 // ── Main layout ───────────────────────────────────────────────────────────────
 
 export default function AdminLayout() {
-  const user     = useAuthStore((s) => s.user);
+  const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const location = useLocation();
-  const theme    = useThemeStore((s) => s.theme);
+  const theme = useThemeStore((s) => s.theme);
 
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [popupPos, setPopupPos]   = useState({ bottom: 0, left: 0 });
+  const [popupPos, setPopupPos] = useState({ bottom: 0, left: 0 });
 
   // Auto-expand whichever nav group contains the current route.
   const [expandedGroup, setExpandedGroup] = useState(() => {
-    const group = NAV.find((item) => item.children?.some((c) => location.pathname.startsWith(c.to)));
+    const group = NAV.find((item) =>
+      item.children?.some((c) => location.pathname.startsWith(c.to))
+    );
     return group?.key ?? null;
   });
 
   const profileBtnRef = useRef(null);
-  const popupRef      = useRef(null);
+  const popupRef = useRef(null);
 
-  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const logoSrc = isDark ? '/paperpulse-logo_dark.png' : '/paperpulse-logo_light.png';
   const initials = getInitials(user);
 
   const openProfile = () => {
     if (!profileOpen && profileBtnRef.current) {
       const rect = profileBtnRef.current.getBoundingClientRect();
-      setPopupPos({ bottom: window.innerHeight - rect.top + 8, left: collapsed ? rect.right + 8 : rect.left });
+      setPopupPos({
+        bottom: window.innerHeight - rect.top + 8,
+        left: collapsed ? rect.right + 8 : rect.left,
+      });
     }
     setProfileOpen((v) => !v);
   };
@@ -203,7 +327,6 @@ export default function AdminLayout() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--color-paper-bg)' }}>
-
       {/* Sidebar */}
       <motion.aside
         initial={{ width: W, opacity: 0, x: -20 }}
@@ -219,20 +342,37 @@ export default function AdminLayout() {
         }}
       >
         {/* Header — logo + toggle */}
-        <div style={{
-          height: 56, flexShrink: 0,
-          display: 'flex', alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
-          padding: collapsed ? 0 : '0 12px 0 16px',
-          borderBottom: '1px solid var(--color-paper-light)',
-        }}>
+        <div
+          style={{
+            height: 56,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'space-between',
+            padding: collapsed ? 0 : '0 12px 0 16px',
+            borderBottom: '1px solid var(--color-paper-light)',
+          }}
+        >
           {!collapsed && (
             <motion.button
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
               onClick={() => navigate(ROUTES.HOME)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+              }}
             >
-              <img src={logoSrc} alt="PaperPulse" style={{ height: 26, width: 'auto', objectFit: 'contain' }} />
+              <img
+                src={logoSrc}
+                alt="PaperPulse"
+                style={{ height: 26, width: 'auto', objectFit: 'contain' }}
+              />
             </motion.button>
           )}
 
@@ -240,23 +380,35 @@ export default function AdminLayout() {
             onClick={() => setCollapsed((v) => !v)}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-              borderRadius: 6, color: 'var(--color-paper-mid)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 4,
+              borderRadius: 6,
+              color: 'var(--color-paper-mid)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               transition: 'background 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-brand-50)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-brand-50)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
-            <Icon icon={collapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'} style={{ fontSize: 18 }} />
+            <Icon
+              icon={collapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'}
+              style={{ fontSize: 18 }}
+            />
           </button>
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav
+          style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
           {NAV.map((item, i) => {
             const isGroup = Array.isArray(item.children);
-            const isGroupActive = isGroup && item.children.some((c) => location.pathname.startsWith(c.to));
+            const isGroupActive =
+              isGroup && item.children.some((c) => location.pathname.startsWith(c.to));
             const isExpanded = isGroup && expandedGroup === item.key;
 
             if (!isGroup) {
@@ -265,7 +417,12 @@ export default function AdminLayout() {
                   key={item.to}
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.08 + i * 0.05, type: 'spring', stiffness: 300, damping: 28 }}
+                  transition={{
+                    delay: 0.08 + i * 0.05,
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 28,
+                  }}
                 >
                   <NavLink
                     to={item.to}
@@ -289,7 +446,11 @@ export default function AdminLayout() {
                       <>
                         <Icon
                           icon={item.icon}
-                          style={{ fontSize: 19, color: isActive ? 'var(--color-brand-500)' : 'var(--color-paper-light)', flexShrink: 0 }}
+                          style={{
+                            fontSize: 19,
+                            color: isActive ? 'var(--color-brand-500)' : 'var(--color-paper-light)',
+                            flexShrink: 0,
+                          }}
                         />
                         <AnimatePresence>
                           {!collapsed && (
@@ -308,7 +469,14 @@ export default function AdminLayout() {
                         {!collapsed && isActive && (
                           <motion.div
                             layoutId="admin-nav-dot"
-                            style={{ marginLeft: 'auto', width: 5, height: 5, borderRadius: '50%', background: 'var(--color-brand-500)', flexShrink: 0 }}
+                            style={{
+                              marginLeft: 'auto',
+                              width: 5,
+                              height: 5,
+                              borderRadius: '50%',
+                              background: 'var(--color-brand-500)',
+                              flexShrink: 0,
+                            }}
                           />
                         )}
                       </>
@@ -351,7 +519,11 @@ export default function AdminLayout() {
                 >
                   <Icon
                     icon={item.icon}
-                    style={{ fontSize: 19, color: isGroupActive ? 'var(--color-brand-500)' : 'var(--color-paper-light)', flexShrink: 0 }}
+                    style={{
+                      fontSize: 19,
+                      color: isGroupActive ? 'var(--color-brand-500)' : 'var(--color-paper-light)',
+                      flexShrink: 0,
+                    }}
                   />
                   {!collapsed && (
                     <>
@@ -359,7 +531,9 @@ export default function AdminLayout() {
                       <Icon
                         icon="mdi:chevron-down"
                         style={{
-                          marginLeft: 'auto', fontSize: 16, flexShrink: 0,
+                          marginLeft: 'auto',
+                          fontSize: 16,
+                          flexShrink: 0,
                           color: 'var(--color-paper-light)',
                           transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                           transition: 'transform 0.15s',
@@ -378,7 +552,15 @@ export default function AdminLayout() {
                       transition={{ duration: 0.18 }}
                       style={{ overflow: 'hidden' }}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, paddingLeft: 14, marginTop: 2 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 1,
+                          paddingLeft: 14,
+                          marginTop: 2,
+                        }}
+                      >
                         {item.children.map((child) => (
                           <NavLink
                             key={child.to}
@@ -397,17 +579,34 @@ export default function AdminLayout() {
                               borderLeft: '1px solid var(--color-paper-light)',
                             })}
                           >
-                            <span style={{
-                              width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
-                              background: 'currentColor', opacity: 0.6,
-                            }} />
-                            <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>{child.label}</span>
+                            <span
+                              style={{
+                                width: 4,
+                                height: 4,
+                                borderRadius: '50%',
+                                flexShrink: 0,
+                                background: 'currentColor',
+                                opacity: 0.6,
+                              }}
+                            />
+                            <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {child.label}
+                            </span>
                             {child.badge && (
-                              <span style={{
-                                marginLeft: 'auto', fontSize: 9, fontWeight: 700, padding: '1px 6px',
-                                borderRadius: 20, background: 'var(--color-brand-50)', color: 'var(--color-brand-500)',
-                                textTransform: 'uppercase', letterSpacing: '0.03em', flexShrink: 0,
-                              }}>
+                              <span
+                                style={{
+                                  marginLeft: 'auto',
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: 20,
+                                  background: 'var(--color-brand-50)',
+                                  color: 'var(--color-brand-500)',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.03em',
+                                  flexShrink: 0,
+                                }}
+                              >
                                 {child.badge}
                               </span>
                             )}
@@ -423,11 +622,13 @@ export default function AdminLayout() {
         </nav>
 
         {/* Profile trigger — bottom */}
-        <div style={{ padding: '8px', borderTop: '1px solid var(--color-paper-light)', flexShrink: 0 }}>
+        <div
+          style={{ padding: '8px', borderTop: '1px solid var(--color-paper-light)', flexShrink: 0 }}
+        >
           <button
             ref={profileBtnRef}
             onClick={openProfile}
-            title={collapsed ? (user?.name || 'Account') : undefined}
+            title={collapsed ? user?.name || 'Account' : undefined}
             style={{
               width: '100%',
               display: 'flex',
@@ -444,15 +645,31 @@ export default function AdminLayout() {
             }}
           >
             {/* Avatar */}
-            <div style={{
-              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-              background: 'var(--color-brand-100)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, fontWeight: 700, color: 'var(--color-brand-600)', overflow: 'hidden',
-            }}>
-              {user?.avatar_url
-                ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : initials}
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                flexShrink: 0,
+                background: 'var(--color-brand-100)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--color-brand-600)',
+                overflow: 'hidden',
+              }}
+            >
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
             </div>
 
             <AnimatePresence>
@@ -465,10 +682,27 @@ export default function AdminLayout() {
                   transition={{ duration: 0.15 }}
                   style={{ flex: 1, minWidth: 0, overflow: 'hidden', textAlign: 'left' }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-paper-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--color-paper-dark)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
                     {user?.name || 'Admin'}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--color-paper-mid)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--color-paper-mid)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
                     {user?.email || ''}
                   </div>
                 </motion.div>
@@ -476,7 +710,10 @@ export default function AdminLayout() {
             </AnimatePresence>
 
             {!collapsed && (
-              <Icon icon="mdi:dots-horizontal" style={{ fontSize: 16, color: 'var(--color-paper-light)', flexShrink: 0 }} />
+              <Icon
+                icon="mdi:dots-horizontal"
+                style={{ fontSize: 16, color: 'var(--color-paper-light)', flexShrink: 0 }}
+              />
             )}
           </button>
         </div>
@@ -491,12 +728,15 @@ export default function AdminLayout() {
       {createPortal(
         <AnimatePresence>
           {profileOpen && (
-            <div style={{ position: 'fixed', bottom: popupPos.bottom, left: popupPos.left, zIndex: 9999 }}>
-              <ProfilePopup
-                user={user}
-                onClose={() => setProfileOpen(false)}
-                popupRef={popupRef}
-              />
+            <div
+              style={{
+                position: 'fixed',
+                bottom: popupPos.bottom,
+                left: popupPos.left,
+                zIndex: 9999,
+              }}
+            >
+              <ProfilePopup user={user} onClose={() => setProfileOpen(false)} popupRef={popupRef} />
             </div>
           )}
         </AnimatePresence>,

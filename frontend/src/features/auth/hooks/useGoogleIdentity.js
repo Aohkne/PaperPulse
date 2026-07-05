@@ -64,7 +64,9 @@ export function useGoogleIdentity(onCredential) {
         callback: (response) => callbackRef.current(response.credential, nonceRef.current),
       });
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /**
