@@ -352,14 +352,12 @@ const BillingPanel = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {(tier.credits === null
                   ? [
-                      'Unlimited usage — no monthly cap',
-                      'All tools — LR · PDF · Research Gap',
-                      'Knowledge Graph included free',
+                      'Unlimited credits, no monthly cap',
+                      'Full access to Literature Review, PDF Analysis, Research Gap Detection and Knowledge Graph',
                     ]
                   : [
                       `${tier.credits} credits / month`,
-                      'One shared pool — LR · PDF · Research Gap',
-                      'Knowledge Graph included free',
+                      'Access to Literature Review, PDF Analysis & Research Gap Detection, plus free Knowledge Graph',
                     ]
                 ).map((line) => (
                   <p

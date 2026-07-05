@@ -90,10 +90,13 @@ const PLANS = [
     highlight: false,
     features: [
       { ok: true, label: '50 credits / month' },
-      { ok: true, label: 'One shared pool — LR · PDF · Research Gap' },
-      { ok: true, label: 'Knowledge Graph included free' },
-      { ok: true, label: '≈ 4 reviews or 25 PDF analyses / month' },
-      { ok: false, label: 'Upgrade or wait for renewal when out' },
+      {
+        ok: true,
+        label:
+          'Access to Literature Review, PDF Analysis & Research Gap Detection, plus free Knowledge Graph',
+      },
+      { ok: true, label: 'About 4 literature reviews or 25 PDF analyses' },
+      { ok: true, label: 'Upgrade anytime, or wait for your credits to reset' },
     ],
   },
   {
@@ -107,10 +110,13 @@ const PLANS = [
     highlight: true,
     features: [
       { ok: true, label: '100 credits / month' },
-      { ok: true, label: 'One shared pool — LR · PDF · Research Gap' },
-      { ok: true, label: 'Knowledge Graph included free' },
-      { ok: true, label: '≈ 9 reviews or 50 PDF analyses / month' },
-      { ok: true, label: '2× the Free monthly budget' },
+      {
+        ok: true,
+        label:
+          'Access to Literature Review, PDF Analysis & Research Gap Detection, plus free Knowledge Graph',
+      },
+      { ok: true, label: 'About 9 literature reviews or 50 PDF analyses a month' },
+      { ok: true, label: '2× the monthly credits of the Free plan' },
     ],
   },
   {
@@ -122,10 +128,13 @@ const PLANS = [
     ctaOutline: true,
     highlight: false,
     features: [
-      { ok: true, label: 'Unlimited usage — no monthly cap' },
-      { ok: true, label: 'All tools — LR · PDF · Research Gap' },
-      { ok: true, label: 'Knowledge Graph included free' },
-      { ok: true, label: 'Best for heavy, continuous use' },
+      { ok: true, label: 'Unlimited credits, no monthly cap' },
+      {
+        ok: true,
+        label:
+          'Full access to Literature Review, PDF Analysis, Research Gap Detection and Knowledge Graph',
+      },
+      { ok: true, label: 'Built for heavy, continuous research work' },
     ],
   },
 ];
