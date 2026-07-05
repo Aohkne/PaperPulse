@@ -110,7 +110,11 @@ async def embed_texts_batch(
                     if exc.response.status_code == 429 and attempt < max_retries - 1:
                         delay = backoff_base ** (attempt + 1)
                         logging.warning(
-                            "NIM batch 429 (chunk %d), retry %d/%d sau %.0fs", start, attempt + 1, max_retries - 1, delay
+                            "NIM batch 429 (chunk %d), retry %d/%d sau %.0fs",
+                            start,
+                            attempt + 1,
+                            max_retries - 1,
+                            delay,
                         )
                         await asyncio.sleep(delay)
                         continue
