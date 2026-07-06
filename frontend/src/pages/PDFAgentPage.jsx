@@ -210,7 +210,7 @@ const PDFAgentPage = () => {
         )}
 
         <button
-          onClick={() => window.Supademo?.open('cmqyjvr8y06fjw60jr7pw2e9z')}
+          onClick={() => window.Supademo?.open('cmr80xq8902lpz70jwkwv5ezr')}
           title="How it works"
           style={{
             flexShrink: 0,

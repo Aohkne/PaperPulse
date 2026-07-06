@@ -137,7 +137,7 @@ const ChatLayout = ({ children }) => {
                 <Icon icon="mdi:graph-outline" style={{ fontSize: '16px' }} />
               </button>
               <button
-                onClick={() => window.Supademo?.open('cmqxx7bw404ymw60j7qcvkb48')}
+                onClick={() => window.Supademo?.open('cmr83e4fj02sgz70j2tn0w0c3')}
                 title="How it works"
                 style={{
                   background: 'none',
@@ -288,7 +288,7 @@ const ChatLayout = ({ children }) => {
               <Icon icon="mdi:graph-outline" style={{ width: 14, height: 14 }} />
             </button>
             <button
-              onClick={() => window.Supademo?.open('cmqxx7bw404ymw60j7qcvkb48')}
+              onClick={() => window.Supademo?.open('cmr83e4fj02sgz70j2tn0w0c3')}
               title="How it works"
               style={{
                 background: 'var(--color-paper-bg)',

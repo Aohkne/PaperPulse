@@ -37,7 +37,7 @@ const ResearchPage = () => (
         Research Gap — Find Contradictions &amp; Understudied Angles
       </span>
       <button
-        onClick={() => window.Supademo?.open('cmqyjgpno068kw60j9xtqnwe8')}
+        onClick={() => window.Supademo?.open('cmr8q4vef1c8kqm3a432ydz68')}
         title="How it works"
         style={{
           flexShrink: 0,
