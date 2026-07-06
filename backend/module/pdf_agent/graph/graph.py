@@ -60,6 +60,11 @@ async def _open_checkpointer() -> BaseCheckpointSaver:
         conninfo=settings.supabase_db_url,
         max_size=10,
         open=False,
+        # Without this, getconn() can hand out a connection Supavisor already
+        # closed server-side (idle timeout independent of this pool's
+        # max_idle), and the caller's first query dies with "server closed
+        # the connection unexpectedly" instead of the pool reconnecting.
+        check=AsyncConnectionPool.check_connection,
         kwargs={
             "autocommit": True,
             "prepare_threshold": None,  # Supavisor transaction-mode pooler doesn't support prepared statements

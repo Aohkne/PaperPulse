@@ -149,10 +149,11 @@ async def get_embeddings_batch(paper_ids: list[str]) -> dict[str, list[float]]:
     Response format: [{"paperId": "...", "embedding": {"model": "...", "vector": [...]}} | null]
     """
     result: dict[str, list[float]] = {}
+    max_retries = 6  # embeddings feed clustering/themes/claims — worth waiting longer than a plain search call
     async with httpx.AsyncClient() as client:
         for i in range(0, len(paper_ids), 500):
             batch = paper_ids[i : i + 500]
-            for attempt in range(3):
+            for attempt in range(max_retries):
                 try:
                     await s2_acquire()
                     resp = await client.post(
@@ -174,8 +175,10 @@ async def get_embeddings_batch(paper_ids: list[str]) -> dict[str, list[float]]:
                                 result[pid] = vec
                     break
                 except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code == 429 and attempt < 2:
-                        await asyncio.sleep(2**attempt)
+                    if exc.response.status_code == 429 and attempt < max_retries - 1:
+                        # capped backoff: 1,2,4,8,16s — long enough to ride out a short-lived
+                        # S2 burst limit without stalling the whole pipeline for minutes
+                        await asyncio.sleep(min(2**attempt, 16))
                         continue
                     logging.warning("SPECTER v2 batch failed (chunk %d): %s", i, exc)
                     break

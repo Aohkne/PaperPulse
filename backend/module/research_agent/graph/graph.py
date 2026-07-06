@@ -136,6 +136,12 @@ async def _open_checkpointer() -> BaseCheckpointSaver:
         conninfo=settings.supabase_db_url,
         max_size=10,
         open=False,
+        # Supavisor (or the Postgres behind it) closes idle connections on
+        # its own schedule, independent of this pool's max_idle — without a
+        # check callback, getconn() hands out an already-dead connection and
+        # the caller's first query dies with "server closed the connection
+        # unexpectedly" instead of the pool transparently reconnecting.
+        check=AsyncConnectionPool.check_connection,
         kwargs={
             "autocommit": True,
             # Supabase's pooled connection string (Supavisor, transaction

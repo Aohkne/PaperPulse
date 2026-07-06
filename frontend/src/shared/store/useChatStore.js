@@ -839,12 +839,14 @@ export const useChatStore = create((set, get) => ({
 
     const finalSession = get().sessions.find((session) => session.id === activeId);
     if (finalSession?.status === 'loading') {
-      set((state) => ({
-        sessions: state.sessions.map((session) =>
-          session.id === activeId ? { ...session, status: 'idle' } : session
-        ),
-      }));
-      get()._clearRunningTurn(activeId);
+      // The stream ended (clean EOF) without ever delivering a terminal event
+      // (done/error/greeting/clarify) — the connection was lost mid-pipeline,
+      // not a legitimate empty-but-successful result. Surface it as an error
+      // instead of silently flipping to 'idle' with a blank assistant bubble.
+      get()._setError(
+        activeId,
+        'Connection to the server was lost before the response finished. Please try again.'
+      );
     }
   },
 

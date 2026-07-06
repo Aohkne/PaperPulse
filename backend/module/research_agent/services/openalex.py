@@ -9,6 +9,7 @@ abstract_inverted_index reconstruction: OpenAlex stores abstracts as
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import httpx
@@ -97,12 +98,20 @@ async def search_openalex(query: str, limit: int = 100) -> list[Paper]:
     ua = f"PaperPulse/2.0 (mailto:{email})" if email else "PaperPulse/2.0"
     headers = {"User-Agent": ua}
 
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(f"{_BASE}/works", params=params, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-        return [_to_paper(r) for r in data.get("results", [])]
-    except Exception as exc:
-        logging.warning("OpenAlex search failed: %s", exc)
-        return []
+    async with httpx.AsyncClient(timeout=30) as client:
+        for attempt in range(4):
+            try:
+                resp = await client.get(f"{_BASE}/works", params=params, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                return [_to_paper(r) for r in data.get("results", [])]
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 429 and attempt < 3:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                logging.warning("OpenAlex search failed: %s", exc)
+                return []
+            except Exception as exc:
+                logging.warning("OpenAlex search failed: %s", exc)
+                return []
+    return []

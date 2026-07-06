@@ -32,12 +32,13 @@ async def embed_node(state: ResearchState) -> dict:
 
     api_hit = stored = 0
 
+    # Only papers with a real S2 paperId can be batch-embedded. OpenAlex/
+    # PubMed papers use synthetic ids ("OA_...", "pubmed_...") that S2's
+    # /paper/batch endpoint rejects — they get no vector and are excluded
+    # from clustering (see module docstring).
+    s2_ids = [p.paper_id for p in papers if p.source == "semantic_scholar"]
+
     try:
-        # Only papers with a real S2 paperId can be batch-embedded. OpenAlex/
-        # PubMed papers use synthetic ids ("OA_...", "pubmed_...") that S2's
-        # /paper/batch endpoint rejects — they get no vector and are excluded
-        # from clustering (see module docstring).
-        s2_ids = [p.paper_id for p in papers if p.source == "semantic_scholar"]
         specter_map = await get_embeddings_batch(s2_ids) if s2_ids else {}
         for paper in papers:
             vec = specter_map.get(paper.paper_id)
@@ -48,6 +49,19 @@ async def embed_node(state: ResearchState) -> dict:
         stored = await upsert_papers(papers)
     except Exception as exc:
         log.warning("Embed step failed: %s — pgvector may be empty for this session", exc)
+
+    if s2_ids and api_hit == 0:
+        # get_embeddings_batch() already retries 429s with backoff internally — if we
+        # still got zero vectors back for a non-empty S2 id list, every request in
+        # this session was rate-limited. Clustering/themes/claims are all downstream
+        # of this vector, so silently continuing produces a "complete" review with
+        # no themes and no claims (looks successful, is actually empty). Fail loudly
+        # instead so the user sees a real error and can retry, rather than a vacuous
+        # document.
+        raise RuntimeError(
+            f"Semantic Scholar rate-limited every embedding request for this session "
+            f"({len(s2_ids)} papers) — themes and claims cannot be generated. Please retry in a few minutes."
+        )
 
     return {
         "papers": papers,
