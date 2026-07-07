@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import re
+import unicodedata
 import zipfile
 from typing import Any, Literal
 
@@ -103,9 +104,17 @@ class DuplicateRequest(BaseModel):
 
 
 def _slug(title: str) -> str:
-    """Slugify a title for use as a filename."""
-    slug = re.sub(r"[^\w\s-]", "", title.lower())
-    return re.sub(r"[\s_-]+", "-", slug).strip("-")[:80]
+    """Slugify a title for use as a filename.
+
+    Transliterates to ASCII first since Content-Disposition headers are
+    latin-1 only — accented titles (e.g. Vietnamese) would otherwise crash
+    the response with a UnicodeEncodeError.
+    """
+    title = title.replace("Đ", "D").replace("đ", "d")
+    ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^\w\s-]", "", ascii_title.lower())
+    slug = re.sub(r"[\s_-]+", "-", slug).strip("-")[:80]
+    return slug or "review"
 
 
 def _row_to_summary(row: dict) -> ReviewSummary:
