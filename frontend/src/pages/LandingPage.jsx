@@ -394,7 +394,7 @@ const LandingPage = () => {
               }}
             >
               <iframe
-                src="https://www.youtube.com/embed/g7bTfmkbx7g"
+                src="https://www.youtube.com/embed/oU7j_e5lHTQ"
                 title="PaperPulse demo"
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
