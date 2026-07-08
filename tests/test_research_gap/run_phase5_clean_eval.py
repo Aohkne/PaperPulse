@@ -11,10 +11,10 @@ from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import patch
 
-from backend.agent.gap_detection.gap_similarity import cluster_gaps
-from backend.agent.gap_detection.orchestrator import cold_start
-from backend.agent.gap_detection.schemas import GapItem
-from backend.agent.gap_detection.services.unpaywall import _reset_cache_for_tests
+from backend.module.gap_detection.gap_similarity import cluster_gaps
+from backend.module.gap_detection.orchestrator import cold_start
+from backend.module.gap_detection.schemas import GapItem
+from backend.module.gap_detection.services.unpaywall import _reset_cache_for_tests
 
 ROOT = pathlib.Path(__file__).parent
 TOPICS_FILE = ROOT / "phase5_clean_topics.json"
@@ -99,8 +99,8 @@ async def _run_one(topic_entry: dict[str, Any], mode: str) -> dict[str, Any]:
     telemetry = EvalTelemetry()
     _reset_cache_for_tests()
 
-    import backend.agent.gap_detection.nodes.extractor as extractor_mod
-    import backend.agent.gap_detection.nodes.synthesizer as synth_mod
+    import backend.module.gap_detection.nodes.extractor as extractor_mod
+    import backend.module.gap_detection.nodes.synthesizer as synth_mod
 
     original_analyze = synth_mod.analyze_gaps_llm
     original_critique = synth_mod.critique_top_gaps

@@ -5,8 +5,8 @@ import logging
 
 import httpx
 
-from backend.agent.gap_detection.settings import get_nim_backoff_base, get_nim_retry_max
 from backend.config import get_settings
+from backend.shared.services.nim_config import get_nim_backoff_base, get_nim_retry_max
 
 
 async def embed_text(text: str, input_type: str = "query") -> list[float] | None:

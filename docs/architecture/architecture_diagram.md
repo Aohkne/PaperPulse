@@ -150,7 +150,7 @@ Hiện `chat_integration.py` đã code sẵn cầu nối (`run_gap_detection_cha
 | Frontend | React 19 + Vite + Zustand + Tailwind v4 | Chat-style research UI, review editor, knowledge graph panel, admin dashboard |
 | Backend | FastAPI (Python 3.11+) | REST + SSE API server (`backend/main.py`) |
 | Agent layer | Custom Python LLM modules (`backend/agent/`) | Outline / content / claim-extraction / verification prompts — no LangChain |
-| Gap Detection | LangGraph `StateGraph` (`backend/agent/gap_detection/`) | 7-node linear graph for research-gap reports; built, not yet mounted on the router |
+| Gap Detection | LangGraph `StateGraph` (`backend/module/gap_detection/`) | 7-node linear graph for research-gap reports; built, not yet mounted on the router |
 | LLM Provider | OpenAI / Anthropic / custom (`services/llm_client.py`) | Text generation for every agent step, selected via `PROVIDER` env |
 | Search | Semantic Scholar API (`services/semantic_scholar.py`) | Paper search, citation snowballing, snippet verification |
 | Full-text fallback | `ar5iv.labs.arxiv.org` (`services/arxiv_fetcher.py`) | Tier-2 citation verification when no snippet exists |

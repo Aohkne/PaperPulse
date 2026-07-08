@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.agent.gap_detection.schemas import GapItem, GapOrigin, GapStatus, GapType, PaperRef
+from backend.module.gap_detection.schemas import GapItem, GapOrigin, GapStatus, GapType, PaperRef
 from tests.test_research_gap.structural_checks import check_empty_on_nonsense, check_gap_structural
 
 

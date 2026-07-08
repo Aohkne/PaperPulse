@@ -29,8 +29,8 @@ except ImportError:
 # Set SKIP_LLM_JUDGE=true để chỉ chạy structural checks, bỏ qua LLM judge
 import os as _os
 
-from backend.agent.gap_detection.orchestrator import cold_start
-from backend.agent.gap_detection.schemas import GapItem, GapReport
+from backend.module.gap_detection.orchestrator import cold_start
+from backend.module.gap_detection.schemas import GapItem, GapReport
 from tests.test_research_gap.structural_checks import check_empty_on_nonsense, check_gap_structural
 
 SKIP_LLM_JUDGE = _os.getenv("SKIP_LLM_JUDGE", "false").lower() == "true"

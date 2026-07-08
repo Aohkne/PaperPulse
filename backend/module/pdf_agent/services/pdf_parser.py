@@ -3,7 +3,7 @@
 PLAN_2.0 §1 chọn MinerU (self-host layout+OCR) cho nhánh này. MinerU chưa
 cài trong môi trường triển khai hiện tại (cần tải model weight vài GB,
 không có GPU) nên branch này dùng **PyMuPDF** (đã là dependency của repo,
-dùng chung pattern với `backend/agent/gap_detection/nodes/pdf_utils.py`)
+dùng chung pattern với `backend/module/gap_detection/nodes/pdf_utils.py`)
 làm fallback thực dụng — kém chính xác hơn MinerU ở việc ghép caption↔figure
 và phát hiện heading (xem PLAN §9 Rủi ro: "MinerU accuracy limit"), nhưng
 chạy được ngay, không cần hạ tầng thêm.

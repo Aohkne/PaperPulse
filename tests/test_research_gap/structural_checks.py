@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import asyncio
 
-from backend.agent.gap_detection.s2_client import get_paper_detail
-from backend.agent.gap_detection.schemas import GapItem
+from backend.module.gap_detection.s2_client import get_paper_detail
+from backend.module.gap_detection.schemas import GapItem
 
 _MIN_STATEMENT_WORDS = 15
 
