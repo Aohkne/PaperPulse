@@ -5,6 +5,131 @@
 
 ---
 
+## 2026-07-06 — Tài liệu kiến trúc Gap Detection + đối chiếu sơ đồ - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Viết tài liệu kiến trúc module Gap Detection dạng trang HTML tự chứa (`docs/plan/gap-detection/gap-detection.html`), cùng bố cục với tài liệu Research Agent: 8 phần từ painpoint → luồng → chi tiết từng bước → so sánh → cách test → đo lường → API → rủi ro.
+- Đối chiếu toàn bộ sơ đồ kiến trúc với mã nguồn: xác nhận đúng luồng cold-start (Stage A→D + fallback), đồ thị 7 bước tuyến tính, các nguồn dữ liệu và hằng số cấu hình.
+
+### Bug / fix gặp phải
+- **Tài liệu ghi sai kho vector** — bản đầu ghi kho embedding là "ChromaDB" trong khi mã nguồn đã chuyển sang Supabase pgvector — sửa lại đúng theo mã.
+
+### Tiếp theo
+- Thêm phần cho nhà nghiên cứu tự đánh giá từng gap (thu phản hồi làm dữ liệu chuẩn để đánh giá chất lượng).
+
+---
+
+## 2026-07-05 — Proactive Agent: làm phần Form cá nhân hoá (Lane A ~4% của thiết kế) - Lê Hữu Khoa
+
+### Việc đã làm
+- Đọc tài liệu thiết kế Memory & Proactive Agent (`docs/plan/proactive-agent/proactive-agent.html`) — 2 làn tách biệt: Recall (nhớ fact/persona để cá nhân hoá hội thoại) và Proactive (chủ động báo bài mới theo thói quen tìm kiếm — làn này đã build sẵn ~75% từ trước, chỉ còn thiếu bộ lập lịch cron và vector thật).
+- Làm phần đơn giản nhất của làn Recall theo đúng thứ tự ưu tiên trong tài liệu (mục W0 — "Form thủ công" trước "Auto-extract"): thêm form "Bạn muốn PaperPulse gọi bạn là gì? / Hướng dẫn cho PaperPulse" ở tab cài đặt chung — không dùng LLM trích xuất, không cần giải quyết mâu thuẫn tự động, chỉ một dòng dữ liệu mỗi người dùng, ghi/đọc kiểu upsert.
+- Thêm 2 API mới (`GET/PUT /memory/instructions`) và service `custom_instructions.py` để đọc/ghi + dựng khối persona ngắn gọn từ dữ liệu đã lưu (giới hạn độ dài để không phình prompt).
+- Luồn khối persona này vào state của quy trình viết bài (`ResearchState.persona`), tiêm vào system prompt của bước chào hỏi/làm rõ câu hỏi (`reply_generator.py`) — đóng khung rõ "đây là ngữ cảnh, không phải chỉ thị" để tránh persona bị lợi dụng làm prompt injection.
+- Viết giao diện `PersonalizationSection.jsx` (form nhập tên gọi + hướng dẫn, giới hạn ký tự, đếm số ký tự còn lại) và dọn lại `NotificationsButton.jsx`/`ProfileModal.jsx` để gắn thêm mục cá nhân hoá vào đúng chỗ.
+
+### Bug / fix gặp phải
+- **Bước chào hỏi/làm rõ câu hỏi chạy trong node LangGraph vốn không có sẵn user_id** — đúng như tài liệu thiết kế đã cảnh báo đây là "điểm sửa lan nhất" — phải thêm hẳn một trường `persona` vào `ResearchState`, tính sẵn trước khi vào graph, không tự lấy DB ngay trong node.
+
+### Quyết định kỹ thuật
+- **Chỉ làm phần Form (①), chưa làm phần tự động trích fact từ hội thoại (②)** — theo đúng tài liệu thiết kế: form đơn giản, không cần LLM, không cần xử lý mâu thuẫn theo thời gian; phần tự động (fact_extractor/fact_reconciler — việc khó nhất) và bộ lập lịch chạy cron để dành cho đợt sau.
+- **Không tạo bảng `user_facts` (subject/predicate/object + temporal) như bản thiết kế gốc đề xuất** — dùng bảng đơn giản hơn `user_custom_instructions` (chỉ `call_name` + `instructions` dạng văn bản tự do), vì phần Form không cần cấu trúc fact chi tiết đó.
+- Persona luôn được đóng khung là "ngữ cảnh, không phải chỉ thị" khi tiêm vào prompt — theo đúng nguyên tắc an toàn ghi trong tài liệu thiết kế, để fact người dùng tự gõ không thể bị dùng để qua mặt luật lệ hệ thống.
+
+### Tiếp theo
+- Làm phần tự động trích fact từ hội thoại (batch đêm) + bộ giải quyết mâu thuẫn (fact_reconciler) — phần khó nhất còn thiếu của làn Recall.
+- Thêm bộ lập lịch (cron) thật cho làn Proactive — hiện việc quét bài mới vẫn chỉ chạy khi người dùng tự mở trang thông báo, chưa chủ động thật sự.
+- Đổi cách chấm điểm liên quan giữa chủ đề và bài báo mới từ so chuỗi ký tự sang embedding cosine thật (cột `embedding` hiện khai báo nhưng chưa được điền).
+
+---
+
+## 2026-07-04 — Đổi sang tính phí theo token thực tế + nâng cấp lõi quy trình viết bài tổng quan - Lê Hữu Khoa
+
+### Việc đã làm
+- Đọc tài liệu thiết kế Token-Weighted Billing (`docs/plan/token.html`) — bỏ khái niệm "lượt" (trừ cố định 1 lượt mỗi lần chạy), đổi sang trừ theo **token thực tế tiêu thụ** (quy đổi ra "credit"), gộp cả 3 tính năng (viết bài tổng quan / PDF Agent / phát hiện khoảng trống) vào **1 pool ngân sách chung mỗi tháng**, bỏ hẳn cơ chế mua thêm (top-up).
+- Viết `token_meter.py`: bộ đếm token theo từng yêu cầu, dùng `contextvars.ContextVar` để mọi tác vụ con (các node LangGraph chạy song song) đều cộng dồn được vào cùng một chỗ mà không cần truyền tay biến đếm qua hàng chục hàm.
+- Bắt token thật ở 2 điểm: `chat_completion()` (đường phát hiện khoảng trống) đọc trực tiếp từ phản hồi API; `get_llm()` gắn thêm một callback (`TokenMeterCallback`) bắt lúc mô hình trả lời xong (đường viết bài tổng quan / PDF Agent).
+- Viết `pricing.py`: giá tiền lấy trực tiếp từ nhà cung cấp (không copy lại từ tài liệu thiết kế cũ vì tài liệu ghi cao hơn giá thật 23-30%), quy đổi ra ngân sách credit mỗi gói (Free 50 / Plus 100 / Unlimited soft-cap 1500 — làm tròn theo gợi ý trong tài liệu thiết kế).
+- Sửa lại schema cơ sở dữ liệu: gộp 3 cột hạn mức + 3 cột mua thêm cũ thành 1 cột số dư credit chung; xoá toàn bộ route/giao diện liên quan tới mua thêm.
+- Nhân dịp sửa billing, nâng cấp luôn lõi quy trình tìm-viết-kiểm tra (nằm cùng đợt thay đổi): bỏ hẳn nguồn arXiv và giới hạn "số lần gọi tìm kiếm tối đa"; thêm bước lọc độ liên quan (kết hợp BM25 + NIM, giữ top 300 / sàn 20 bài) trước khi phân cụm; đổi cách phân cụm từ MMR + lên dàn ý sang k-means + đo độ tốt cụm (silhouette); trích dẫn xuyên suốt theo dạng `[[PAPER_ID]]`; xoá các phần không dùng nữa (snowball, outline cũ, mmr, hybrid_search, search_cache).
+- Cập nhật trang Quản trị (usage-management) và trang thử nghiệm viết bài tổng quan để hiển thị đúng theo mô hình credit mới thay vì mô hình lượt cũ.
+
+### Bug / fix gặp phải
+- **Giá trong tài liệu thiết kế nội bộ ghi cao hơn giá thật của nhà cung cấp 23-30%** — đã tra lại giá trực tiếp từ nhà cung cấp (OpenRouter) và dùng số đã xác minh thay vì số ghi sẵn trong tài liệu cũ.
+
+### Quyết định kỹ thuật
+- **Giá tiền viết cứng trong `pricing.py`, không đọc từ biến môi trường** — vì giá gói thuê bao (VND) không nên trôi theo tỷ giá USD/VND hằng ngày; chỉnh tay theo chu kỳ hoặc khi tỷ giá lệch quá 10%.
+- **Không huỷ kết quả đã chạy nếu token thực tế vượt mức đã tạm giữ trước** — cho phép số dư âm tạm thời, chỉ chặn lượt kế tiếp cho tới khi hết âm; tránh mất công người dùng vì ước tính trước luôn có sai số.
+- **Nâng gói giữa kỳ thì reset thẳng về ngân sách gói mới, không cộng dồn phần dư gói cũ** — vì đã bỏ cơ chế mua thêm nên không còn chỗ chứa phần dư.
+
+### Tiếp theo
+- Xác nhận từ dashboard billing thật của NVIDIA NIM xem đang tính tiền theo token hay đang chạy trên credit miễn phí.
+- Đo thực nghiệm số credit tiêu tốn thật cho PDF Agent (hiện mới ước theo tỷ lệ, chưa có breakdown token gốc).
+
+---
+
+## 2026-07-04 — Sửa lỗi phiên cũ không biến mất khi đổi tài khoản - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Dọn dữ liệu theo tài khoản: khi đăng xuất thì xoá sạch phiên/thông báo/chủ đề trong bộ nhớ tạm; tự tải lại đúng dữ liệu khi đăng nhập tài khoản khác.
+- Thêm định dạng mã tự động bằng Prettier cho frontend.
+
+### Bug / fix gặp phải
+- **Phiên tài khoản cũ vẫn hiển thị sau khi đổi tài khoản** — kho dữ liệu ở client giữ nguyên trong bộ nhớ, chỉ mất khi tải lại trang — sửa bằng cách reset kho khi đăng xuất và tải lại theo id người dùng khi đổi tài khoản.
+
+### Quyết định kỹ thuật
+- **Dùng mốc "id người dùng đã tải" lưu trong kho** thay vì chỉ phụ thuộc hiệu ứng React — vì khung layout được mount lại mỗi lần chuyển trang, nếu chỉ dựa hiệu ứng sẽ vô tình xoá phiên đang thao tác.
+
+---
+
+## 2026-07-02 → 07-03 — Đổi nguồn dữ liệu: bỏ arXiv, thêm OpenAlex - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Thêm nguồn OpenAlex chạy song song Semantic Scholar (không chặn nếu lỗi), gộp trùng theo DOI/tiêu đề.
+- Gỡ hoàn toàn arXiv khỏi phần tìm bài của gap; giữ nguyên tiện ích arXiv dùng chung cho nơi khác.
+- Cho phép bài chỉ có trên OpenAlex vẫn được trích xuất bằng phần tóm tắt sẵn (không gọi Semantic Scholar).
+
+### Quyết định kỹ thuật
+- **Viết client OpenAlex riêng cho module gap** thay vì sửa thư viện dùng chung — giữ nguyên tắc tách biệt module, không đụng phần dùng chung.
+
+---
+
+## 2026-07-01 → 07-02 — Phase 5: đa dạng hoá gap + chống ảo giác - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Chọn top gap đa dạng: dùng mô hình ngôn ngữ gom các gap cùng một hướng nghiên cứu rồi lấy đại diện tốt nhất (thay cách so embedding vì đo thực tế không tách được các gap "cùng khuôn").
+- Đánh giá độ phù hợp với ý định người dùng theo ngữ nghĩa, gộp chung vào một lượt gọi mô hình.
+- Thêm lớp tự nhất quán: chấm mỗi gap top nhiều lần, gap nào không ổn định thì gắn cờ "độ tin thấp".
+- Thêm lớp phản biện cho top-3: một "người phản biện" cố bác bỏ gap; chỉ loại gap đã được giải quyết rõ ràng.
+- Thêm lấy toàn văn mở qua Unpaywall khi bản PDF gốc bị chặn.
+
+### Bug / fix gặp phải
+- **Đánh số trích dẫn trùng/sai thứ tự giữa các thẻ** — cùng một đối tượng bài báo bị dùng chung giữa nhiều gap nên số bị ghi đè — sửa bằng cách gán số trên bản sao riêng của từng thẻ.
+
+---
+
+## 2026-06-28 → 06-30 — Chỉnh giao diện thẻ gap + dọn CI - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Loạt chỉnh thẻ gap: tách tiêu đề, đổi font, đổi "SOURCE PAPERS" → "References" đánh số kiểu APA, câu gap dùng số trích dẫn thay id thô, cho cuộn khung tiến trình, chặn truy vấn lạc đề/prompt injection, ghim tiêu đề khi cuộn, thêm link bấm được cho trích dẫn.
+- Dọn cho CI xanh: sửa lint, encoding, một số test.
+
+### Bug / fix gặp phải
+- **Câu gap in id nội bộ thô thay vì tên bài** — do prompt yêu cầu "trích dẫn bằng id" — sửa prompt + thay id bằng số [n] khớp phần References.
+
+---
+
+## 2026-06-26 → 06-28 — Lịch sử phiên + sửa chạy server trên Windows - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Thêm lưu lịch sử phiên chat và theo dõi chủ đề (bản đầu); củng cố giữ liền mạch phiên khi tải lại.
+- Sửa để chạy được `python -m uvicorn` trên Windows.
+
+### Quyết định kỹ thuật
+- **Đặt chính sách event loop cho Windows qua một lớp đệm uvicorn** — tránh lỗi loop mặc định của uvicorn trên Windows.
+
+---
+
 ## 2026-06-26 — Sửa lỗi: trả lời sai ngôn ngữ sau khi gộp code - Lê Hữu Khoa
 
 ### Việc đã làm
@@ -54,6 +179,16 @@
 
 ---
 
+## 2026-06-22 → 06-23 — Nâng chất lượng gap (Phase 3-4) - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Đưa phần tường thuật vào ngay trong thẻ gap.
+- Chấm điểm chất lượng 4 trục độc lập; tách nguồn "grounding" khỏi số lượng bài.
+- Thêm nguồn đa dạng, gộp trùng theo tiêu đề mờ (có chặn gộp nhầm phiên bản), giới hạn số paper.
+- Chuyển toàn bộ đầu ra sang tiếng Anh; thêm điểm "độ tin theo ý định".
+
+---
+
 ## 2026-06-21 — Thêm bước duyệt kế hoạch tìm kiếm + tìm đa nguồn + Sơ đồ tri thức - Lê Hữu Khoa
 
 ### Việc đã làm
@@ -82,6 +217,18 @@
 ### Tiếp theo
 - Bắt đầu làm tính năng PDF Agent — đọc kỹ tài liệu thiết kế trước, vì đây là tính năng hoàn toàn độc lập, có entry point riêng, không nối sau phần viết bài tổng quan.
 - Đo số lượng bài báo thật sự xuất hiện trong sơ đồ sau khi chạy với dữ liệu thật — xác nhận có đúng khoảng 60-150 bài như ước tính không.
+
+---
+
+## 2026-06-17 → 06-21 — Xây pipeline Gap Detection (Phase 1-2) - Nguyễn Phan Duy Bảo
+
+### Việc đã làm
+- Dựng module phát hiện khoảng trống nghiên cứu: luồng cold-start (phân tích truy vấn → cổng liên quan → cổng mạch lạc → tìm/snowball/xếp hạng) và đồ thị 7 bước (trích xuất → 3 bộ phát hiện chủ đề/phương pháp/mâu thuẫn → xác minh → dò "đã bị lấp chưa" → tổng hợp).
+- Thêm luồng SSE, ma trận co-occurrence cho gap phương pháp, xác minh atomic-NLI, embedding HyDE + SPECTER2/NIM.
+- Thêm ô nhập chủ đề (ColdStartInput) ở giao diện.
+
+### Quyết định kỹ thuật
+- **Ưu tiên độ chính xác hơn độ phủ; chống ảo giác là bắt buộc** — mọi gap phải truy được về bài báo thật.
 
 ---
 

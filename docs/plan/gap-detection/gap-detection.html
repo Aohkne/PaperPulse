@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>PaperPulse — Gap Detection (Painpoint · Flow · Detail · So sánh)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --text:#e6e8eb; --muted:#9aa3af;
+    --accent:#5cc8ff; --accent2:#7ee787; --warn:#ffb454; --danger:#ff7b72;
+    --border:#2a2f3a; --code-bg:#0b0d11;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 100px}
+  h1{font-size:28px;margin-bottom:4px}
+  h2{font-size:21px;margin-top:48px;border-bottom:1px solid var(--border);padding-bottom:10px;color:var(--accent)}
+  h3{font-size:17px;margin-top:28px;color:var(--accent2)}
+  h4{font-size:15px;margin-top:20px;color:var(--text)}
+  p{color:var(--text)}
+  .subtitle{color:var(--muted);margin-top:0;margin-bottom:28px;font-size:14px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:8px}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+  .badge.tech{background:rgba(92,200,255,.15);color:var(--accent)}
+  .badge.algo{background:rgba(126,231,135,.15);color:var(--accent2)}
+  .badge.problem{background:rgba(255,180,84,.15);color:var(--warn)}
+  .badge.ref{background:rgba(187,134,252,.15);color:#bb86fc}
+  .badge.cost{background:rgba(255,123,114,.12);color:var(--danger)}
+  code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:13px;color:#ffd479}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.55}
+  pre code{background:none;padding:0;color:#d8dee9}
+  .file-ref{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--accent);font-size:13px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel);color:var(--muted);font-weight:600}
+  tr:nth-child(even){background:rgba(255,255,255,.02)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:16px 0}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 24px;margin:24px 0}
+  .toc ol{margin:0;padding-left:20px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  ul.checklist{list-style:none;padding-left:0}
+  ul.checklist li{padding:6px 0 6px 28px;position:relative}
+  ul.checklist li::before{content:"☐";position:absolute;left:0;color:var(--muted)}
+  .note{border-left:3px solid var(--accent);padding:8px 14px;background:rgba(92,200,255,.06);border-radius:0 6px 6px 0;margin:14px 0;font-size:14px}
+  .warn-box{border-left:3px solid var(--warn);padding:8px 14px;background:rgba(255,180,84,.07);border-radius:0 6px 6px 0;margin:14px 0;font-size:14px}
+  .arch{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:18px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre;overflow-x:auto;color:#d8dee9}
+  hr{border:none;border-top:1px solid var(--border);margin:36px 0}
+  footer{color:var(--muted);font-size:12px;margin-top:60px;border-top:1px solid var(--border);padding-top:16px}
+  footer a{color:var(--accent);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .ref-list{font-size:13px;color:var(--muted);padding-left:20px}
+  .ref-list li{margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PaperPulse — Gap Detection</h1>
+  <p class="subtitle">Research Gap Detection Agent · Cold-start Stage A → D · LangGraph 7-node linear pipeline · FastAPI SSE · Semantic Scholar + OpenAlex + Unpaywall</p>
+  <div class="meta">
+    <span>📅 Nguồn: <code>docs/architecture/research-gaps-architecture.md</code> · code hiện tại (<code>backend/agent/gap_detection/</code>)</span>
+    <span>🎯 Mục tiêu: tự động phát hiện khoảng trống nghiên cứu (topical / methodological / contradiction) từ 1 corpus paper — có grounding, có self-check, không bịa gap</span>
+  </div>
+
+  <div class="toc">
+    <strong>Mục lục</strong>
+    <ol>
+      <li><a href="#painpoint">Painpoint</a></li>
+      <li><a href="#flow">Flow (step by step) — diagram</a></li>
+      <li><a href="#detail">Detail Step — công nghệ, thuật toán, vấn đề giải quyết</a></li>
+      <li><a href="#compare">So sánh với các kỹ thuật hiện có</a></li>
+      <li><a href="#test">Phương pháp test, đánh giá so sánh</a></li>
+      <li><a href="#eval">Bảng đánh giá / đo lường kết quả</a></li>
+      <li><a href="#api">API, SSE schema &amp; Guardrails</a></li>
+      <li><a href="#risk">Rủi ro &amp; Giải pháp</a></li>
+    </ol>
+  </div>
+
+  <hr>
+
+  <h2 id="painpoint">1. Painpoint</h2>
+
+  <div class="card">
+    <strong>Painpoint trung tâm:</strong>
+    <p>Đọc rời rạc từng bài báo không giúp nhà nghiên cứu tự nhận ra <em>khoảng trống nghiên cứu</em> — việc này đòi hỏi so sánh chéo hàng chục paper cùng lúc (topic nào chưa ai làm, method nào chưa thử trên domain nào, hai paper nào mâu thuẫn nhau). Giao thẳng việc này cho LLM tự do trả lời cũng rủi ro: LLM có thể <em>bịa gap</em> không có grounding thật trong corpus, hoặc đề xuất một "gap" mà thực ra literature gần đây đã giải quyết (<em>false gap</em>).</p>
+  </div>
+
+  <table>
+    <tr><th>#</th><th>Painpoint cụ thể</th><th>Hệ quả nếu không xử lý</th><th>Nguồn/khảo sát chứng minh</th></tr>
+    <tr>
+      <td>1</td>
+      <td>Đọc rời rạc từng paper không tự động lộ ra khoảng trống nghiên cứu chung của cả corpus</td>
+      <td>Nhà nghiên cứu tốn hàng giờ tự đối chiếu thủ công topic/method/claim giữa các bài để tìm ra "chưa ai làm gì"</td>
+      <td>Quan sát hành vi: Google Scholar "related work" chỉ liệt kê bài liên quan, không tổng hợp gap</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>LLM được hỏi tự do "tìm research gap" dễ bịa gap không grounding vào corpus thật</td>
+      <td>Gap trông hợp lý nhưng không cite được paper nào cụ thể — không dùng được cho manuscript vì không kiểm chứng lại được</td>
+      <td>Quan sát hành vi: prompt trực tiếp LLM "find research gaps" không kèm corpus + verify step thường sinh statement chung chung, không neo vào evidence cụ thể</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Gap được đề xuất thực ra đã có paper gần đây giải quyết (false gap)</td>
+      <td>Nhà nghiên cứu đề xuất hướng nghiên cứu "mới" nhưng thực ra trùng lặp — mất thời gian, có thể bị reviewer chỉ ra là thiếu literature review</td>
+      <td>Thiết kế nội bộ: <code>counter_search_node</code> + <code>false_gap.py</code> tồn tại chính vì rủi ro này được nhận diện trước</td>
+    </tr>
+  </table>
+
+  <h3>Non-goal</h3>
+  <p>Module này <strong>không</strong> viết văn xuôi survey/literature-review đầy đủ như <code>research-agent</code> (không có Writer Agent theo cluster) và <strong>không</strong> export LaTeX/<code>.bib</code> (không có Step tương đương Step ⑦ của research-agent). Output là danh sách <code>GapItem</code> có cấu trúc (statement + supporting papers + quality score) để FE render trực tiếp thành card, không phải một bài luận hoàn chỉnh.</p>
+
+  <hr>
+
+  <h2 id="flow">2. Flow (step by step) — diagram</h2>
+
+  <h3>(a) Cold-start — Stage A → D + fallback</h3>
+  <div class="arch">topic (VN/EN, raw string)
+      │
+      ▼
+[Stage A]  Query Analyzer (1 LLM call)              analyze_query()
+      │    → GapQuery {core_topic, facets, is_research_topic, reject_reason}
+      │    is_research_topic=False → QueryRejectedError (off-topic/injection) → END
+      │    LLM lỗi → fallback: clean_query() (rule-based, không LLM)
+      ▼
+[Stage B+C]  Relevance Gate (multi-facet recall + multi-layer filter)   run_relevance_gate()
+      │    lỗi/rỗng → cold_start_papers=None → rơi xuống fallback search bên dưới
+      ▼
+[Stage D]  Coherence Gate                                              check_coherence()
+      │    phát hiện corpus "grab-bag" (rời rạc) → cảnh báo (log warning, KHÔNG chặn)
+      │    sinh density_signal {trusted_cells, untrusted_cells} + coverage
+      │    (density_signal/coverage được truyền tiếp cho method_detector qua state)
+      ▼
+  ┌── nếu Stage B+C+D có papers ──┐   ┌── nếu KHÔNG (fallback) ──────────────┐
+  │ dùng thẳng cold_start_papers  │   │ Step 2: retrieval.search(clean, 100) │
+  │ (bỏ qua search/snowball/rank) │   │ Step 2b: retry raw topic nếu <3 kết  │
+  └────────────┬───────────────────┘   │ Step 3: retrieval.snowball(depth=1)  │
+               │                       │ Step 4: retrieval.rank(top_k)         │
+               │                       └──────────────┬────────────────────────┘
+               ▼                                      ▼
+        [Step 5] Gate: len(top) < MIN_PAPERS_COLD_START (mặc định 5)?
+               │ có  → GapReport rỗng, narrative "insufficient literature", KHÔNG gọi run_gap_detection
+               │ không
+               ▼
+        [Step 6] map Paper → PaperRef, fire-and-forget build_background_corpus()
+               │
+               ▼
+        run_gap_detection(session_papers, gap_query, density_signal, coverage)
+               │  (xem diagram (b) bên dưới)
+               ▼
+           GapReport</div>
+
+  <h3>(b) LangGraph — 7-node tuyến tính (không interrupt)</h3>
+  <div class="arch">┌───────────────────────────────────────────────────────────────┐
+│   GAP DETECTION SUBGRAPH  (StateGraph, GapDetectionState)      │
+│   Không có interrupt() — pipeline chạy hết 1 lượt, không       │
+│   dừng chờ user duyệt giữa chừng (khác research-agent 3 điểm) │
+└───────────────────────┬─────────────────────────────────────────┘
+                        ▼
+                 [extractor]              Phase 1 — LLM trích topics/keywords/
+                        │                  methodology/limitation_statements/
+                        │                  key_claims mỗi paper
+                        ▼
+              [topical_detector]          Phase 2.1 — topic-coverage map →
+                        │                  research area liên quan nhưng
+                        │                  chưa nghiên cứu (gap_type=TOPICAL)
+                        ▼
+              [method_detector]           Phase 2.2 — method×domain matrix +
+                        │                  co-occurrence filter (threshold=2)
+                        │                  (gap_type=METHODOLOGICAL)
+                        ▼
+           [contradiction_detector]       Phase 2.3 — cross-compare key_claims
+                        │                  tìm cặp mâu thuẫn (gap_type=CONTRADICTION)
+                        ▼
+                  [verifier]              Phase 3.1 — origin-NLI 3-chiều:
+                        │                  EXPLICIT / LIMITATION / INFERRED
+                        ▼
+               [counter_search]           Phase 3.2 — search S2 xem gap đã bị
+                        │                  giải quyết chưa (false gap check)
+                        ▼
+                [synthesizer]             Phase 4 — quality scoring, diversity
+                        │                  select, self-consistency, counter-
+                        │                  critique, build GapReport cuối
+                        ▼
+                       END</div>
+
+  <p class="note"><strong>Phase 0 (PaperCheck) — planned, chưa wire:</strong> comment trong <code>graph.py</code> ghi rõ Phase 0 dự kiến chèn trước <code>extractor</code> (TIP-G07) nhưng hiện <strong>chưa</strong> có trong <code>_NODE_SEQUENCE</code> — số node thực tế đang chạy là <strong>7</strong>, không phải 8. Xem thêm mục #risk.</p>
+
+  <hr>
+
+  <h2 id="detail">3. Detail Step — công nghệ/API, thuật toán, vấn đề giải quyết</h2>
+
+  <h3>Stage A — Query Analyzer</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>1 LLM call qua <code>backend.shared.services.llm_client.chat_completion</code></td></tr>
+    <tr><th>Thuật toán</th><td>Chuyển raw topic (VN/EN) thành <code>GapQuery</code> có cấu trúc: <code>core_topic</code>, <code>facets</code>, <code>year_range</code>, <code>field_of_study</code>, <code>recency_bias</code>, <code>seminal_bias</code>, <code>user_intent</code>, và guardrail <code>is_research_topic</code>/<code>reject_reason</code>. Nếu <code>is_research_topic=False</code> (off-topic, prompt injection, câu hỏi vô nghĩa) → <code>QueryRejectedError</code>, dừng pipeline ngay, không tốn thêm API call nào</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Chặn sớm query rác/injection trước khi tốn search+LLM cho toàn bộ pipeline phía sau</td></tr>
+    <tr><th>Guardrail</th><td>Bật/tắt qua <code>QUERY_ANALYZER_ENABLED</code> (mặc định bật); lỗi LLM → fallback <code>clean_query()</code> rule-based (không LLM, strip meta-words VN/EN)</td></tr>
+  </table>
+  <pre><code># Fallback khi Stage A lỗi (không phải reject — là exception hạ tầng)
+gap_query = GapQuery(core_topic=clean_query(topic), facets=[clean_query(topic)])</code></pre>
+
+  <h3>Stage B+C — Relevance Gate</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><code>nodes/relevance_gate.py::run_relevance_gate(gap_query)</code></td></tr>
+    <tr><th>Thuật toán</th><td>Multi-facet recall (search theo từng <code>facets</code> của <code>GapQuery</code>, không chỉ 1 query duy nhất) + multi-layer filter để loại paper lạc chủ đề trước khi vào Stage D</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>1 query đơn lẻ (như fallback search) dễ bỏ sót góc nhìn của corpus; multi-facet giúp corpus bám sát nhiều khía cạnh của topic hơn</td></tr>
+    <tr><th>Guardrail</th><td>Lỗi/exception bất kỳ → <code>cold_start_papers=None</code>, rơi xuống nhánh fallback search/snowball/rank truyền thống (không crash pipeline)</td></tr>
+  </table>
+
+  <h3>Stage D — Coherence Gate</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><code>nodes/coherence_check.py::check_coherence(papers)</code></td></tr>
+    <tr><th>Thuật toán</th><td>Phát hiện corpus "grab-bag" (rời rạc, không cùng chủ đề) — sinh <code>density_signal</code> gồm <code>trusted_cells</code>/<code>untrusted_cells</code> (ngưỡng <code>DENSITY_MIN_PAPERS=3</code>, <code>settings.py</code>) và <code>coverage</code> (tỷ lệ bao phủ). Cả hai được seed vào <code>GapDetectionState</code> để <code>method_detector</code> biết ô nào đáng tin khi tính co-occurrence</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Corpus rời rạc dễ khiến method_detector suy diễn "thiếu method X trên domain Y" từ những ô dữ liệu quá thưa để kết luận chắc chắn</td></tr>
+    <tr><th>Guardrail</th><td>Chỉ <strong>cảnh báo</strong> (log warning), <strong>không chặn</strong> pipeline — corpus vẫn tiếp tục chạy với density_signal đính kèm để downstream tự cân nhắc</td></tr>
+  </table>
+
+  <h3>Node 1 — Extractor</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>LLM (<code>chat_completion</code>) + Semantic Scholar detail API cho abstract thật</td></tr>
+    <tr><th>Thuật toán</th><td>Với mỗi paper: trích <code>topics</code>, <code>keywords</code>, <code>methodology</code>, <code>dataset</code>, <code>metrics</code>, <code>key_claims</code>, <code>limitation_statements</code>. Ưu tiên fetch abstract thật từ S2 detail API (trừ paper arXiv-only/OpenAlex-only — bỏ qua fetch S2 detail vì không có S2 record) — abstract raw này độc lập với field LLM-extract, dùng làm nguồn cho Verifier Case C sau này (không circular)</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Cần dữ liệu có cấu trúc (không phải chỉ abstract thô) để 3 detector so sánh chéo được; cần giữ 1 bản abstract "sạch" tách biệt khỏi phần LLM tự diễn giải để verify không tự xác nhận chính nó</td></tr>
+    <tr><th>Guardrail</th><td><code>EXTRACTOR_CONCURRENCY=3</code> (S2 + LLM concurrent requests mỗi batch)</td></tr>
+  </table>
+
+  <h3>Node 2 — Topical Detector</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>LLM, plain-JSON-prompt + parse + 1 lần retry</td></tr>
+    <tr><th>Thuật toán</th><td>Dựng topic-coverage map từ toàn bộ paper đã extract, hỏi LLM tìm research area liên quan tới các topic đã bao phủ nhưng <strong>chưa được nghiên cứu</strong> trong chính corpus này → mỗi gap: <code>gap_type=TOPICAL</code>, <code>origin=INFERRED</code></td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Bản thân corpus không tự nói "vùng nào tôi chưa che phủ" — cần LLM đối chiếu bản đồ topic để lộ ra góc trống</td></tr>
+  </table>
+
+  <h3>Node 3 — Method Detector (co-occurrence)</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>LLM + <code>co_occurrence.py</code> (pure Python, không I/O)</td></tr>
+    <tr><th>Thuật toán</th><td>Dựng ma trận method×domain: <code>methodology</code> (tách token theo dấu phẩy/gạch chéo) × <code>topics</code>. Đếm số paper phủ mỗi cặp (method, domain); cặp có <code>count &lt; CO_OCCURRENCE_THRESHOLD</code> (mặc định <strong>2</strong>) được đánh dấu "underexplored" trước khi gửi LLM — LLM tập trung vào cặp thật sự thiếu thay vì tự bịa cho cặp đã phủ đầy đủ. Đồng thời mine trực tiếp <code>limitation_statements</code> ("we did not try method X") → <code>origin=LIMITATION</code> nếu bắt nguồn từ limitation câu chữ, ngược lại <code>origin=INFERRED</code></td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Không lọc trước, LLM dễ "phát hiện" gap cho cặp method-domain thực ra đã được nghiên cứu kỹ trong corpus (false positive)</td></tr>
+    <tr><th>Guardrail</th><td><code>CO_OCCURRENCE_THRESHOLD=2</code> (env <code>CO_OCCURRENCE_THRESHOLD</code>)</td></tr>
+  </table>
+
+  <h3>Node 4 — Contradiction Detector</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>LLM, plain-JSON-prompt + parse + 1 lần retry</td></tr>
+    <tr><th>Thuật toán</th><td>So sánh chéo <code>key_claims</code> của mọi cặp paper, tìm claim mâu thuẫn (paper A khẳng định X, paper B khẳng định ¬X trên cùng câu hỏi). Mỗi gap sinh thêm <code>context_explanation</code> — lý do khả dĩ đằng sau bất đồng (dataset khác, năm khác, scope khác…) → <code>gap_type=CONTRADICTION</code>, <code>status=NEEDS_RESOLUTION</code>, cả 2 paper nằm trong <code>supporting_papers</code></td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Người đọc rời rạc từng bài khó nhận ra 2 paper cách nhau vài năm đang phủ nhận nhau</td></tr>
+  </table>
+
+  <h3>Node 5 — Verifier (origin-NLI 3-chiều + atomic decompose)</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td><code>backend.shared.services.citation_verifier.verify_claims</code> (NLI-style claim/evidence classification) + LLM cho decompose</td></tr>
+    <tr><th>Thuật toán</th><td>
+      3 nhánh theo <code>origin</code>:<br>
+      • <strong>EXPLICIT</strong> — tác giả nêu gap nguyên văn → bypass NLI, <code>confidence=1.0</code> luôn.<br>
+      • <strong>LIMITATION</strong> — bắt buộc grounding: statement bị <strong>decompose thành atomic sub-claim</strong> (LLM, chỉ áp dụng khi statement ≥50 ký tự) → verify từng cặp (sub-claim, supporting paper) → lấy status <em>khắt khe nhất</em> (unsupported &gt; partial &gt; uncertain &gt; supported). 4 outcome: <code>confirmed</code> (0.85) / <code>partial</code> (0.50) / <code>error</code> hạ tầng (0.60, giữ gap) / <code>not_confirmed</code> → <strong>bỏ gap</strong> (hallucinated limitation).<br>
+      • <strong>INFERRED</strong> — không bắt buộc grounding từng câu, confidence tính từ entailment strength (atomic-NLI) + bonus nhỏ theo số supporting paper, trần <code>0.85</code> (không bao giờ chắc bằng EXPLICIT)
+    </td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Một gap "LIMITATION" mà không paper nào thật sự xác nhận là gap bịa (hallucinated) — cần grounding bắt buộc; nhưng lỗi hạ tầng (timeout NLI) không được phép xoá gap thật</td></tr>
+  </table>
+
+  <h3>Node 6 — Counter-search (false-gap check)</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>Semantic Scholar search (qua <code>retrieval.search</code>, tái dùng S2+OpenAlex) + LLM đánh giá</td></tr>
+    <tr><th>Thuật toán</th><td>Với mỗi verified gap: LLM sinh 1 câu S2 search query ngắn từ statement → search (limit 5) → LLM đánh giá xem có paper nào trong top-5 <strong>đã giải quyết</strong> gap này chưa. Nếu có → <code>status=PARTIALLY_FILLED</code>, <code>confidence *= 0.5</code>, đính kèm paper "đã fill" vào <code>supporting_papers</code></td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>Gap được phát hiện từ corpus tĩnh có thể đã bị literature gần đây giải quyết — counter-search là bước kiểm tra chéo với "thế giới bên ngoài" corpus ban đầu</td></tr>
+    <tr><th>Guardrail</th><td>Mọi lỗi search/LLM → giữ nguyên gap, không crash pipeline; <code>DEFAULT_SEARCH_LIMIT=5</code></td></tr>
+  </table>
+
+  <h3>Origin taxonomy — EXPLICIT / LIMITATION / INFERRED</h3>
+  <p>Quyết định cách gap được verify (xem Node 5): <strong>EXPLICIT</strong> = tác giả nêu verbatim (không cần verify grounding); <strong>LIMITATION</strong> = trích từ câu limitation của chính tác giả — <em>bắt buộc</em> cite được nguồn limitation, nếu không sẽ bị coi là hallucination và loại bỏ; <strong>INFERRED</strong> = suy ra từ so sánh chéo nhiều paper (topical/method/contradiction) — cite các paper bằng chứng, không cần grounding từng câu như LIMITATION.</p>
+
+  <h3>Quality scoring — 4 trục</h3>
+  <table>
+    <tr><th>Công thức</th><td><code>quality = 0.3333·grounding + 0.2778·novelty_normalized + 0.2222·actionable + 0.1667·corpus_evidence</code> (<span class="file-ref">quality_scorer.py</span>)</td></tr>
+    <tr><th>Thuật toán</th><td>
+      • <strong>grounding</strong> = <code>gap.confidence</code> (0–1, clamp).<br>
+      • <strong>novelty_normalized</strong> = <code>min(novelty_score/2.0, 1.0)</code>; <code>None</code> → 0.5 (trung tính).<br>
+      • <strong>actionable</strong> = 1.0 nếu có <code>suggested_method</code>; 0.5 nếu chỉ có <code>falsifiability_condition</code>; else 0.0.<br>
+      • <strong>corpus_evidence</strong> = <code>min(len(supporting_papers)/5.0, 1.0)</code>.<br>
+      Mọi gap đều có <code>quality_score</code> — <strong>không filter cứng</strong>, chỉ cắt <code>top_k</code> (mặc định <strong>7</strong>, <code>TOP_K_GAPS</code>)
+    </td></tr>
+  </table>
+
+  <h3>Phase 5 — Diversity, Self-consistency, Counter-critique</h3>
+  <div class="note">Điểm khác biệt lớn nhất so với <code>research-agent</code>: 3 lớp kiểm định bổ sung chạy trong <code>synthesizer_node</code> <em>sau khi</em> đã có quality-ranked candidate list, trước khi đóng gói <code>GapReport</code> cuối.</div>
+  <table>
+    <tr><th>Bước</th><th>File</th><th>Thuật toán</th><th>Guardrail</th></tr>
+    <tr>
+      <td><strong>Diversity-select</strong></td>
+      <td><span class="file-ref">gap_diversity.py</span></td>
+      <td>LLM group các gap top-N (pool tối đa <code>GAP_DIVERSITY_POOL=20</code>) theo cùng "research direction"; đồng thời phán <code>intent_aligned</code> (gap có phục vụ <code>user_intent</code>/facets hay không, ngữ nghĩa — không chỉ khớp từ khoá). Mỗi cluster chỉ giữ 1 đại diện (điểm cao nhất theo quality×intent) khi chọn <code>top_k</code></td>
+      <td><code>GAP_DIVERSITY_ENABLED=true</code>, temperature <code>0.2</code> (ổn định), <code>INTENT_OFF_PENALTY=0.7</code></td>
+    </tr>
+    <tr>
+      <td><strong>Self-consistency</strong></td>
+      <td><span class="file-ref">gap_self_consistency.py</span></td>
+      <td>Với top-N gap cuối: <code>k=3</code> lần LLM judgment độc lập ("gap này có thật sự grounded không?"), vote ≥ <code>min_votes=2</code> → <code>stable</code>; nếu không đủ vote → <code>low_confidence=True</code>, <code>quality_score</code>/<code>confidence</code> nhân <code>SELF_CONSISTENCY_PENALTY=0.3</code>. <strong>Fail-open</strong>: lỗi LLM/parse → toàn bộ coi là <code>stable=True</code> (không hạ điểm oan vì lỗi hạ tầng)</td>
+      <td><code>SELF_CONSISTENCY_ENABLED=true</code>, <code>SELF_CONSISTENCY_K=3</code>, <code>SELF_CONSISTENCY_MIN_VOTES=2</code></td>
+    </tr>
+    <tr>
+      <td><strong>Counter-critique</strong></td>
+      <td><span class="file-ref">gap_critique.py</span></td>
+      <td>Chỉ áp cho <strong>top-3</strong> gap cuối cùng (cost control): 1 LLM "phản biện khắt khe" chấm <code>level</code> (none/moderate/strong) + <code>already_solved</code>. <code>already_solved=True</code> → loại thẳng; <code>level∈{moderate,strong}</code> → <code>low_confidence=True</code> + nhân <code>COUNTER_CRITIQUE_MODERATE_PENALTY=0.6</code>. Backfill (bù lại gap bị loại từ ứng viên phía sau) <strong>tắt mặc định</strong> — thiết kế có chủ đích: thà hiện ít gap hơn là hiện gap kém tin cậy</td>
+      <td><code>COUNTER_CRITIQUE_ENABLED=true</code>, <code>COUNTER_CRITIQUE_BACKFILL=false</code></td>
+    </tr>
+  </table>
+
+  <h3>Nguồn dữ liệu &amp; Embedding</h3>
+  <table>
+    <tr><th>Công nghệ/API</th><td>Semantic Scholar Graph API (nguồn chính, qua <code>backend.shared.services.semantic_scholar</code>) + <strong>OpenAlex</strong> REST (<span class="file-ref">services/openalex.py</span>, bổ sung song song qua <code>asyncio.gather</code>, non-fatal nếu lỗi) — <strong>đã bỏ hoàn toàn arXiv</strong> khỏi retrieval (xác nhận: 0 kết quả khi grep <code>arxiv</code> trong <code>retrieval.py</code>); <strong>Unpaywall</strong> (<span class="file-ref">services/unpaywall.py</span>) tra OA fulltext PDF theo DOI</td></tr>
+    <tr><th>Thuật toán</th><td>Merge/dedup 2 nguồn qua <code>source_resolution.resolve_papers()</code> (ưu tiên DOI → title fuzzy → S2 paperId). Rank hybrid: <strong>SPECTER2</strong> (768-dim, <span class="file-ref">gap_specter_store.py</span>, S2 batch embedding API) dùng cho cosine paper-paper tương lai; <strong>NIM</strong> (4096-dim, <span class="file-ref">gap_nim_store.py</span>, embedding riêng của gap module — không import <code>research_agent.services</code>) dùng để embed abstract + HyDE query vector cho semantic rank. <strong>2 bảng Supabase pgvector tách biệt (gap_specter_embeddings 768d, gap_nim_embeddings 4096d, qua PostgREST/RPC)</strong> (không trộn chiều vector) — BM25 (term overlap + log-citation + recency) trọng số <code>1−SPECTER2_WEIGHT=0.6</code>, semantic trọng số <code>SPECTER2_WEIGHT=0.4</code>; nếu HyDE/NIM lỗi → <code>w_sem=0</code> tự động, giảm cấp về BM25 thuần</td></tr>
+    <tr><th>Vấn đề giải quyết</th><td>1 nguồn duy nhất bỏ sót paper; giữ 2 store riêng tránh lỗi trộn chiều vector (768 vs 4096) giữa 2 mục đích khác nhau (paper-paper cosine vs query-paper semantic rank)</td></tr>
+    <tr><th>Guardrail</th><td><code>OPENALEX_ENABLED=true</code>, <code>OPENALEX_SEARCH_LIMIT=20</code>, <code>UNPAYWALL_ENABLED=true</code>, <code>SPECTER2_WEIGHT=0.4</code></td></tr>
+  </table>
+
+  <hr>
+
+  <h2 id="compare">4. So sánh với các kỹ thuật hiện có</h2>
+
+  <table>
+    <tr><th>Công cụ/Kỹ thuật</th><th>Cách làm</th><th>Điểm yếu</th><th>Gap Detection khác/tốt hơn ở đâu</th></tr>
+    <tr>
+      <td><strong>Google Scholar "related work" thủ công</strong></td>
+      <td>User tự đọc từng bài, tự ghi chú, tự đối chiếu</td>
+      <td>Hoàn toàn thủ công, không có cấu trúc, tốn hàng giờ cho corpus &gt;10 bài</td>
+      <td>3 detector (topical/method/contradiction) tự động dựng bản đồ so sánh chéo toàn corpus</td>
+    </tr>
+    <tr>
+      <td><strong>LLM hỏi tự do "find research gaps"</strong></td>
+      <td>1 prompt duy nhất, không kèm corpus grounding, không verify</td>
+      <td>Dễ bịa gap chung chung không cite được nguồn cụ thể nào</td>
+      <td>Verifier origin-NLI bắt buộc grounding (LIMITATION phải cite được, không thì loại); mọi <code>GapItem</code> đều có <code>supporting_papers</code> thật</td>
+    </tr>
+    <tr>
+      <td><strong>Survey-generation tool khác (kiểu AutoSurvey)</strong></td>
+      <td>Sinh nội dung theo cluster/theme, không có bước tự-kiểm-tra lại kết quả cuối</td>
+      <td>Không có cơ chế phát hiện gap "đã bịa" hay gap "đã được giải quyết"</td>
+      <td>Phase 5: self-consistency (k=3 vote) + counter-critique (top-3, phản biện khắt khe) + counter-search (false-gap check qua S2) — 3 lớp kiểm định độc lập không có ở các tool cùng loại</td>
+    </tr>
+  </table>
+
+  <p class="note">Khác biệt kiến trúc quan trọng: <code>research-agent</code> có <strong>3 điểm <code>⏸ interrupt</code></strong> (human-in-loop duyệt plan/cluster/claim). Gap Detection <strong>không có interrupt nào</strong> (xác nhận: <code>grep -rn "interrupt(" backend/agent/gap_detection/</code> = 0 kết quả) — pipeline chạy tuyến tính 1 lượt từ <code>extractor</code> đến <code>synthesizer</code>, không dừng chờ user giữa chừng.</p>
+
+  <hr>
+
+  <h2 id="test">5. Phương pháp test, đánh giá so sánh</h2>
+
+  <ul class="checklist">
+    <li>E2E test: <code>cold_start(topic)</code> → chạy full flow Stage A→D + 7 node → <code>GapReport</code> hợp lệ, FE-renderable</li>
+    <li>Test Stage A reject: query off-topic/injection → <code>QueryRejectedError</code> đúng <code>reject_reason</code>, không tốn thêm API call phía sau</li>
+    <li>Test verifier 3-outcome: LIMITATION gap grounded đầy đủ (confirmed) / grounded 1 phần (partial) / không grounding được (not_confirmed → bị loại) / lỗi hạ tầng (error → giữ gap, confidence hạ)</li>
+    <li>Test self-consistency fail-open: giả lập LLM lỗi giữa k=3 lần vote → toàn bộ gap vẫn <code>stable=True</code>, không bị hạ điểm oan</li>
+    <li>Test diversity grouping: 2 gap cùng research direction (khác kỹ thuật cụ thể) → gom vào 1 cluster, chỉ 1 đại diện lọt top-k</li>
+    <li>Test OpenAlex fail-safe: OpenAlex timeout/lỗi → pipeline vẫn tiếp tục với kết quả S2-only, không crash</li>
+    <li>Test insufficient-paper gate: corpus &lt; <code>MIN_PAPERS_COLD_START</code> → trả <code>GapReport</code> rỗng kèm narrative tiếng Anh, không gọi <code>run_gap_detection</code></li>
+    <li>Test counter-search: gap đã bị literature gần đây giải quyết → <code>status=PARTIALLY_FILLED</code>, confidence giảm đúng hệ số 0.5</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="eval">6. Bảng đánh giá / đo lường kết quả</h2>
+
+  <table>
+    <tr><th>Mục tiêu</th><th>Metric</th><th>Cách đạt được</th></tr>
+    <tr><td>Corpus coverage sau snowball</td><td>tuỳ topic — top-K sau rank, mặc định <strong>≤20 bài</strong> (<code>MAX_PAPERS_FOR_GAP</code>)</td><td>Search → snowball (depth 1) → hybrid BM25+HyDE rank → cap top-K</td></tr>
+    <tr><td>Quality score distribution</td><td>[0.0, 1.0], 4-trục có trọng số</td><td><code>quality_scorer.py</code>, không filter cứng — chỉ ranking</td></tr>
+    <tr><td>%gap theo origin</td><td>EXPLICIT / LIMITATION / INFERRED — tỷ lệ thay đổi theo corpus</td><td><code>explicit_detector.py</code> pre-annotate trong <code>verifier_node</code> trước khi phân nhánh xử lý</td></tr>
+    <tr><td>Low-confidence rate (top-N cuối)</td><td>tỷ lệ gap bị self-consistency hoặc counter-critique gắn cờ <code>low_confidence</code></td><td>Self-consistency vote &lt; <code>min_votes</code> HOẶC counter-critique <code>level∈{moderate,strong}</code></td></tr>
+  </table>
+
+  <h3>6.1 Chi phí LLM call ước tính/session</h3>
+  <table>
+    <tr><th>Bước</th><th>Số LLM call</th><th>Ghi chú</th></tr>
+    <tr><td>Stage A — Query Analyzer</td><td>1</td><td>Bỏ qua nếu <code>QUERY_ANALYZER_ENABLED=false</code></td></tr>
+    <tr><td>Extractor (Node 1)</td><td>~1/paper</td><td>Batch song song, <code>EXTRACTOR_CONCURRENCY=3</code></td></tr>
+    <tr><td>3 Detector (Node 2-4)</td><td>~1 mỗi detector</td><td>Mỗi detector 1 call phân tích toàn corpus đã extract</td></tr>
+    <tr><td>Verifier (Node 5)</td><td>biến thiên</td><td>+1 decompose/claim ≥50 ký tự, + NLI verify mỗi (sub-claim, paper)</td></tr>
+    <tr><td>Counter-search (Node 6)</td><td>2/gap</td><td>1 sinh query + 1 đánh giá addressed</td></tr>
+    <tr><td>Diversity-select</td><td>1</td><td>Group toàn bộ pool (≤<code>GAP_DIVERSITY_POOL=20</code>) trong 1 call</td></tr>
+    <tr><td>Self-consistency</td><td><code>k=3</code></td><td>Mỗi lần gửi cả batch top-N, không phải per-gap</td></tr>
+    <tr><td>Counter-critique</td><td>1</td><td>Chỉ top-3 gap cuối, 1 call duy nhất</td></tr>
+  </table>
+
+  <hr>
+
+  <h2 id="api">7. API, SSE Schema &amp; Guardrails</h2>
+
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Mô tả</th></tr>
+    <tr><td><code>POST</code></td><td><code>/gap</code></td><td>Cold-start: nhận <code>{topic: str}</code>, chạy toàn bộ pipeline nội bộ (không streaming), trả <code>GapReport</code></td></tr>
+    <tr><td><code>GET</code></td><td><code>/gap/stream</code></td><td>SSE: stream tiến độ từng node + <code>GapReport</code> cuối cùng qua query param <code>topic</code></td></tr>
+  </table>
+
+  <pre><code>type SSEEvent =
+  | { type: "node_start"; node: string; label: string }   // 1 sự kiện / trong 7 node
+  | { type: "done"; report: GapReport }                    // report = GapReport.model_dump()
+  | { type: "error"; message: string }
+
+// Node label hiển thị (streaming.py::_NODE_LABELS):
+// extractor              -> "Extracting paper content..."
+// topical_detector        -> "Detecting topical gaps..."
+// method_detector         -> "Detecting methodological gaps..."
+// contradiction_detector  -> "Checking for contradictions..."
+// verifier                -> "Verifying gaps..."
+// counter_search          -> "Searching for counter-evidence..."
+// synthesizer             -> "Synthesizing results..."</code></pre>
+
+  <pre><code># settings.py — hằng số chính (mặc định, override qua env cùng tên)
+CO_OCCURRENCE_THRESHOLD = 2          # method×domain coverage tối thiểu
+MIN_PAPERS_COLD_START = 5            # sàn corpus để chạy gap detection
+MAX_PAPERS_FOR_GAP = 20              # trần corpus vào graph
+TOP_K_GAPS = 7                       # số gap cuối cùng trả về
+INTENT_OFF_PENALTY = 0.7             # phạt quality_score nếu lệch user_intent
+GAP_DEDUP_JACCARD = 0.6              # ngưỡng overlap supporting_papers để coi là trùng
+DENSITY_MIN_PAPERS = 3               # ngưỡng ô "trusted" trong coherence gate
+
+GAP_DIVERSITY_ENABLED = true
+GAP_DIVERSITY_POOL = 20
+GAP_DIVERSITY_LLM_TEMPERATURE = 0.2
+
+SELF_CONSISTENCY_ENABLED = true
+SELF_CONSISTENCY_K = 3
+SELF_CONSISTENCY_MIN_VOTES = 2
+SELF_CONSISTENCY_PENALTY = 0.3
+
+COUNTER_CRITIQUE_ENABLED = true
+COUNTER_CRITIQUE_MODERATE_PENALTY = 0.6
+COUNTER_CRITIQUE_BACKFILL = false    # tắt mặc định — thiết kế có chủ đích
+
+OPENALEX_ENABLED = true
+OPENALEX_SEARCH_LIMIT = 20
+UNPAYWALL_ENABLED = true
+SPECTER2_WEIGHT = 0.4                # 0.4 semantic (NIM/HyDE) + 0.6 BM25</code></pre>
+
+  <hr>
+
+  <h2 id="risk">8. Rủi ro &amp; Giải pháp</h2>
+  <table>
+    <tr><th>Rủi ro</th><th>Giải pháp</th></tr>
+    <tr>
+      <td><strong>Self-consistency fail-open</strong> — nếu toàn bộ 3 lần LLM vote đều lỗi (network/parse), mọi gap top-N mặc định coi là <code>stable=True</code></td>
+      <td>Đây là đánh đổi có chủ đích (không phạt oan gap thật vì lỗi hạ tầng tạm thời), <strong>không phải bug</strong> — nhưng cần giám sát log <code>gap_self_consistency: confirm_gaps failed</code> để phát hiện nếu LLM downstream lỗi kéo dài, lúc đó cơ chế mất tác dụng kiểm định thật</td>
+    </tr>
+    <tr>
+      <td><strong>Counter-critique chỉ áp top-3</strong> (cost control) — gap hạng 4-7 không được phản biện khắt khe</td>
+      <td>Có chủ đích để giới hạn số LLM call/session; nếu cần mở rộng, tăng phạm vi cần cân đối lại chi phí (xem mục 6.1)</td>
+    </tr>
+    <tr>
+      <td>S2 / OpenAlex / NIM bị throttle (rate limit, 429)</td>
+      <td>S2 qua <code>s2_rate_limiter</code>; OpenAlex non-fatal (lỗi → tiếp tục S2-only); NIM có <code>NIM_RETRY_MAX=3</code> + exponential backoff (<code>NIM_BACKOFF_BASE=2.0</code>) — mọi throttle degrade về kết quả kém phong phú hơn, không crash pipeline</td>
+    </tr>
+    <tr>
+      <td>PaperCheck Phase 0 <strong>chưa wire vào graph</strong> (planned, TIP-G07)</td>
+      <td>Hiện tại graph chạy đúng <strong>7 node</strong>, KHÔNG có bước Phase 0 kiểm tra paper trước <code>extractor</code> — cần theo dõi TIP-G07 để cập nhật tài liệu này khi node được thêm vào <code>_NODE_SEQUENCE</code></td>
+    </tr>
+  </table>
+
+  <h3>Backing research</h3>
+  <ul class="ref-list">
+    <li>Xem <code>docs/architecture/research-gaps-architecture.md</code> cho danh sách backing research đầy đủ và lịch sử thiết kế theo từng TIP.</li>
+  </ul>
+
+  <footer>PaperPulse · Gap Detection · Xem thêm <a href="../research-agent/reseach-agent.html">reseach-agent.html</a>, <a href="../pdf-agent/pdf-agent.html">pdf-agent.html</a> và <a href="../knowledge-graph/knowledge-graph.html">knowledge-graph.html</a> · Nguồn: <code>docs/architecture/research-gaps-architecture.md</code>, code <code>backend/agent/gap_detection/</code></footer>
+</div>
+</body>
+</html>
