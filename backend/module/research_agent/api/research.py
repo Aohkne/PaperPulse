@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import AIMessage, HumanMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from backend.auth.dependencies import get_current_user
 from backend.module.payment.services import billing_db, token_meter
@@ -90,10 +90,13 @@ def _parse_sse(raw_event: str) -> dict[str, Any] | None:
 
 
 def _format_clarify_content(questions: list[str]) -> str:
+    # No hardcoded lead-in here: the questions themselves are already numbered
+    # and self-explanatory, and they're generated in the user's own language
+    # (reply_generator's _LANGUAGE_RULE) — a fixed English prefix would mix
+    # languages in the final message.
     if not questions:
-        return "I need a bit more context."
-    formatted = "\n".join(f"{idx + 1}. {question}" for idx, question in enumerate(questions))
-    return f"I need a bit more context:\n\n{formatted}"
+        return ""
+    return "\n".join(f"{idx + 1}. {question}" for idx, question in enumerate(questions))
 
 
 def _deleted_chat_sse(chat_id: str) -> str:
@@ -191,7 +194,11 @@ async def _node_to_step_event(node_name: str, state_update: dict) -> str:
         content = f"Kept {count} on-topic papers." + (" (few directly relevant)" if low else "")
     elif node_name == "embed":
         embed_stats = state_update.get("embed_stats", {})
-        stat = f"api={embed_stats.get('api_hit', 0)} stored={embed_stats.get('stored', 0)}"
+        stat = (
+            f"api={embed_stats.get('api_hit', 0)} "
+            f"reused={embed_stats.get('reused', 0)} "
+            f"stored={embed_stats.get('stored', 0)}"
+        )
         content = f"Embeddings ready. {stat}."
     elif node_name == "cluster":
         count = len(state_update.get("themes", []))
@@ -418,6 +425,16 @@ class ResearchRequest(BaseModel):
     chat_id: str | None = None
     client_message_id: str | None = None
     messages: list[MessageDict] | None = None
+
+    @field_validator("query")
+    @classmethod
+    def _validate_query(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("query must not be empty")
+        if len(v) > 4000:
+            raise ValueError("query is too long (max 4000 characters)")
+        return v
 
 
 class ResumeRequest(BaseModel):

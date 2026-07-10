@@ -39,9 +39,10 @@ async def plan_review_node(state: ResearchState) -> dict:
     update: dict = {"plan_approved": True}
 
     if isinstance(resume_value, dict):
-        edited_queries = resume_value.get("sub_queries")
-        if isinstance(edited_queries, list) and edited_queries:
-            update["sub_queries"] = [str(q) for q in edited_queries if str(q).strip()]
+        if "sub_queries" in resume_value:
+            edited_queries = resume_value.get("sub_queries")
+            if isinstance(edited_queries, list):
+                update["sub_queries"] = [str(q) for q in edited_queries if str(q).strip()]
 
         edited_sources = resume_value.get("sources")
         if isinstance(edited_sources, list):

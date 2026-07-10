@@ -893,7 +893,7 @@ export const useChatStore = create((set, get) => ({
             const questions = (event.questions || [])
               .map((question, index) => `${index + 1}. ${question}`)
               .join('\n');
-            get()._setContent(activeId, assistantId, `I need a bit more context:\n\n${questions}`);
+            get()._setContent(activeId, assistantId, questions);
             break;
           }
           case 'step_token':

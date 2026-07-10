@@ -1,7 +1,9 @@
 """Step ② — SPECTER v2 batch embed → pgvector upsert.
 
-Fetches SPECTER v2 vectors via the S2 batch API (max 500 ids/call) and upserts
-them into Supabase pgvector (single vector store, dev == production).
+Checks Supabase pgvector first (shared, cross-session store) and only calls
+the S2 batch API (max 500 ids/call) for ids not already embedded, then
+upserts the combined set back into pgvector (single vector store, dev ==
+production).
 
 No embed_text() fallback (reseach-agent.html Step ②): the only fallback model
 available is NVIDIA NIM (4096-dim), which is incompatible with the fixed
@@ -18,7 +20,10 @@ import logging
 
 from backend.module.research_agent.graph.nodes.narrator import narrate_step
 from backend.module.research_agent.graph.state import ResearchState
-from backend.module.research_agent.services.vector_store import upsert_papers
+from backend.module.research_agent.services.vector_store import (
+    get_embeddings_by_ids,
+    upsert_papers,
+)
 from backend.shared.services.semantic_scholar import get_embeddings_batch
 
 log = logging.getLogger(__name__)
@@ -28,9 +33,9 @@ async def embed_node(state: ResearchState) -> dict:
     papers = list(state.get("papers", []))
     await narrate_step(f"building SPECTER v2 semantic embeddings for {len(papers)} papers for clustering")
     if not papers:
-        return {"embed_stats": {"api_hit": 0, "stored": 0}}
+        return {"embed_stats": {"api_hit": 0, "reused": 0, "stored": 0}}
 
-    api_hit = stored = 0
+    api_hit = reused = stored = 0
 
     # Only papers with a real S2 paperId can be batch-embedded. OpenAlex/
     # PubMed papers use synthetic ids ("OA_...", "pubmed_...") that S2's
@@ -39,18 +44,27 @@ async def embed_node(state: ResearchState) -> dict:
     s2_ids = [p.paper_id for p in papers if p.source == "semantic_scholar"]
 
     try:
-        specter_map = await get_embeddings_batch(s2_ids) if s2_ids else {}
+        # pgvector is a shared, cross-session store (not scoped to this run) —
+        # check it first so papers embedded by any prior run don't cost a
+        # fresh S2 batch-embed call. Only ids missing from pgvector go to S2.
+        cached = await get_embeddings_by_ids(s2_ids) if s2_ids else {}
+        to_fetch = [pid for pid in s2_ids if pid not in cached]
+
+        specter_map = await get_embeddings_batch(to_fetch) if to_fetch else {}
         for paper in papers:
-            vec = specter_map.get(paper.paper_id)
+            vec = cached.get(paper.paper_id) or specter_map.get(paper.paper_id)
+            if paper.paper_id in cached:
+                reused += 1
+            elif vec:
+                api_hit += 1
             if vec:
                 paper.embedding = vec
-                api_hit += 1
 
         stored = await upsert_papers(papers)
     except Exception as exc:
         log.warning("Embed step failed: %s — pgvector may be empty for this session", exc)
 
-    if s2_ids and api_hit == 0:
+    if s2_ids and api_hit == 0 and reused == 0:
         # get_embeddings_batch() already retries 429s with backoff internally — if we
         # still got zero vectors back for a non-empty S2 id list, every request in
         # this session was rate-limited. Clustering/themes/claims are all downstream
@@ -65,5 +79,5 @@ async def embed_node(state: ResearchState) -> dict:
 
     return {
         "papers": papers,
-        "embed_stats": {"api_hit": api_hit, "stored": stored},
+        "embed_stats": {"api_hit": api_hit, "reused": reused, "stored": stored},
     }

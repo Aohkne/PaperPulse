@@ -37,7 +37,7 @@ const ResearchPlanCard = ({ planDescription = '', subQueries = [], sources = [],
   const handleApprove = () => {
     const cleaned = queries.map((q) => q.trim()).filter(Boolean);
     onApprove({
-      sub_queries: cleaned.length ? cleaned : subQueries,
+      sub_queries: cleaned,
       sources: selectedSources.length ? selectedSources : ['semantic_scholar'],
     });
   };

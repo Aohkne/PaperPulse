@@ -135,10 +135,14 @@ async def intent_router_node(state: ResearchState) -> dict:
         text = response.content.strip()
         data = _parse_response(text)
     except Exception as exc:
-        log.warning("intent_router parse failed (%s) — defaulting to search", exc)
-        data = {"intent": "search"}
+        # Fail safe, not fail open: an unparseable classification must not
+        # silently fall through into a full (paid) search pipeline run on
+        # a possibly malformed/malicious input. Route to "clarify" instead,
+        # which only costs one extra LLM call and asks the user to rephrase.
+        log.warning("intent_router parse failed (%s) — defaulting to clarify", exc)
+        data = {"intent": "clarify"}
 
-    intent = data.get("intent", "search")
+    intent = data.get("intent", "clarify")
 
     # Always record the user turn in conversation history
     update: dict = {

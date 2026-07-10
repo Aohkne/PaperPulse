@@ -713,8 +713,22 @@ CREATE OR REPLACE FUNCTION public.match_papers(
     LIMIT match_count;
 $$;
 
+-- 14c. get_paper_embeddings_by_ids — raw vectors back by paper_id, used by
+-- embed_node to skip re-calling the S2 SPECTER batch API for papers already
+-- embedded in a prior run (pgvector is a shared, cross-session store).
+-- PostgREST can't cast `vector` to JSON cleanly on a plain table GET, so cast
+-- explicitly inside SQL, same pattern as get_gap_specter_embeddings_by_ids.
+CREATE OR REPLACE FUNCTION public.get_paper_embeddings_by_ids(
+    p_paper_ids TEXT[]
+) RETURNS TABLE(paper_id TEXT, embedding REAL[])
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    SELECT paper_id, embedding::real[] FROM public.paper_embeddings
+    WHERE paper_id = ANY(p_paper_ids);
+$$;
+
 REVOKE EXECUTE ON FUNCTION public.upsert_paper_embedding(TEXT, FLOAT8[], TEXT, INT, INT, TEXT) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.match_papers(FLOAT8[], INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_paper_embeddings_by_ids(TEXT[]) FROM PUBLIC;
 
 -- ============================================================================
 -- 15. (removed) SEARCH/LLM RESPONSE CACHE — the `search_cache` table is gone.

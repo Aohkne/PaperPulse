@@ -120,6 +120,27 @@ async def query_by_vector(embedding: list[float], top_k: int = 10) -> list[dict]
     ]
 
 
+async def get_embeddings_by_ids(paper_ids: list[str]) -> dict[str, list[float]]:
+    """Return already-stored SPECTER vectors for these ids, keyed by paper_id.
+
+    Used by embed_node to skip re-calling the S2 batch embed API for papers
+    a prior run (any user's — this store is shared, not session-scoped)
+    already embedded.
+    """
+    if not paper_ids:
+        return {}
+    settings = get_settings()
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            f"{settings.supabase_url}/rest/v1/rpc/get_paper_embeddings_by_ids",
+            json={"p_paper_ids": paper_ids},
+            headers=_rest_headers(),
+            timeout=15.0,
+        )
+    res.raise_for_status()
+    return {row["paper_id"]: row["embedding"] for row in res.json() if row.get("embedding")}
+
+
 async def get_papers_by_ids(paper_ids: list[str]) -> list[Paper]:
     """Retrieve Paper objects stored in Supabase by their IDs."""
     if not paper_ids:

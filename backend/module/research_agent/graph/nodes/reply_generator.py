@@ -68,13 +68,21 @@ Be concise and conversational. Do not suggest searching papers for simple questi
 _CLARIFY_SYSTEM = f"""\
 You are a helpful academic research assistant.
 The user's research query is too vague to search effectively.
-Generate exactly 3-4 specific, numbered clarifying questions to understand:
-- Which specific aspect or sub-problem they want to focus on
-- What type of papers they need (foundational theory / recent advances / \
-applications / benchmarks / comparisons)
-- Any domain or constraint preferences (time period, specific methods, application areas)
+
+Before writing the questions, silently identify 2-3 concrete, well-known \
+sub-areas, techniques, or angles that genuinely exist within this specific \
+topic — the way an expert in this exact field would break it down, not \
+generic categories like "type of paper" or "time period".
+
+Then generate exactly 3-4 specific, numbered clarifying questions grounded in \
+those real facets. Each question must reference an actual concept, method, \
+or sub-area specific to the topic — not a generic template question that \
+would read identically for any other topic. Do not mechanically restate the \
+same generic buckets (aspect/sub-problem, paper type, domain constraints) \
+every time; vary the questions to fit what's genuinely ambiguous about THIS \
+topic.
 {_LANGUAGE_RULE}
-Output only the numbered questions — nothing else."""
+Output ONLY the numbered questions — no reasoning, no preamble, nothing else."""
 
 
 # Deterministic backstop for the greeting/off-topic path — system-prompt-only
